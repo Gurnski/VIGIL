@@ -26,6 +26,9 @@ python/data/
 *.hdf
 *.h5
 *.he5
+# GPM IMERG files end in .HDF5. Both cases are listed, because matching is case-sensitive on Linux.
+*.hdf5
+*.HDF5
 *.zarr/
 *.tif
 *.tiff
