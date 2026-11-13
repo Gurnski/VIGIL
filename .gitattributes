@@ -1,0 +1,9 @@
+# Let git normalise line endings, so Windows and non-Windows checkouts agree.
+* text=auto
+
+# Never touch these.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.pdf binary
+*.ico binary

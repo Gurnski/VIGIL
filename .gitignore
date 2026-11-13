@@ -1,0 +1,52 @@
+# Build output and editor state
+bin/
+obj/
+.vs/
+*.suo
+*.userprefs
+
+# VIGIL.csproj.user is tracked on purpose: it tells Visual Studio which files
+# open in the designer. See "Windows Forms rules" in AGENTS.md.
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Downloaded data, the catalogue and the results cache. These live on the
+# cloud bucket or a local disk, never in the repository.
+data/
+python/data/
+*.nc
+*.nc4
+*.hdf
+*.h5
+*.he5
+*.zarr/
+*.tif
+*.tiff
+
+# Credentials. Nothing here is ever committed.
+.env
+.env.*
+.netrc
+_netrc
+*.pem
+*.key
+credentials*
+.aws/
+urs_cookies*
+
+# Planning files that stay on the lead's machine
+Project_Brief_v1.pdf
+Screenshot*.png
+event-day*.png
+
+# Operating system clutter
+Thumbs.db
+desktop.ini
+.DS_Store
