@@ -29,7 +29,7 @@ Each area has one owner. The owner is whoever names it in their claim file. The 
 | `submission` | `docs/submission/`, `README.md` | Demo video script, presentation, written project page |
 | `project-docs` | `AGENTS.md`, `COORDINATION.md`, `CLAUDE.md`, `Project_Brief.*` | Dan owns these |
 
-The `python/` layout is a proposal until Dan confirms it. Nothing exists under it yet.
+The folders exist and each holds a short README saying what belongs there. They are otherwise empty until the event.
 
 Tests live beside the code they test and belong to the same owner.
 
