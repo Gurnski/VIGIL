@@ -55,7 +55,13 @@ TOOLS = [
                 },
                 "significant": {
                     "type": "boolean",
-                    "description": "Default true. Pass false to see findings that did not pass the threshold after correction.",
+                    "description": "Default true. Pass false to see only the findings that did not pass the threshold after correction.",
+                },
+                "include_not_significant": {
+                    "type": "boolean",
+                    "description": "Pass true to get significant findings and the ones that did not pass, together, significant first. "
+                    "Use it to see everything the scan holds for a cell or a place. It replaces `significant`. "
+                    "With sort_by abs_slope the ones that did not pass can come first, so leave sort_by at rank.",
                 },
                 "cell_id": {"type": "string", "description": "One cell, such as r60c112."},
                 "lat_min": {"type": "number"},
@@ -107,7 +113,7 @@ class FindingStore:
         variable: str | None = None,
         kind: str | None = None,
         direction: str | None = None,
-        significant: bool = True,
+        significant: bool | None = True,
         cell_id: str | None = None,
         lat_min: float | None = None,
         lat_max: float | None = None,
@@ -119,7 +125,7 @@ class FindingStore:
         """The findings that match, in order, cut to ``limit``, and the number that match in all."""
         matches = [
             f for f in self.findings
-            if f["significant"] == significant
+            if (significant is None or f["significant"] == significant)
             and (kind is None or f["kind"] == kind)
             and (variable is None or any(v["id"] == variable for v in f["variables"]))
             and (cell_id is None or f["cell"]["id"] == cell_id or _paired_cell(f) == cell_id)
@@ -163,7 +169,8 @@ class _BadRequest(Exception):
 
 
 def _search(store: FindingStore, a: dict) -> dict:
-    known = {"variable", "kind", "direction", "significant", "cell_id", "lat_min", "lat_max", "lon_min", "lon_max", "sort_by", "limit"}
+    known = {"variable", "kind", "direction", "significant", "include_not_significant", "cell_id", "lat_min", "lat_max",
+             "lon_min", "lon_max", "sort_by", "limit"}
     unknown = sorted(set(a) - known)
     if unknown:
         raise _BadRequest(f"Unknown search option(s): {unknown}. Options: {sorted(known)}.")
@@ -180,6 +187,11 @@ def _search(store: FindingStore, a: dict) -> dict:
     significant = a.get("significant", True)
     if not isinstance(significant, bool):
         raise _BadRequest("significant must be true or false.")
+    include = a.get("include_not_significant", False)
+    if not isinstance(include, bool):
+        raise _BadRequest("include_not_significant must be true or false.")
+    if include:
+        significant = None                      # both, whatever `significant` says
     box = {k: _number(a.get(k), k) for k in ("lat_min", "lat_max", "lon_min", "lon_max")}
     for k, low, high in (("lat_min", -90, 90), ("lat_max", -90, 90), ("lon_min", -180, 180), ("lon_max", -180, 180)):
         if box[k] is not None and not low <= box[k] <= high:

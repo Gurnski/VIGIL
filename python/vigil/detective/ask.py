@@ -96,6 +96,7 @@ def ask(
     shown = select_findings(findings, finding_id, SHOWN_WITH_TOOLS if use_tools else MAX_FINDINGS)
     seen = {f["id"]: f for f in shown}        # everything the model has been given or has looked up
     made: dict[str, dict] = {}                # the tool calls already made for this question
+    searches: list[dict] = []                 # the searches that ran, for spotting a later one they cover
     store = FindingStore(findings, run)
     context = build_context(shown, run)
 
@@ -143,7 +144,7 @@ def ask(
 
         if response.stop_reason == "tool_use" and use_tools and round_number < MAX_TOOL_ROUNDS:
             messages.append({"role": "assistant", "content": _blocks(response.content)})
-            messages.append({"role": "user", "content": _run_tools(response.content, store, seen, made)})
+            messages.append({"role": "user", "content": _run_tools(response.content, store, seen, made, searches)})
             continue
         break
 
@@ -204,23 +205,47 @@ ALREADY_GIVEN = (
 )
 
 
-def _filters_and_limit(block):
-    """A search's options without its limit (as a string to compare), and its limit as a whole number or None."""
+def _search_request(block):
+    """A search as ``(filters, sort_by, limit)``, or ``(None, None, None)`` for any other tool call.
+
+    ``filters`` is what the search asks for, without its order or its limit, with the default
+    (significant findings only) written in so two spellings of the same search compare equal.
+    ``limit`` is a whole number, or None when the call gave something else.
+    """
     if block.name != "search_findings" or not isinstance(block.input, dict):
-        return None, None
-    filters = json.dumps({k: v for k, v in block.input.items() if k != "limit"}, sort_keys=True, default=str)
+        return None, None, None
+    filters = {k: v for k, v in block.input.items() if k not in ("limit", "sort_by", "include_not_significant")}
+    filters.setdefault("significant", True)
+    if block.input.get("include_not_significant") is True:
+        filters["significant"] = "any"          # both kinds of finding: it covers a search for either
     limit = block.input.get("limit", DEFAULT_LIMIT)
-    return filters, (limit if isinstance(limit, int) and not isinstance(limit, bool) else None)
+    return filters, block.input.get("sort_by", "rank"), (limit if isinstance(limit, int) and not isinstance(limit, bool) else None)
 
 
-def _run_tools(content, store: FindingStore, seen: dict[str, dict], made: dict[str, dict]) -> list[dict]:
+def _covered(filters, sort_by, limit, searches) -> bool:
+    """True when an earlier search already returned everything this one would.
+
+    That is the case when an earlier search that returned every match asked for the same or for
+    less (this one only adds filters, whatever its order or limit), or when it asked for the same
+    in the same order and returned at least as many as this one wants.
+    """
+    for earlier in searches:
+        narrower = all(k in filters and (filters[k] == v or (k == "significant" and v == "any"))
+                       for k, v in earlier["filters"].items())
+        if earlier["complete"] and narrower:
+            return True
+        if narrower and filters == earlier["filters"] and sort_by == earlier["sort_by"]                 and limit is not None and limit <= earlier["shown"]:
+            return True
+    return False
+
+
+def _run_tools(content, store: FindingStore, seen: dict[str, dict], made: dict[str, dict], searches: list[dict]) -> list[dict]:
     """Run every tool the model asked for. Findings it is shown count as given to it.
 
-    ``made`` remembers the calls already made for this question. Asking again for the same
-    search, for a search that an earlier one already covered (the same filters with the
-    same or a smaller limit, or any limit once it returned every match), or for a finding
-    it already holds, is answered with a pointer to what it has instead of the same data
-    a second time.
+    ``made`` remembers the calls already made for this question and ``searches`` the searches that ran.
+    Asking again for the same call, for a search an earlier one already covered (see ``_covered``), or
+    for a finding it already holds, is answered with a pointer to what it has instead of the same data
+    a second time. Each call is logged with what was done, so the log shows the work, not the requests.
     """
     results = []
     for block in content:
@@ -229,20 +254,20 @@ def _run_tools(content, store: FindingStore, seen: dict[str, dict], made: dict[s
         key = f"{block.name}:{json.dumps(block.input, sort_keys=True, default=str)}"
         wanted = block.input.get("id") if isinstance(block.input, dict) else None
         wanted = wanted if isinstance(wanted, str) else None
-        filters, limit = _filters_and_limit(block)
-        earlier = made.get(f"search:{filters}") if filters is not None else None
+        filters, sort_by, limit = _search_request(block)
         if key in made:
-            result, is_error = {"note": REPEATED_CALL}, False
-        elif earlier and (earlier["complete"] or (limit is not None and limit <= earlier["shown"])):
-            result, is_error = {"note": COVERED_SEARCH}, False
+            result, is_error, how = {"note": REPEATED_CALL}, False, "repeat, not run"
+        elif filters is not None and _covered(filters, sort_by, limit, searches):
+            result, is_error, how = {"note": COVERED_SEARCH}, False, "covered by an earlier search, not run"
         elif block.name == "get_finding" and wanted in seen:
-            result, is_error = {"note": ALREADY_GIVEN, "id": wanted}, False
+            result, is_error, how = {"note": ALREADY_GIVEN, "id": wanted}, False, "already given, not run"
         else:
             result, is_error = run_tool(store, block.name, block.input)
             made[key] = result
+            how = "error" if is_error else "run"
             if filters is not None and not is_error:
-                made[f"search:{filters}"] = {"complete": result["complete"], "shown": result["shown"]}
-        log.info("tool %s(%s)%s", block.name, json.dumps(block.input), " -> error" if is_error else "")
+                searches.append({"filters": filters, "sort_by": sort_by, "complete": result["complete"], "shown": result["shown"]})
+        log.info("tool %s(%s): %s", block.name, json.dumps(block.input), how)
         for compact in [*result.get("findings", []), result.get("finding")]:
             if compact and compact["id"] in store.by_id:
                 seen[compact["id"]] = store.by_id[compact["id"]]
