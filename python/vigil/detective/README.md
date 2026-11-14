@@ -15,3 +15,7 @@ It never computes or alters a statistic itself.
 `use_tools=False` is the older single call with the top 30 findings pasted in. It is also what runs if the API refuses a request that carries tools.
 
 `python -m vigil.detective.live_check` asks the real model the contract's four examples and four questions that need the tools, and prints each tool call. It needs `ANTHROPIC_API_KEY` in that terminal and spends a few pence. It is the only check of the live API: the tests use a stand-in for the model.
+
+## Time allowed
+
+The whole answer may take `VIGIL_DETECTIVE_DEADLINE` seconds (default 75), and each model call is given only the time that is left, so one slow reply cannot run past it. If time runs out the user gets a plain "That took too long" message, never a half answer. Set the deadline lower than every limit in front of the service: the function's own timeout (it must be higher than this: 90 seconds against 75), and a proxy such as Cloudflare if there is one (100 seconds on the free plan). The desktop app waits 90 seconds.

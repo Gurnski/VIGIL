@@ -8,6 +8,10 @@ Whatever it finally says is checked by ``grounding.check_answer`` against every
 finding it was given or looked up, and an answer that fails the check is replaced
 by a plain message, so the app never shows a claim that is not backed by a finding.
 
+Time is limited: ``VIGIL_DETECTIVE_DEADLINE`` seconds (default ``DEADLINE_SECONDS``, 75) for the whole
+answer, and each model call is given only the time that is left. If the time runs out the answer is a plain
+message, never a half answer. Set the deadline below any limit in front of the service (see ``deadline_seconds``).
+
 ``use_tools=False`` goes back to a single call with the top ``MAX_FINDINGS``
 findings and no tools. It is also what happens if the API refuses a request that
 carries tools, so a problem there cannot take the Detective down.
@@ -20,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 
 import anthropic
@@ -41,8 +46,22 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_FINDINGS = 30          # shown up front when there are no tools
 SHOWN_WITH_TOOLS = 10      # shown up front when there are tools; the model looks up the rest
 MAX_TOOL_ROUNDS = 4        # rounds of tool calls before the model must answer
-DEADLINE_SECONDS = 75      # the app waits 90, so stop before it gives up
+DEADLINE_SECONDS = 75      # the app waits 90, so stop before it gives up. Override with VIGIL_DETECTIVE_DEADLINE
 MAX_TOKENS = 2000
+
+
+def deadline_seconds() -> float:
+    """How long ``ask`` may take, from ``VIGIL_DETECTIVE_DEADLINE`` (seconds), else ``DEADLINE_SECONDS``.
+
+    Set it below whatever limit sits in front of the service: the function timeout (it must be
+    higher than this), and a proxy or gateway if there is one. A value that is not a positive
+    number is ignored.
+    """
+    try:
+        value = float(os.environ.get("VIGIL_DETECTIVE_DEADLINE", ""))
+    except ValueError:
+        return float(DEADLINE_SECONDS)
+    return value if value > 0 and value != float("inf") else float(DEADLINE_SECONDS)
 
 
 def select_findings(findings: list[dict], finding_id: str | None = None, limit: int = MAX_FINDINGS) -> list[dict]:
@@ -93,11 +112,14 @@ def ask(
     if use_tools:
         base["tools"] = TOOLS
 
+    deadline = deadline_seconds()
     started = time.monotonic()
     for round_number in range(MAX_TOOL_ROUNDS + 1):
-        if round_number and time.monotonic() - started > DEADLINE_SECONDS:
+        remaining = deadline - (time.monotonic() - started)
+        if round_number and remaining <= 0:
             return _unavailable(run_id, model, "That took too long.")
-        request = {**base, "messages": messages}
+        # Each call may only use the time that is left, so one slow reply cannot run past the deadline.
+        request = {**base, "messages": messages, "timeout": max(remaining, 1.0)}
         if use_tools and round_number == MAX_TOOL_ROUNDS:
             request["tool_choice"] = {"type": "none"}     # out of rounds: it has to answer now
         try:
@@ -112,6 +134,9 @@ def ask(
                 return ask(question, findings, run, history, finding_id, client, model, use_fallbacks, use_tools=False)
             log.error("Detective request failed: %s", error)
             return _unavailable(run_id, model, "The assistant could not be reached.")
+        except anthropic.APITimeoutError:
+            log.warning("Detective request ran out of time in round %d", round_number)
+            return _unavailable(run_id, model, "That took too long.")
         except anthropic.APIError as error:
             log.error("Detective request failed: %s", error)
             return _unavailable(run_id, model, "The assistant could not be reached.")
