@@ -1,0 +1,117 @@
+/* The ranked findings list, matching the desktop app's FindingsList control. */
+
+.findings-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  /* Room for the bar is kept whether or not it shows, so text never reflows when it appears. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* With a selection, the focus ring goes on the selected row instead of the whole list. */
+.findings-list.findings-has-selection:focus-visible {
+  outline: none;
+}
+
+.findings-list:focus-visible .findings-selected {
+  outline: 1px solid var(--text-secondary);
+  outline-offset: -1px;
+}
+
+.findings-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid transparent;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  /* Rows out of view are not laid out or painted, which keeps a list of thousands cheap. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
+}
+
+.findings-row + .findings-row {
+  border-top-color: var(--divider);
+}
+
+.findings-row:hover {
+  background: var(--surface-raised);
+}
+
+.findings-row.findings-selected {
+  background: var(--surface-hover);
+}
+
+/* A filled row needs no hairline above it, nor does the row after it. */
+.findings-row:hover,
+.findings-row.findings-selected,
+.findings-row:hover + .findings-row,
+.findings-row.findings-selected + .findings-row {
+  border-top-color: transparent;
+}
+
+.findings-row.findings-selected::before {
+  content: '';
+  position: absolute;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+.findings-rank,
+.findings-score {
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  /* The body's line height, so the figures sit on the summary's first line. */
+  line-height: calc(var(--font-body) * 1.45);
+}
+
+.findings-rank {
+  color: var(--text-muted);
+}
+
+.findings-score {
+  min-width: 36px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.findings-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.findings-summary {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Not significant is said in the quieter text colour, as everywhere else in the app. */
+.findings-summary.findings-quiet {
+  color: var(--text-secondary);
+}
+
+.findings-detail {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  overflow-wrap: anywhere;
+}
+
+.findings-empty {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  color: var(--text-muted);
+  line-height: var(--control-height);
+}

@@ -1,0 +1,115 @@
+.globe-view {
+  position: absolute;
+  inset: 0;
+  background: var(--background);
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* A panel over the globe: one of the few places an outline is drawn. */
+.globe-legend {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  width: 240px;
+  max-width: calc(100% - 2 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  pointer-events: none;
+}
+
+.globe-legend-title {
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.globe-legend-bar {
+  height: 10px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-small);
+}
+
+.globe-legend-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.globe-legend-values span:nth-child(2) {
+  text-align: center;
+}
+
+.globe-legend-values span:nth-child(3) {
+  text-align: right;
+}
+
+/* The markers' layer covers the globe but lets drags and pinches through to it. */
+.globe-markers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* A finding marker: a dot on the cell centre with its rank beside it. The dot is the element,
+   moved to its place on screen each frame, and the label hangs off it. */
+.globe-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 2px solid var(--background);
+  border-radius: 50%;
+  background: var(--text-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* A larger target for fingers than the dot itself. */
+.globe-marker::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.globe-marker-significant {
+  background: var(--accent);
+  color: var(--accent);
+}
+
+.globe-marker-label {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-small);
+  background: var(--background);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.globe-marker:hover,
+.globe-marker-selected {
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-hover);
+  color: var(--accent-hover);
+}

@@ -59,3 +59,10 @@ desktop.ini
 # The C# Data/ folder is source code. On Windows the data/ rule above matches it too, because
 # file names there ignore case, so it is let back in here.
 !/VIGIL/VIGIL/Data/
+
+# The web viewer: installed packages, build output, and its run-time copies of the fixture
+# (scripts/copy-fixture.mjs makes them from contract/fixture/).
+web/node_modules/
+web/dist/
+web/public/snapshot.json
+web/public/ask.json

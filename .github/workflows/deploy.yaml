@@ -5,7 +5,65 @@ on:
     branches: [ main ]
 
 jobs:
+  # The web viewer (web/): a static React build that runs in any browser from the bucket.
+  build-viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the viewer
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Hand the build to the deploy job
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigil-viewer
+          path: web/dist
+          retention-days: 3
+
+  # VIGIL itself is a Windows desktop app, so it cannot run in a browser. This job builds it
+  # into one exe that needs nothing installed, and the viewer links to it as a download.
+  build-app:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish the app as a single exe
+        run: >
+          dotnet publish VIGIL/VIGIL/VIGIL.csproj -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish
+
+      - name: Zip it
+        shell: pwsh
+        run: Compress-Archive -Path publish/VIGIL.exe -DestinationPath VIGIL-win-x64.zip
+
+      - name: Hand the zip to the deploy job
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigil-app
+          path: VIGIL-win-x64.zip
+          retention-days: 3
+
   deploy:
+    needs: [ build-viewer, build-app ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository code
@@ -18,10 +76,40 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
+      # The viewer's files and the app download are left out of this sync, so that --delete
+      # does not remove what the steps below put on the bucket.
       - name: Sync files to S3 Bucket
         run: |
           aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
             --exclude ".git/*" \
             --exclude ".github/*" \
-            --exclude "README.md"
+            --exclude "README.md" \
+            --exclude "index.html" \
+            --exclude "snapshot.json" \
+            --exclude "ask.json" \
+            --exclude "viewer/*" \
+            --exclude "download/*"
+
+      - name: Fetch the viewer build
+        uses: actions/download-artifact@v4
+        with:
+          name: vigil-viewer
+          path: viewer-build
+
+      - name: Fetch the built app
+        uses: actions/download-artifact@v4
+        with:
+          name: vigil-app
+
+      # The viewer goes at the bucket root: index.html, snapshot.json, ask.json and viewer/.
+      # Its hashed files in viewer/ are synced first with --delete to clear out old builds,
+      # then the root files are copied with no-cache so a new build shows up straight away.
+      - name: Upload the viewer and the app
+        run: |
+          aws s3 sync viewer-build/viewer s3://${{ secrets.S3_BUCKET_NAME }}/viewer --delete
+          for file in index.html snapshot.json ask.json; do
+            aws s3 cp "viewer-build/$file" "s3://${{ secrets.S3_BUCKET_NAME }}/$file" --cache-control no-cache
+          done
+          aws s3 cp VIGIL-win-x64.zip s3://${{ secrets.S3_BUCKET_NAME }}/download/VIGIL-win-x64.zip \
+            --content-type application/zip --cache-control no-cache

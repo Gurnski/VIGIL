@@ -1,0 +1,148 @@
+/*
+  VIGIL's look, as CSS variables. The values are the desktop app's, from
+  VIGIL/VIGIL/Theming/Theme.cs: keep the two in step. The rules are the same too: flat graphite
+  surfaces told apart by tone, an off-white accent for what can be acted on or is selected, and
+  colour kept for data and for meaning. No gradients, glows, see-through panels or uppercase labels.
+*/
+:root {
+  --background: #131415;
+  --surface-low: #17181a;
+  --surface: #1b1c1f;
+  --surface-raised: #232529;
+  --surface-hover: #2c2e33;
+  --border: #383b41;
+  --divider: #26282c;
+
+  --text-primary: #edece8;
+  --text-secondary: #a6a5a0; /* also means "not significant" */
+  --text-muted: #7c7b77;
+  --text-disabled: #53524f;
+
+  --accent: #e9e6df;
+  --accent-hover: #f7f5f0;
+  --accent-pressed: #cdcac3;
+  --on-accent: #151617;
+
+  --series: #74a9db; /* a measured series in a chart */
+  --positive: #5dbe8f;
+  --negative: #e4776e;
+  --warning: #dfa646;
+
+  --radius-small: 3px;
+  --radius: 4px;
+
+  /* Spacing scale on a 4px base. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --control-height: 36px;
+
+  --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 14px;
+  --font-caption: 12px;
+  --font-title: 18px;
+  --font-heading: 26px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text-primary);
+  font: var(--font-body) / 1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 1px solid var(--text-secondary);
+  outline-offset: 1px;
+}
+
+/* Figures that must line up: ranks, scores, read-outs. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small outlined status label, as the app's Badge control. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.warning {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--surface));
+}
+
+/* Buttons, as the app's VigilButton variants. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.button.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.button:disabled,
+.button.primary:disabled {
+  background: var(--surface-raised);
+  color: var(--text-disabled);
+  cursor: default;
+}

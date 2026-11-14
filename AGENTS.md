@@ -16,6 +16,7 @@ The plan for the hackathon weekend (architecture, scope, schedule) is in `docs/b
 - No NuGet packages yet. Ask before adding one, and say why it beats writing the code ourselves.
 - A Python analysis service (FastAPI) under `python/`, which the app calls over HTTP on localhost. All data handling and statistics live there, not in C#. The app talks to it with `HttpClient` and `System.Text.Json`, which need no packages.
 - The JSON format the two halves exchange is the result contract in `contract/`. It is read-only for everyone except Dan.
+- A web viewer under `web/`: React 18 and TypeScript, built with Vite into static files. It reads the same contract. See "The web viewer" below.
 
 ## Language: UK English
 
@@ -44,8 +45,8 @@ Everything lives under `VIGIL/VIGIL/`, in folders with matching namespaces (`VIG
 | `Controls/` | Reusable custom-drawn controls (buttons, cards, chart, nav rail and so on) |
 | `Forms/` | Windows (`Form` subclasses) and their `.Designer.cs` and `.resx` files |
 | `Pages/` | Screens shown inside `MainForm`, one `UserControl` per nav item |
-| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. Also the saved chats (`ChatService`) and the embedded fixture (`Fixture`). |
-| `Models/` | Plain data types that mirror the result contract: the Detective's question and answer, a finding's summary, a saved conversation |
+| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. Also `ResultsReader`, which reads a results document and the embedded snapshot, the saved chats (`ChatService`) and the embedded fixture (`Fixture`). |
+| `Models/` | Plain data types that mirror the result contract: the results document, findings, series, globe layers and the run record, plus the Detective's question and answer, a finding's summary and a saved conversation. Property names follow the contract through `JsonNamingPolicy.SnakeCaseLower`, so `p_adjusted` is `PAdjusted`. |
 
 There is no C# `Analysis/` folder. Trends, significance, change points and every other statistic are computed by the Python service, and the app only displays what the service returns.
 
@@ -135,6 +136,24 @@ The chat is the C# side of the AI Detective. It only ever calls `POST /ask` on t
 3. Replace the matching `PlaceholderPage` entry if there is one.
 
 Real pages should use the designer (a `.Designer.cs` file). `GalleryPage`, `PlaceholderPage` and `MapPage` are built in code for now: the first two are a showcase and a stand-in, and `MapPage` is mostly one custom control plus a toolbar. Move `MapPage` to the designer if its layout grows. These three carry `[DesignerCategory("Code")]` so Visual Studio opens them as code. The designer has nothing to load for them, and opening one there can end in a "Value cannot be null" error. Remove the attribute when you give a page a `.Designer.cs`.
+
+## The web viewer
+
+`web/` is a second, smaller front end: a static React site that shows the same results document in a browser, so VIGIL can be seen from a link as well as run in person. Dan owns it.
+
+It is a viewer, not a second copy of the app. It has one screen with three parts: the globe with a variable's trend layer, the ranked findings list, and the Detective chat. The desktop app stays the main one and gets new features first. Porting more of it to the web is a later decision, not something to start by drift.
+
+- Run it with `cd web`, `npm install`, `npm run dev`. `npm run build` type-checks and writes the site to `web/dist/`. You need Node 22.
+- It loads `snapshot.json` and `ask.json` from beside `index.html` when the page opens. `scripts/copy-fixture.mjs` copies them from `contract/fixture/` before every dev run and build, and the copies are not committed. To show real results, put a real `snapshot.json` in the bucket: no rebuild is needed.
+- `src/contract.ts` is the contract as TypeScript types, with the JSON's own snake_case names. It only describes the format. Change it when Dan changes the contract, and never to suit the viewer.
+- `src/theme.css` holds the colours, spacing and type sizes as CSS variables, copied from `Theme.cs`. The UI rules above apply here too: tokens only, surfaces told apart by tone, status colours for meaning, no decoration, sentence case, UK English.
+- Each part keeps to its own folder under `src/` (`findings/`, `globe/`, `detective/`) with its own stylesheet and a class-name prefix to match. `src/App.tsx` is the shell that holds the shared state (the chosen finding, the layer, whether the chat is open) and passes it down.
+- The same honesty rules as the app: made-up results carry the "Synthetic fixture" badge, a fixture answer from the Detective is marked "Sample answer", and the viewer never calls a language model or holds a key. The Detective's address is the build-time variable `VITE_VIGIL_API_URL`, or `http://127.0.0.1:8000` without it.
+- All statistics still come from the Python service. The viewer displays what the document says and computes nothing but layout and the colour scale's range.
+- Packages so far: `react`, `react-dom`, `react-globe.gl` and `three`. Ask before adding one.
+- `.github/workflows/deploy.yaml` builds the viewer and the desktop app on every push to `main` and puts both on the S3 bucket: the viewer at the root, and the app as `download/VIGIL-win-x64.zip`, which the viewer links to.
+
+Before you finish a change in `web/`: `npm run build` must pass, and open the page at phone width as well as desktop width.
 
 ## Windows Forms rules
 

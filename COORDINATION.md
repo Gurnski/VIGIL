@@ -24,6 +24,7 @@ Each area has one owner. The split matches section 08 of `docs/brief/Project_Bri
 | `analysis` | Will | `python/vigil/analysis/` | Trends, significance, change points, cascades, contradictions, ranking |
 | `detective` | Will | `python/vigil/detective/` | The AI Detective: tool calls over the API, grounded answers |
 | `interface` | Dan | `VIGIL/` | The whole C# project: pages, controls, API client, models. This includes the chat panel, which is the C# side of the Detective. |
+| `web` | Dan | `web/`, `.github/workflows/deploy.yaml` | The web viewer: a React site that shows the same results in a browser (globe layer, findings list, Detective chat), and the workflow that builds it and the desktop app and puts both on the S3 bucket |
 | `submission` | Open | `docs/submission/`, `README.md` | Demo video script, presentation, written project page. Shared out on the day. |
 | `project-docs` | Dan | `AGENTS.md`, `COORDINATION.md`, `CLAUDE.md`, `docs/brief/` | The rules and the plan |
 
@@ -43,7 +44,7 @@ If an area changes hands, Dan updates the table and tells everyone.
 
 ## The contract
 
-`contract/` is read-only for everyone except Dan. Both halves of the system depend on it: the Python side writes findings in that format and the C# side reads them.
+`contract/` is read-only for everyone except Dan. Everything depends on it: the Python side writes findings in that format, and the C# app and the web viewer both read them. The viewer's copy of the format is `web/src/contract.ts`, and it changes only when the contract does.
 
 - Never rename, remove or retype a field, on either side, to make your own code simpler.
 - If the format is missing something you need, stop and ask Dan. He changes the contract and the fixture together, then tells everyone.
@@ -62,8 +63,11 @@ Folder ownership doesn't cover these. Each has its own rule.
 | `VIGIL/VIGIL/Forms/MainForm.cs` | Add one `AddPage(...)` line for your page. Don't reorder the others. |
 | `VIGIL/VIGIL/VIGIL.csproj`, `VIGIL.csproj.user` | Add your own entry only. |
 | `*.Designer.cs`, `*.resx` | Only the person who owns that form or page touches them. |
+| `web/package.json`, `web/package-lock.json` | Ask Dan before adding a package. Commit both files together, and never edit the lock file by hand. |
+| `web/src/theme.css` | Mirrors `Theme.cs`. Add new variables at the end of the relevant group. Never rename or change an existing one without changing `Theme.cs` to match. |
+| `web/src/App.tsx`, `web/src/app.css` | The viewer's shell. Each part of the viewer keeps to its own folder under `web/src/` and is wired in here with one import. |
 
-The C# rows only matter when two people share the `interface` area. With one owner, they are that owner's files.
+The C# and `web/` rows only matter when two people, or two agents, share that area. With one owner working alone, they are that owner's files.
 
 ## Git
 
