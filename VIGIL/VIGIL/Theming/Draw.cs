@@ -96,11 +96,11 @@ namespace VIGIL.Theming
         }
 
         /// <summary>
-        ///  Uppercase label in the caption weight, for card titles and tile captions.
+        ///  Small label in the caption weight, for card titles and tile captions. Sentence case, as written.
         /// </summary>
         public static void Caption(Graphics g, string text, Rectangle bounds, Color colour, TextFormatFlags flags = DefaultText)
         {
-            TextRenderer.DrawText(g, text.ToUpperInvariant(), Theme.CaptionStrong, bounds, colour, flags);
+            TextRenderer.DrawText(g, text, Theme.CaptionStrong, bounds, colour, flags);
         }
 
         public static Size Measure(Graphics g, string text, Font font)
@@ -145,7 +145,8 @@ namespace VIGIL.Theming
         }
 
         /// <summary>
-        ///  Draws a line with a gradient fill fading down to the baseline.
+        ///  Draws a line. A fillAlpha above 0 adds a fill fading down to the baseline, which the
+        ///  kit no longer uses: a fill under a line says nothing the line doesn't.
         /// </summary>
         public static void AreaLine(Graphics g, PointF[] points, float baseline, Color colour, float lineWidth, int fillAlpha)
         {

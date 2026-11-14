@@ -128,7 +128,7 @@ namespace VIGIL.Controls
 
             if (Enabled && hovered >= 0 && hovered != selected)
             {
-                Draw.RoundedBox(g, SegmentBounds(hovered), radius, Draw.WithAlpha(Theme.SurfaceHover, 110));
+                Draw.RoundedBox(g, SegmentBounds(hovered), radius, Draw.Blend(Theme.SurfaceRaised, Theme.SurfaceHover, 0.45f));
             }
             if (selected >= 0)
             {
@@ -138,7 +138,7 @@ namespace VIGIL.Controls
             if (Focused && ShowFocusCues)
             {
                 using var path = Draw.RoundedRect(RectangleF.Inflate(OutlineBounds, -1f, -1f), radius + Inset - 1f);
-                using var ring = new Pen(Draw.WithAlpha(Theme.Accent, 160), 1f);
+                using var ring = new Pen(Theme.TextSecondary, 1f);
                 g.DrawPath(ring, path);
             }
 

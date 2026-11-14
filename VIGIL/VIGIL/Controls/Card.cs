@@ -58,7 +58,7 @@ namespace VIGIL.Controls
 
             if (title.Length > 0)
             {
-                Draw.Caption(g, title, TitleBounds, Theme.TextMuted);
+                Draw.Caption(g, title, TitleBounds, Theme.TextSecondary);
             }
         }
     }

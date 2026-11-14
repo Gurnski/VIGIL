@@ -195,7 +195,7 @@ namespace VIGIL.Pages
         {
             if (flightDestination is Place place)
             {
-                SetStatus(place.Name + " · " + place.Description);
+                SetStatus(place.Name + ": " + place.Description);
                 flightDestination = null;
             }
         }
@@ -206,15 +206,15 @@ namespace VIGIL.Pages
         /// </summary>
         private void AddDemoOverlays()
         {
-            globe.AddMarker(50.37, -4.14, "Plymouth", Theme.Accent, "University of Plymouth · home of the team");
-            globe.AddMarker(72.58, -38.46, "Summit Station", Theme.Warning, "Greenland ice sheet · demo trend +0.6 °C/decade");
-            globe.AddMarker(78.22, 15.63, "Svalbard", Theme.Warning, "Sea-ice season · demo trend −9 days/decade");
-            globe.AddMarker(19.54, -155.58, "Mauna Loa", Theme.Accent, "CO₂ record · demo trend +24 ppm/decade");
-            globe.AddMarker(-3.12, -60.02, "Manaus", Theme.TextSecondary, "Amazon NDVI · demo trend −0.01/decade, not significant");
-            globe.AddMarker(13.0, 14.3, "Lake Chad", Theme.Warning, "Lake area · demo trend −2.1 %/decade");
-            globe.AddMarker(13.51, 2.12, "Niamey", Theme.Positive, "Sahel rainfall · demo trend +4 %/decade");
-            globe.AddMarker(45.0, 59.8, "Aral Sea", Theme.Warning, "Water extent · demo trend −3.5 %/decade");
-            globe.AddMarker(-18.29, 147.70, "Great Barrier Reef", Theme.Warning, "Sea surface temperature · demo trend +0.2 °C/decade");
+            globe.AddMarker(50.37, -4.14, "Plymouth", Theme.Accent, "University of Plymouth, home of the team");
+            globe.AddMarker(72.58, -38.46, "Summit Station", Theme.Warning, "Greenland ice sheet: demo trend +0.6 °C/decade");
+            globe.AddMarker(78.22, 15.63, "Svalbard", Theme.Warning, "Sea-ice season: demo trend −9 days/decade");
+            globe.AddMarker(19.54, -155.58, "Mauna Loa", Theme.Accent, "CO₂ record: demo trend +24 ppm/decade");
+            globe.AddMarker(-3.12, -60.02, "Manaus", Theme.TextSecondary, "Amazon NDVI: demo trend −0.01/decade, not significant");
+            globe.AddMarker(13.0, 14.3, "Lake Chad", Theme.Warning, "Lake area: demo trend −2.1 %/decade");
+            globe.AddMarker(13.51, 2.12, "Niamey", Theme.Positive, "Sahel rainfall: demo trend +4 %/decade");
+            globe.AddMarker(45.0, 59.8, "Aral Sea", Theme.Warning, "Water extent: demo trend −3.5 %/decade");
+            globe.AddMarker(-18.29, 147.70, "Great Barrier Reef", Theme.Warning, "Sea surface temperature: demo trend +0.2 °C/decade");
 
             globe.AddRegion(10, 20, -18, 40, Theme.Warning, "Sahel study region (demo)", 0.16f);
 

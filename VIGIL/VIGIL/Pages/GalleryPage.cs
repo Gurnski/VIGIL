@@ -78,7 +78,7 @@ namespace VIGIL.Pages
             {
                 Caption = "Land surface temperature",
                 Value = "+0.21 °C",
-                Delta = "per decade · p < 0.01",
+                Delta = "per decade, p < 0.01",
                 Arrow = TrendArrow.Up,
                 DeltaColour = Theme.Warning,
                 Sparkline = RandomWalk(40, 0.05)
@@ -87,7 +87,7 @@ namespace VIGIL.Pages
             {
                 Caption = "Precipitation",
                 Value = "−3.4 %",
-                Delta = "per decade · p = 0.18",
+                Delta = "per decade, p = 0.18",
                 Arrow = TrendArrow.Down,
                 DeltaColour = Theme.TextSecondary,
                 Sparkline = RandomWalk(40, -0.01)
@@ -96,7 +96,7 @@ namespace VIGIL.Pages
             {
                 Caption = "Vegetation (NDVI)",
                 Value = "+0.012",
-                Delta = "per decade · p < 0.05",
+                Delta = "per decade, p < 0.05",
                 Arrow = TrendArrow.Up,
                 DeltaColour = Theme.Positive,
                 Sparkline = RandomWalk(40, 0.03)
@@ -115,12 +115,12 @@ namespace VIGIL.Pages
         {
             var card = new Card
             {
-                Title = "Land surface temperature anomaly · demo data",
+                Title = "Land surface temperature anomaly (demo data)",
                 Size = new Size(Px(1000), Px(420))
             };
             card.Controls.Add(chart);
 
-            var badge = new Badge { Text = "Significant trend · p < 0.01", Tone = BadgeTone.Positive };
+            var badge = new Badge { Text = "Significant trend, p < 0.01", Tone = BadgeTone.Positive };
             var titleLine = card.TitleBounds;
             badge.Location = new Point(titleLine.Right - badge.Width, titleLine.Y + (titleLine.Height - badge.Height) / 2);
             badge.Anchor = AnchorStyles.Top | AnchorStyles.Right;

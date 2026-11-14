@@ -13,7 +13,7 @@ namespace VIGIL.Controls
     }
 
     /// <summary>
-    ///  Small pill label, such as "Significant · p < 0.05" or a dataset name. Coloured tones
+    ///  Small outlined label, such as "Significant, p < 0.05" or a dataset name. Coloured tones
     ///  tint the fill and colour the text; Neutral is a quiet raised surface. Resizes itself to fit.
     /// </summary>
     public class Badge : VigilControl
@@ -73,8 +73,15 @@ namespace VIGIL.Controls
 
             bool neutral = tone == BadgeTone.Neutral;
             var colour = neutral ? Theme.TextSecondary : ToneColour;
-            var fill = neutral ? Theme.SurfaceRaised : Draw.WithAlpha(colour, Theme.TintAlpha);
-            Draw.RoundedBox(g, new Rectangle(0, 0, Width, Height), Height / 2f, fill);
+            if (Text.Length == 0)
+            {
+                return;
+            }
+
+            // An outline in a quiet mix of the tone: the text carries the colour. The fill is the
+            // card surface, so it disappears on a card and keeps the text readable over the globe.
+            var edge = neutral ? Theme.Border : Draw.Blend(Theme.Surface, colour, 0.45f);
+            Draw.RoundedBox(g, OutlineBounds, Px(Theme.RadiusSmall), Theme.Surface, edge);
 
             int x = PadX;
             if (showDot)

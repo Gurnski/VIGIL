@@ -3,8 +3,9 @@ using System.Drawing.Text;
 namespace VIGIL.Theming
 {
     /// <summary>
-    ///  Colours, fonts, spacing and corner sizes for VIGIL's dark "mission control" look.
-    ///  Every control reads from here, so restyling the app means changing values in this file.
+    ///  Colours, fonts, spacing and corner sizes for VIGIL's look: flat graphite surfaces, an
+    ///  off-white accent, and colour kept for data and for meaning. Nothing is see-through, glows
+    ///  or fades. Every control reads from here, so restyling the app means changing this file.
     ///
     ///  Surfaces are told apart by tone, not by outlines: a card is Surface on Background, an
     ///  input is SurfaceRaised on Surface. Border and Divider are for the few places that still
@@ -13,36 +14,41 @@ namespace VIGIL.Theming
     public static class Theme
     {
         // Surfaces, darkest to lightest. Background is repeated in MainForm.Designer.cs, so keep it in step.
-        public static readonly Color Background = FromHex(0x0B1220);
-        public static readonly Color SurfaceLow = FromHex(0x101828);
-        public static readonly Color Surface = FromHex(0x121B2E);
-        public static readonly Color SurfaceRaised = FromHex(0x1A2539);
-        public static readonly Color SurfaceHover = FromHex(0x223049);
-        public static readonly Color Border = FromHex(0x27344F);
-        public static readonly Color Divider = FromHex(0x1A2437);
-        public static readonly Color GridLine = FromHex(0x1B2539);
+        public static readonly Color Background = FromHex(0x131415);
+        public static readonly Color SurfaceLow = FromHex(0x17181A);
+        public static readonly Color Surface = FromHex(0x1B1C1F);
+        public static readonly Color SurfaceRaised = FromHex(0x232529);
+        public static readonly Color SurfaceHover = FromHex(0x2C2E33);
+        public static readonly Color Border = FromHex(0x383B41);
+        public static readonly Color Divider = FromHex(0x26282C);
+        public static readonly Color GridLine = FromHex(0x25272B);
 
-        public static readonly Color TextPrimary = FromHex(0xE6EDF7);
-        public static readonly Color TextSecondary = FromHex(0x97A3B6);
-        public static readonly Color TextMuted = FromHex(0x6B7A90);
-        public static readonly Color TextDisabled = FromHex(0x47546A);
+        public static readonly Color TextPrimary = FromHex(0xEDECE8);
+        public static readonly Color TextSecondary = FromHex(0xA6A5A0);
+        public static readonly Color TextMuted = FromHex(0x7C7B77);
+        public static readonly Color TextDisabled = FromHex(0x53524F);
 
-        public static readonly Color Accent = FromHex(0x38BDF8);
-        public static readonly Color AccentHover = FromHex(0x5CCBFA);
-        public static readonly Color AccentPressed = FromHex(0x22A9E6);
-        public static readonly Color OnAccent = FromHex(0x06202F);
+        // The accent marks what you can act on and what is selected: the primary button, a
+        // switch that is on, the selected nav item. It is off-white, so it never competes with data.
+        public static readonly Color Accent = FromHex(0xE9E6DF);
+        public static readonly Color AccentHover = FromHex(0xF7F5F0);
+        public static readonly Color AccentPressed = FromHex(0xCDCAC3);
+        public static readonly Color OnAccent = FromHex(0x151617);
+
+        /// <summary>The colour of a measured series in a chart. Kept apart from Accent so either can change alone.</summary>
+        public static readonly Color Series = FromHex(0x74A9DB);
 
         // Status colours. Rising or falling isn't good or bad on its own, so pick by meaning.
         // Use them for the one thing that carries the meaning (a value, a badge), not for decoration.
-        public static readonly Color Positive = FromHex(0x3ECF9B);
-        public static readonly Color Negative = FromHex(0xF4807A);
-        public static readonly Color Warning = FromHex(0xF3B64A);
+        public static readonly Color Positive = FromHex(0x5DBE8F);
+        public static readonly Color Negative = FromHex(0xE4776E);
+        public static readonly Color Warning = FromHex(0xDFA646);
 
         /// <summary>Alpha for a tinted fill behind coloured text, such as a badge.</summary>
         public const int TintAlpha = 30;
 
-        public const int RadiusSmall = 6;
-        public const int Radius = 10;
+        public const int RadiusSmall = 3;
+        public const int Radius = 4;
 
         // Spacing scale on a 4px base. SpaceN is N times 4.
         public const int Space1 = 4;
@@ -69,6 +75,9 @@ namespace VIGIL.Theming
         private static readonly string SmallFamily = FirstInstalled("Segoe UI Variable Small", "Segoe UI Variable Text", "Segoe UI");
         private static readonly string SmallStrongFamily = FirstInstalled("Segoe UI Variable Small Semibol", "Segoe UI Variable Text Semibold", "Segoe UI Semibold", "Segoe UI");
         private static readonly string DisplayFamily = FirstInstalled("Segoe UI Variable Display Semib", "Segoe UI Semibold", "Segoe UI");
+        // Large type is set light: at 20pt and up a semibold shouts, and a lighter cut reads as more considered.
+        private static readonly string HeadingFamily = FirstInstalled("Segoe UI Variable Display", "Segoe UI");
+        private static readonly string FigureFamily = FirstInstalled("Segoe UI Variable Display Semil", "Segoe UI Semilight", "Segoe UI");
         // Classic Segoe UI has tabular figures; the Variable faces don't, so numbers that must line up use this.
         private static readonly string NumericFamily = FirstInstalled("Segoe UI");
         private static readonly string IconFamily = FirstInstalled("Segoe Fluent Icons", "Segoe MDL2 Assets");
@@ -79,8 +88,8 @@ namespace VIGIL.Theming
         public static readonly Font Caption = new(SmallFamily, 8.5f);
         public static readonly Font CaptionStrong = Strong(SmallStrongFamily, 8.5f);
         public static readonly Font Title = Strong(DisplayFamily, 14f);
-        public static readonly Font Heading = Strong(DisplayFamily, 20f);
-        public static readonly Font Display = Strong(DisplayFamily, 26f);
+        public static readonly Font Heading = new(HeadingFamily, 20f);
+        public static readonly Font Display = new(FigureFamily, 26f);
 
         /// <summary>Body-sized figures that line up: hover read-outs, tables.</summary>
         public static readonly Font Numeric = new(NumericFamily, 10f);

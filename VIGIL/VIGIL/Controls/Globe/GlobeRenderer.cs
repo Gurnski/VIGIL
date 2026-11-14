@@ -395,8 +395,8 @@ namespace VIGIL.Controls.Globe
             float sun = length > 0f ? (qx * f.Sx + qy * f.Sy + qz * f.Sz) / length : 0f;
             float atmosphereLit = 0.08f + 0.92f * SmoothStep(-0.30f, 0.25f, sun);
 
-            float glow = (MathF.Exp(-x * 55f) * 0.9f + MathF.Exp(-x * 16f) * 0.32f) * atmosphereLit;
-            float white = MathF.Exp(-x * 220f) * 0.30f * atmosphereLit;
+            float glow = (MathF.Exp(-x * 55f) * 0.62f + MathF.Exp(-x * 16f) * 0.14f) * atmosphereLit;
+            float white = MathF.Exp(-x * 220f) * 0.20f * atmosphereLit;
 
             // The halo turns amber where the limb is at sunrise or sunset.
             float dusk = sun - TwilightCentre;

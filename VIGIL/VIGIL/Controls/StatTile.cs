@@ -42,7 +42,7 @@ namespace VIGIL.Controls
         }
 
         /// <summary>
-        ///  Short change text shown under the value, such as "per decade · p < 0.05".
+        ///  Short change text shown under the value, such as "per decade, p < 0.05".
         /// </summary>
         [DefaultValue("")]
         public string Delta
@@ -82,7 +82,7 @@ namespace VIGIL.Controls
             Draw.RoundedBox(g, new Rectangle(0, 0, Width, Height), Px(Theme.Radius), Theme.Surface);
 
             int pad = Px(Theme.CardPadding);
-            Draw.Caption(g, caption, new Rectangle(pad, pad, Width - pad * 2, Px(16)), Theme.TextMuted);
+            Draw.Caption(g, caption, new Rectangle(pad, pad, Width - pad * 2, Px(16)), Theme.TextSecondary);
 
             int valueTop = pad + Px(Theme.Space5);
             var valueSize = Draw.Measure(g, value, Theme.Display);
@@ -94,7 +94,7 @@ namespace VIGIL.Controls
                 var area = new RectangleF(left, valueTop + Px(Theme.Space2), Width - pad - left, Height - pad - valueTop - Px(Theme.Space2));
                 if (area.Width > Px(20) && area.Height > Px(10))
                 {
-                    Draw.AreaLine(g, Draw.Fit(sparkline, area), area.Bottom, Draw.WithAlpha(deltaColour, 200), Px(1.5f), 26);
+                    Draw.AreaLine(g, Draw.Fit(sparkline, area), area.Bottom, deltaColour, Px(1.25f), 0);
                 }
             }
 

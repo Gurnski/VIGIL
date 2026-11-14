@@ -25,7 +25,7 @@ namespace VIGIL.Controls
         private int selected = -1;
         private int hovered = -1;
         private bool collapsed;
-        private string footer = "University of Plymouth · NASA Space Apps 2026";
+        private string footer = "University of Plymouth, NASA Space Apps 2026";
 
         public event EventHandler? SelectedChanged;
         public event EventHandler? CollapsedChanged;
@@ -39,7 +39,7 @@ namespace VIGIL.Controls
 
         protected override Size DefaultSize => new(Theme.RailWidth, 600);
 
-        [DefaultValue("University of Plymouth · NASA Space Apps 2026")]
+        [DefaultValue("University of Plymouth, NASA Space Apps 2026")]
         public string Footer
         {
             get => footer;
@@ -156,17 +156,21 @@ namespace VIGIL.Controls
 
             if (hovered >= 0 && hovered != selected)
             {
-                Draw.RoundedBox(g, ItemBounds(hovered), Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.SurfaceHover, 120));
+                Draw.RoundedBox(g, ItemBounds(hovered), Px(Theme.RadiusSmall), Theme.SurfaceRaised);
             }
             if (selected >= 0)
             {
-                Draw.RoundedBox(g, ItemBounds(indicator.Value), Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.Accent, 22));
+                // A raised row with a short bar on its left edge. The bar slides with the row.
+                var row = ItemBounds(indicator.Value);
+                Draw.RoundedBox(g, row, Px(Theme.RadiusSmall), Theme.SurfaceHover);
+                using var bar = new SolidBrush(Theme.Accent);
+                g.FillRectangle(bar, row.X, row.Y + Px(9), Px(2), row.Height - Px(18));
             }
 
             for (int i = 0; i < items.Count; i++)
             {
                 bool isSelected = i == selected;
-                Color iconColour = isSelected ? Theme.Accent : i == hovered ? Theme.TextPrimary : Theme.TextSecondary;
+                Color iconColour = isSelected || i == hovered ? Theme.TextPrimary : Theme.TextSecondary;
                 Color textColour = isSelected || i == hovered ? Theme.TextPrimary : Theme.TextSecondary;
                 DrawRow(g, ItemBounds(i), items[i].Glyph, items[i].Text, isSelected ? Theme.BodyStrong : Theme.Body, iconColour, textColour);
             }
@@ -174,7 +178,7 @@ namespace VIGIL.Controls
             var toggle = ToggleBounds;
             if (hovered == ToggleHit)
             {
-                Draw.RoundedBox(g, toggle, Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.SurfaceHover, 120));
+                Draw.RoundedBox(g, toggle, Px(Theme.RadiusSmall), Theme.SurfaceRaised);
             }
             Color toggleColour = hovered == ToggleHit ? Theme.TextPrimary : Theme.TextMuted;
             DrawRow(g, toggle, collapsed ? Icons.OpenPane : Icons.ClosePane, "Collapse", Theme.Body, toggleColour, toggleColour);
@@ -191,8 +195,7 @@ namespace VIGIL.Controls
             int markLeft = Px(Theme.Space5);
             int markX = (int)Math.Round(markLeft * Expanded + (Width - MarkSize) / 2f * collapse.Value);
             var mark = new Rectangle(markX, Px(Theme.Space6), MarkSize, MarkSize);
-            Draw.RoundedBox(g, mark, Px(Theme.Space2), Theme.Accent);
-            Draw.Text(g, Icons.Globe, Theme.Icon(13f), mark, Theme.OnAccent, Centred);
+            Draw.Text(g, Icons.Globe, Theme.Icon(16f), mark, Theme.TextPrimary, Centred);
 
             if (Expanded > 0.3f)
             {

@@ -111,7 +111,7 @@ namespace VIGIL.Controls
 
             int revealed = (int)Math.Ceiling(plot.Width * reveal.Value);
             g.SetClip(new Rectangle(plot.Left - Px(4), 0, revealed + Px(8), Height));
-            Draw.AreaLine(g, points, plot.Bottom, Theme.Accent, Px(1.75f), 44);
+            Draw.AreaLine(g, points, plot.Bottom, Theme.Series, Px(1.5f), 0);
             if (showTrendLine && values.Length > 1)
             {
                 DrawTrendLine(g, plot, low, high);
@@ -234,7 +234,7 @@ namespace VIGIL.Controls
 
         private void DrawLegend(Graphics g)
         {
-            var entries = new List<(string Label, Color Colour, bool Dashed)> { ("Data", Theme.Accent, false) };
+            var entries = new List<(string Label, Color Colour, bool Dashed)> { ("Data", Theme.Series, false) };
             if (showTrendLine)
             {
                 entries.Add(("Linear trend", Theme.Warning, true));
@@ -266,7 +266,7 @@ namespace VIGIL.Controls
             var point = points[hoverIndex];
             int x = (int)Math.Round(point.X);
             Draw.VerticalLine(g, x, plot.Top, plot.Bottom, Draw.WithAlpha(Theme.TextSecondary, 64));
-            Draw.Marker(g, point, Px(3.5f), Theme.Accent, Theme.Surface, Px(2f));
+            Draw.Marker(g, point, Px(3.5f), Theme.Series, Theme.Surface, Px(2f));
 
             string when = dates[hoverIndex].ToString("MMMM yyyy", British);
             string reading = FormatValue(values[hoverIndex]) + (units.Length > 0 ? " " + units : "");

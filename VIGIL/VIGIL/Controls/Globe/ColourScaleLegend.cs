@@ -6,7 +6,7 @@ using VIGIL.Theming;
 namespace VIGIL.Controls.Globe
 {
     /// <summary>
-    ///  Small translucent legend for a <see cref="ColourScale"/>: a title, the gradient bar and
+    ///  Small legend for a <see cref="ColourScale"/>: a title, the gradient bar and
     ///  the values at each end. Place it over the globe next to a grid overlay.
     /// </summary>
     public class ColourScaleLegend : VigilControl
@@ -94,10 +94,10 @@ namespace VIGIL.Controls.Globe
             base.OnPaint(e);
             var g = e.Graphics;
             Draw.Smooth(g);
-            Draw.RoundedBox(g, OutlineBounds, Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.Surface, 225), Draw.WithAlpha(Theme.Border, 220));
+            Draw.RoundedBox(g, OutlineBounds, Px(Theme.RadiusSmall), Theme.Surface, Theme.Border);
 
             int edge = Px(12);
-            Draw.Text(g, title.ToUpperInvariant(), Theme.CaptionStrong, new Rectangle(edge, Px(8), Width - edge * 2, Px(16)), Theme.TextSecondary);
+            Draw.Text(g, title, Theme.CaptionStrong, new Rectangle(edge, Px(8), Width - edge * 2, Px(16)), Theme.TextSecondary);
 
             var bar = new Rectangle(edge, Px(30), Width - edge * 2, Px(10));
             if (bar.Width > 1)

@@ -87,7 +87,7 @@ namespace VIGIL.Controls
                 // Drawn on the track's own edge: the track starts at x = 0, so there is no room outside it.
                 var ringBounds = RectangleF.Inflate(track, -0.5f, -0.5f);
                 using var path = Draw.RoundedRect(ringBounds, ringBounds.Height / 2f);
-                using var ring = new Pen(Draw.WithAlpha(Theme.TextPrimary, 170), 1f);
+                using var ring = new Pen(Theme.TextSecondary, 1f);
                 g.DrawPath(ring, path);
             }
 
@@ -95,7 +95,7 @@ namespace VIGIL.Controls
             float inset = Px(3f);
             float travel = track.Width - inset * 2f - radius * 2f;
             var centre = new PointF(track.X + inset + radius + travel * on, track.Y + track.Height / 2f);
-            var knobColour = Enabled ? Draw.Blend(Theme.TextSecondary, Theme.TextPrimary, on) : Theme.TextDisabled;
+            var knobColour = Enabled ? Draw.Blend(Theme.TextSecondary, Theme.OnAccent, on) : Theme.TextDisabled;
             Draw.Circle(g, centre, radius, knobColour);
 
             if (Text.Length > 0)

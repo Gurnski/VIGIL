@@ -43,8 +43,8 @@ namespace VIGIL.Controls
             int x = 0;
             if (label.Length > 0)
             {
-                var size = Draw.Measure(g, label.ToUpperInvariant(), Theme.CaptionStrong);
-                Draw.Caption(g, label, new Rectangle(0, 0, size.Width + 1, Height), Theme.TextMuted);
+                var size = Draw.Measure(g, label, Theme.CaptionStrong);
+                Draw.Caption(g, label, new Rectangle(0, 0, size.Width + 1, Height), Theme.TextSecondary);
                 x = size.Width + Px(Theme.Space3);
             }
             if (x < Width)

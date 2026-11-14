@@ -1,7 +1,7 @@
 namespace VIGIL.Controls.Globe
 {
     /// <summary>
-    ///  A labelled point on the globe, such as a station or a data site. Drawn as a glowing dot
+    ///  A labelled point on the globe, such as a station or a data site. Drawn as a ringed dot
     ///  that fades out as it turns away over the horizon.
     /// </summary>
     public sealed class GlobeMarker

@@ -53,14 +53,16 @@ Keep `Data/` and `Models/` free of WinForms references so they can be tested wit
 
 ## UI framework
 
-The look is dark "mission control" with a cyan accent (`#38BDF8`). Open the app and click **Components** in the nav rail to see every control working with demo data. That page is `Pages/GalleryPage.cs`, and it's the quickest way to see how each control is used.
+The look is flat and dark: neutral graphite surfaces, an off-white accent (`Theme.Accent`), and colour kept for data and for meaning. There are no see-through panels, no glows and no gradient fills. Open the app and click **Components** in the nav rail to see every control working with demo data. That page is `Pages/GalleryPage.cs`, and it's the quickest way to see how each control is used.
 
 ### Rules
 
 - Never hard-code a colour, font or spacing. Use `Theme` tokens: colours (`Theme.Surface`, `Theme.TextSecondary`), fonts (`Theme.Body`, `Theme.Caption`, `Theme.Display`), and the spacing scale `Theme.Space1` to `Space10` (4px base) with `Gutter`, `CardPadding`, `PagePadding` and `ControlHeight`. Add new tokens to `Theme.cs`.
-- Surfaces are separated by tone, not outlines. A card is `Surface` on `Background`, and an input is `SurfaceRaised` on `Surface`. Draw a `Border` only on interactive inputs. Use `Divider` for hairlines and `GridLine` in charts.
+- Surfaces are separated by tone, not outlines. A card is `Surface` on `Background`, and an input is `SurfaceRaised` on `Surface`. Draw a `Border` only on interactive inputs, on badges, and on panels that sit over the globe. Use `Divider` for hairlines and `GridLine` in charts.
 - Status colours (`Positive`, `Negative`, `Warning`) carry meaning, not direction, and go on the one element that carries it. A rising temperature isn't "positive". `TextSecondary` means "not significant".
-- Uppercase labels go through `Draw.Caption`. Figures that must line up (axis labels, read-outs, tables) use `Theme.Numeric`, `NumericStrong` or `NumericSmall`. Classic Segoe UI has tabular digits and the Variable faces don't.
+- No decoration: no translucent panels, glows, gradient fills, tinted pills or uppercase labels, and no middle dots (`·`) joining text. Corners are `Theme.RadiusSmall` (3px) or `Theme.Radius` (4px).
+- `Theme.Accent` marks what can be acted on and what is selected. A measured series in a chart is `Theme.Series`. Don't use one for the other.
+- Small labels (card titles, tile captions) go through `Draw.Caption`, in sentence case. Figures that must line up (axis labels, read-outs, tables) use `Theme.Numeric`, `NumericStrong` or `NumericSmall`. Classic Segoe UI has tabular digits and the Variable faces don't.
 - Pixel convention after `Draw.Smooth`: fill at whole-number coordinates, and put 1px strokes on x + 0.5 (`OutlineBounds` does this) or use `Draw.HorizontalLine`/`VerticalLine`.
 - Icons are Segoe Fluent Icons glyphs from `Theming/Icons.cs`. Add new ones there.
 - New windows inherit `VigilForm`, not `Form`. Use `AutoScaleMode.Dpi` with `AutoScaleDimensions` of 96, as `MainForm.Designer.cs` does. Font-based scaling would resize everything because the theme font differs from the designer default.
@@ -75,14 +77,14 @@ The look is dark "mission control" with a cyan accent (`#38BDF8`). Open the app 
 | Control | Use it for |
 |---|---|
 | `VigilButton` | Actions. `Variant` is `Primary` (one per screen), `Secondary` or `Ghost`. Optional `IconGlyph`. |
-| `Card` | Grouping content on a surface. `Title` draws an uppercase heading, and `TitleBounds` lets you put a badge on the same line. |
+| `Card` | Grouping content on a surface. `Title` draws a small heading, and `TitleBounds` lets you put a badge on the same line. |
 | `StatTile` | A headline number, a coloured change line (`Delta`, `Arrow`, `DeltaColour`) and an optional sparkline |
 | `TimeSeriesChart` | One time series. `SetData(dates, values)`. Hover read-out, trend line toggle, reveal animation. |
 | `NavRail` | The left-hand navigation in `MainForm`. `Collapsed` shrinks it to icons, and it resizes itself. |
 | `PageHeader` | Title and subtitle at the top of a page |
 | `ToggleSwitch` | On/off settings |
 | `SegmentedControl` | One choice from a short row, such as Monthly / Seasonal / Annual. `SetItems`, `SelectedIndex`. |
-| `Badge` | Small status pills. `Tone` tints it, and `ShowDot` adds a status dot. Sizes itself to its text. |
+| `Badge` | Small outlined status labels. `Tone` colours the text and outline, and `ShowDot` adds a status dot. Sizes itself to its text, and draws nothing when the text is empty. |
 | `Divider` | Hairline separator. With `Label` it's a section heading inside a card. |
 | `SearchBox` | Text search with an icon and placeholder |
 | `SpinnerControl` | Loading wheel |
@@ -96,7 +98,7 @@ The look is dark "mission control" with a cyan accent (`#38BDF8`). Open the app 
 
 Mouse and keyboard: left-drag grabs and flings the Earth, the wheel zooms on the cursor, right-drag (or Ctrl+drag) tilts and turns, double-click flies in, and Shift+drag selects a box and raises `RegionSelected`. Arrow keys pan, `+`/`-` zoom, `N` resets north, `R` or `Home` resets the view, and `Escape` clears the selection. Auto-rotation pauses for 4 seconds after any input.
 
-Lighting follows the real sun from the current UTC time, refreshed every 30 seconds, and the read-out in the bottom-left says so ("Live sunlight · 17:12:48 UTC"). `SunTimeUtc` freezes it at an instant, and `UseRealSunPosition = false` uses `SunLatitude`/`SunLongitude` instead.
+Lighting follows the real sun from the current UTC time, refreshed every 30 seconds, and the read-out in the bottom-left says so ("Live sunlight, 17:12 UTC"). `SunTimeUtc` freezes it at an instant, and `UseRealSunPosition = false` uses `SunLatitude`/`SunLongitude` instead.
 
 Moving the camera: `FlyTo(lat, lon, zoom)` flies anywhere along the great circle, pulling out on long hops. Overloads take a marker, a region, a `Place`, or a name such as `FlyTo("Amazon")` from the built-in `Places` list of 41 Earth-science regions. `FlyToComplete` fires on landing.
 

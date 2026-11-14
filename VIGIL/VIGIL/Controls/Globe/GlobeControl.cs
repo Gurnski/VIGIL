@@ -1256,8 +1256,7 @@ namespace VIGIL.Controls.Globe
             // Lift the dot a little off the surface so it reads as something in orbit.
             camera.Project(unit * 1.05f, out var screen, out _);
             float alpha = SmoothStep(0.01f, 0.15f, facing);
-            Draw.Circle(g, screen, Px(10f), Draw.WithAlpha(groundTrack.Colour, (int)(45 * alpha)));
-            Draw.Circle(g, screen, Px(5f), Draw.WithAlpha(groundTrack.Colour, (int)(140 * alpha)));
+            Draw.Circle(g, screen, Px(5f), Draw.WithAlpha(groundTrack.Colour, (int)(255 * alpha)));
             Draw.Circle(g, screen, Px(2.5f), Draw.WithAlpha(Theme.TextPrimary, (int)(255 * alpha)));
             if (groundTrack.Label.Length > 0 && alpha > 0.5f)
             {
@@ -1337,9 +1336,8 @@ namespace VIGIL.Controls.Globe
                     Draw.Circle(g, ground, Px(2.5f), Draw.WithAlpha(satellite.Colour, 170));
                 }
 
-                Draw.Circle(g, screen, Px(11f), Draw.WithAlpha(satellite.Colour, 40));
-                Draw.Circle(g, screen, Px(6f), Draw.WithAlpha(satellite.Colour, 120));
-                Draw.Circle(g, screen, Px(3f), Draw.WithAlpha(Theme.TextPrimary, 255));
+                Draw.Circle(g, screen, Px(5.5f), satellite.Colour);
+                Draw.Circle(g, screen, Px(3f), Theme.TextPrimary);
                 if (satellite.Label.Length > 0)
                 {
                     DrawLabel(g, satellite.Label, screen, satellite.Colour, 1f);
@@ -1478,10 +1476,9 @@ namespace VIGIL.Controls.Globe
                 bool selected = marker == selectedMarker;
                 float k = (0.7f + 0.3f * alpha) * (selected ? 1.25f : 1f);
                 var colour = marker.Colour;
-                Draw.Circle(g, screen, Px(12f) * k, Draw.WithAlpha(colour, (int)(40 * alpha)));
-                Draw.Circle(g, screen, Px(7f) * k, Draw.WithAlpha(colour, (int)(110 * alpha)));
-                Draw.Circle(g, screen, Px(3.8f) * k, Draw.WithAlpha(colour, (int)(255 * alpha)));
-                Draw.Circle(g, screen, Px(1.6f) * k, Draw.WithAlpha(Theme.TextPrimary, (int)(230 * alpha)));
+                // A solid dot with a dark ring, so it stays readable over any terrain without a glow.
+                Draw.Circle(g, screen, Px(6f) * k, Draw.WithAlpha(Theme.Background, (int)(255 * alpha)));
+                Draw.Circle(g, screen, Px(4f) * k, Draw.WithAlpha(colour, (int)(255 * alpha)));
 
                 if (selected || marker == hoverMarker)
                 {
@@ -1530,7 +1527,7 @@ namespace VIGIL.Controls.Globe
                 }
             }
             labelBoxes.Add(box);
-            Draw.RoundedBox(g, box, Px(4f), Draw.WithAlpha(Theme.Background, (int)(170 * alpha)));
+            Draw.RoundedBox(g, box, Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.Surface, (int)(255 * alpha)));
 
             using (var pen = new Pen(Draw.WithAlpha(accent, (int)(140 * alpha)), Px(2f)))
             {
@@ -1617,7 +1614,7 @@ namespace VIGIL.Controls.Globe
             hudButtons[button] = bounds;
             bool hovered = hudHover == button;
             Draw.RoundedBox(g, bounds, Px(Theme.RadiusSmall),
-                Draw.WithAlpha(hovered ? Theme.SurfaceHover : Theme.Surface, 235), Draw.WithAlpha(Theme.Border, 200));
+                hovered ? Theme.SurfaceHover : Theme.Surface, Theme.Border);
             Draw.Text(g, glyph, Theme.Icon(11f), bounds, hovered ? Theme.TextPrimary : Theme.TextSecondary,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
         }
@@ -1628,8 +1625,8 @@ namespace VIGIL.Controls.Globe
             bool hovered = hudHover == HudButton.Compass;
             var centre = new PointF(bounds.X + bounds.Width / 2f, bounds.Y + bounds.Height / 2f);
             float radius = bounds.Width / 2f;
-            Draw.Circle(g, centre, radius, Draw.WithAlpha(hovered ? Theme.SurfaceHover : Theme.Surface, 235));
-            using (var ring = new Pen(Draw.WithAlpha(Theme.Border, 200), 1f))
+            Draw.Circle(g, centre, radius, hovered ? Theme.SurfaceHover : Theme.Surface);
+            using (var ring = new Pen(Theme.Border, 1f))
             {
                 g.DrawEllipse(ring, centre.X - radius + 0.5f, centre.Y - radius + 0.5f, radius * 2f - 1f, radius * 2f - 1f);
             }
@@ -1671,11 +1668,11 @@ namespace VIGIL.Controls.Globe
             string coordinates = cursorPosition is (double lat, double lon)
                 ? FormatCoordinates(lat, lon)
                 : "Move over the globe for coordinates";
-            string detail = string.Format(British, "Eye alt {0:N0} km · Zoom {1:0.0}×", camera.AltitudeKm, Zoom);
+            string detail = string.Format(British, "Eye altitude {0:N0} km, zoom {1:0.0}×", camera.AltitudeKm, Zoom);
             if (Math.Abs(Heading) > 0.5 || view.Tilt > 0.5f)
             {
                 double heading = Heading < 0 ? Heading + 360 : Heading;
-                detail += string.Format(British, " · Heading {0:000}° · Tilt {1:0}°", heading, view.Tilt);
+                detail += string.Format(British, ", heading {0:000}°, tilt {1:0}°", heading, view.Tilt);
             }
 
             var coordinateFont = cursorPosition != null ? Theme.Numeric : Theme.Body;
@@ -1689,7 +1686,7 @@ namespace VIGIL.Controls.Globe
             int edge = Px(Theme.Space4);
             readoutBounds = new Rectangle(edge, Height - edge - height, width, height);
 
-            Draw.RoundedBox(g, readoutBounds, Px(Theme.RadiusSmall), Draw.WithAlpha(Theme.Surface, 225), Draw.WithAlpha(Theme.Border, 200));
+            Draw.RoundedBox(g, readoutBounds, Px(Theme.RadiusSmall), Theme.Surface, Theme.Border);
             int y = readoutBounds.Y + Px(Theme.Space2);
             Draw.Text(g, coordinates, coordinateFont, new Rectangle(readoutBounds.X + pad, y, coordinateSize.Width + 1, coordinateSize.Height),
                 cursorPosition != null ? Theme.TextPrimary : Theme.TextMuted);
@@ -1714,7 +1711,7 @@ namespace VIGIL.Controls.Globe
             }
             return sunTimeUtc is DateTime frozen
                 ? "Sunlight at " + frozen.ToUniversalTime().ToString("d MMM yyyy HH:mm", British) + " UTC"
-                : "Live sunlight · " + DateTime.UtcNow.ToString("HH:mm", British) + " UTC";
+                : "Live sunlight, " + DateTime.UtcNow.ToString("HH:mm", British) + " UTC";
         }
 
         private void DrawCaptions(Graphics g)
@@ -1722,7 +1719,7 @@ namespace VIGIL.Controls.Globe
             int bottom = Height - Px(22);
             if (showAttribution)
             {
-                Draw.Text(g, "Imagery: NASA Blue Marble · NASA Black Marble", Theme.Caption,
+                Draw.Text(g, "Imagery: NASA Blue Marble and Black Marble", Theme.Caption,
                     new Rectangle(0, bottom, Width, Px(18)), Theme.TextMuted,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                 bottom -= Px(20);
@@ -1737,12 +1734,12 @@ namespace VIGIL.Controls.Globe
 
             if (showFrameRate)
             {
-                string timing = string.Format(British, "{0:0.0} ms at {1:0.00}x · full frame ≈ {2:0.0} ms",
+                string timing = string.Format(British, "{0:0.0} ms at {1:0.00}x, full frame ≈ {2:0.0} ms",
                     renderer.LastFrameMilliseconds, renderedScale, fullFrameMilliseconds);
                 if (motionFrames > 0)
                 {
                     double average = motionMilliseconds / motionFrames;
-                    timing += string.Format(British, " · moving: {0:0.0} ms avg over {1} frames", average, motionFrames);
+                    timing += string.Format(British, ", moving: {0:0.0} ms avg over {1} frames", average, motionFrames);
                 }
                 Draw.Text(g, timing, Theme.NumericSmall, new Rectangle(0, Px(8), Width, Px(18)), Theme.TextSecondary,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
