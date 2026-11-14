@@ -5,7 +5,9 @@ import { BufferAttribute, BufferGeometry, Color, Line, LineBasicMaterial, LineDa
 import { missionSatellites, orbitPoint, phaseAt } from './satellite';
 import type { Satellite } from './satellite';
 
-const SatelliteColour = '#5dbe8f'; // mirrors --positive, the colour the desktop app gives its satellite
+// A satellite whose data is in the scan takes the stronger colour, as in the desktop app.
+const InScanColour = '#5dbe8f'; // mirrors --positive
+const CrossCheckColour = '#a6a5a0'; // mirrors --text-secondary
 const RingSegments = 180;
 /** The ring is brightest just behind the satellite and fades towards the stretch ahead of it. */
 const RingOpacityBehind = 0.85;
@@ -37,9 +39,8 @@ export function useSatellites(
     }
     const scene = globe.scene();
     const radius = globe.getGlobeRadius();
-    const colour = new Color(SatelliteColour);
-
     const drawn: Drawn[] = missionSatellites.map((satellite) => {
+      const colour = new Color(satellite.inScan ? InScanColour : CrossCheckColour);
       const ringGeometry = new BufferGeometry();
       ringGeometry.setAttribute('position', new BufferAttribute(new Float32Array((RingSegments + 1) * 3), 3));
       const colours = new Float32Array((RingSegments + 1) * 4);

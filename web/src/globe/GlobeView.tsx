@@ -16,7 +16,7 @@ import { cellCentre, labelText } from '../format';
 import { scaleLimit } from './colourScale';
 import { GlobeLegend } from './GlobeLegend';
 import { paintLayer } from './layerTexture';
-import { missionSatellites } from './satellite';
+import { missionSatellites, satelliteCaveat } from './satellite';
 import { useSatellites } from './useSatellites';
 import './globe.css';
 
@@ -51,8 +51,6 @@ const DefaultThreshold = 0.05;
 const FlightAltitude = 0.6;
 const FlightMilliseconds = 1200;
 const AutoRotateSpeed = 0.35;
-/** Said wherever a satellite is named: the orbit is the real one, the place along it is not tracked. */
-const SatelliteCaveat = 'The orbit is its real one. Its place along the orbit is shown for illustration, not tracked live.';
 
 interface Marker {
   cellId: string;
@@ -405,8 +403,8 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
                     satelliteElements.current.delete(satellite.id);
                   }
                 }}
-                className="globe-satellite"
-                title={satellite.detail + ' ' + SatelliteCaveat}
+                className={satellite.inScan ? 'globe-satellite' : 'globe-satellite globe-satellite-quiet'}
+                title={`${satellite.detail} ${satellite.inScan ? 'In the first scan.' : 'Not in the scan.'} ${satelliteCaveat}`}
               >
                 <span className="globe-marker-label">{satellite.label}</span>
               </div>

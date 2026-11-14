@@ -4,6 +4,7 @@ import { loadSnapshot } from './data';
 import { count, labelText } from './format';
 import { FindingsList } from './findings/FindingsList';
 import { GlobeView } from './globe/GlobeView';
+import { satelliteCaveat } from './globe/satellite';
 import { DetectiveChat } from './detective/DetectiveChat';
 import { EvidencePanel } from './evidence/EvidencePanel';
 
@@ -131,7 +132,7 @@ export function App() {
           <span className="track" aria-hidden="true" />
           Significant only
         </label>
-        <label className="switch">
+        <label className="switch" title={satelliteCaveat}>
           <input type="checkbox" checked={showSatellites} onChange={(event) => setShowSatellites(event.target.checked)} />
           <span className="track" aria-hidden="true" />
           Satellites

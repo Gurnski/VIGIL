@@ -117,7 +117,19 @@ Adding data:
 
 `ColourScaleLegend.Follow(globe)` keeps a legend in step with the overlay.
 
-Performance: one timer drives all animation. Frames render at reduced resolution while moving and at full resolution when idle. Slow movement (auto-rotation, satellites, the pulsing sunlight dot) only redraws once something on screen has moved a quarter of a pixel, so nothing renders that would look the same. Each row of a frame only shades the span the globe and its halo cover, and copies the star field for the rest. It holds about 250 MB of memory once both textures and their mipmaps are loaded: the day texture keeps its water mask in the alpha byte rather than a separate array. Above roughly 4x zoom the 8K texture starts to soften. Set the environment variable `VIGIL_GLOBE_STATS=1` to show frame timings. The Map page shows the results document it is given: a layer per variable from `grids`, and a marker per cell that has a finding. Until the service is wired in, that document is the synthetic fixture, and the page says so. The satellite is decoration.
+Performance: one timer drives all animation. Frames render at reduced resolution while moving and at full resolution when idle. Slow movement (auto-rotation, satellites, the pulsing sunlight dot) only redraws once something on screen has moved a quarter of a pixel, so nothing renders that would look the same. Each row of a frame only shades the span the globe and its halo cover, and copies the star field for the rest. It holds about 250 MB of memory once both textures and their mipmaps are loaded: the day texture keeps its water mask in the alpha byte rather than a separate array. Above roughly 4x zoom the 8K texture starts to soften. Set the environment variable `VIGIL_GLOBE_STATS=1` to show frame timings. The Map page shows the results document it is given: a layer per variable from `grids`, and a marker per cell that has a finding. Until the service is wired in, that document is the synthetic fixture, and the page says so. The satellites are described below.
+
+### The satellites
+
+Both front ends draw the same six satellites, from two lists that must be kept in step: `Controls/Globe/MissionSatellites.cs` and `web/src/globe/satellite.ts`.
+
+- In the first scan, in the stronger colour (`Positive`): Terra (MODIS, vegetation) and the GPM Core Observatory (IMERG, precipitation).
+- Behind the sources the brief keeps for cross-checks, in the quieter colour (`TextSecondary`): Aqua, Suomi NPP, SMAP and GRACE-FO. They are not in the scan, and their hover text says so.
+- MERRA-2 and GLDAS are models, not single spacecraft, so they have no orbit to draw.
+
+Each orbit's height, tilt and period are the mission's own, and a sun-synchronous plane sits where it really is today. The place along each orbit is not tracked from live orbit data. That caveat (`MissionSatellites.Caveat`, `satelliteCaveat`) is the tooltip of the "Satellites" switch in both apps, and it must stay wherever the satellites are explained. No result depends on the satellites.
+
+Each app has a "Satellites" switch in the toolbar, beside the other switches, to hide them.
 
 ### The Detective
 
@@ -149,7 +161,7 @@ It is a viewer, not a second copy of the app. It has one screen with four parts:
 - `src/contract.ts` is the contract as TypeScript types, with the JSON's own snake_case names. It only describes the format. Change it when Dan changes the contract, and never to suit the viewer.
 - `src/theme.css` holds the colours, spacing and type sizes as CSS variables, copied from `Theme.cs`. The UI rules above apply here too: tokens only, surfaces told apart by tone, status colours for meaning, no decoration, sentence case, UK English.
 - Each part keeps to its own folder under `src/` (`findings/`, `evidence/`, `globe/`, `detective/`) with its own stylesheet and a class-name prefix to match. `src/App.tsx` is the shell that holds the shared state (the chosen finding, the layer, whether the chat is open) and passes it down.
-- The globe draws the satellites behind the data on their orbits (`src/globe/satellite.ts`, a port of `GlobeSatellite.cs`): Terra for MODIS and the GPM Core Observatory for IMERG. MERRA-2 and GLDAS are models, so they have no orbit to draw. Each orbit's height, tilt and period are real, and a sun-synchronous plane sits where it really is, but the place along the orbit is not tracked from live orbit data. The hover text says so, and it must keep saying so.
+- The globe draws the satellites behind the data on their orbits (`src/globe/satellite.ts`, a port of `GlobeSatellite.cs`), from the same list as the desktop app. See "The satellites" under "The globe" above for which they are and what must be said about them. The "Satellites" switch in the toolbar hides them.
 - The evidence view (`src/evidence/`) shows a finding's series, its numbers with their uncertainty, its score, its sources, preprocessing, test and limitations, all read from the results document. The chart's dashed line uses the slope the service reported and is placed on the series only as a guide for the eye, and the view says so. A finding whose series is not in the snapshot says that instead of drawing a chart.
 - The same honesty rules as the app: made-up results carry the "Synthetic fixture" badge, a fixture answer from the Detective is marked "Sample answer", and the viewer never calls a language model or holds a key. The Detective's address is the build-time variable `VITE_VIGIL_API_URL`. Without it, the viewer uses `http://127.0.0.1:8000` when the page is opened on localhost, and otherwise the address the page itself came from, so one server hosting both the page and the service needs no configuration.
 - All statistics still come from the Python service. The viewer displays what the document says and computes nothing but layout and the colour scale's range.

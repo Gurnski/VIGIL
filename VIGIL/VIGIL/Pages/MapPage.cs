@@ -42,6 +42,8 @@ namespace VIGIL.Pages
         private readonly Card findingsCard = new() { Title = "Findings", Dock = DockStyle.Fill };
         private readonly FindingsList findingsList = new() { Dock = DockStyle.Fill };
         private readonly Badge syntheticBadge = new() { Text = "Synthetic fixture", Tone = BadgeTone.Warning };
+        private readonly ToggleSwitch satellitesToggle = new() { Text = "Satellites", Checked = true };
+        private readonly ToolTip satellitesTip = new() { InitialDelay = 400 };
 
         private Place? flightDestination;
         private bool? findingsBelow;
@@ -83,7 +85,7 @@ namespace VIGIL.Pages
             globe.Resize += (s, e) => PositionOverlays();
 
             AddFindingMarkers();
-            AddSatellite();
+            ShowSatellites(true);
             ShowSelectedLayer();
             ArrangeFindings();
         }
@@ -141,7 +143,7 @@ namespace VIGIL.Pages
                 Margin = Padding.Empty
             };
             int toggleTop = Px((Theme.ControlHeight - Theme.ControlHeightSmall) / 2);
-            foreach (var toggle in new[] { overlayToggle, significantToggle, graticuleToggle, rotateToggle })
+            foreach (var toggle in new[] { overlayToggle, significantToggle, satellitesToggle, graticuleToggle, rotateToggle })
             {
                 // Track (36) plus gap (12) plus the label, so each toggle takes only the room it needs.
                 toggle.Font = Theme.Body;
@@ -154,6 +156,8 @@ namespace VIGIL.Pages
             rotateToggle.CheckedChanged += (s, e) => globe.AutoRotate = rotateToggle.Checked;
             overlayToggle.CheckedChanged += (s, e) => globe.GridOverlayOpacity = overlayToggle.Checked ? LayerOpacity : 0f;
             significantToggle.CheckedChanged += (s, e) => ShowSelectedLayer();
+            satellitesToggle.CheckedChanged += (s, e) => ShowSatellites(satellitesToggle.Checked);
+            satellitesTip.SetToolTip(satellitesToggle, MissionSatellites.Caveat);
 
             return bar;
         }
@@ -329,14 +333,20 @@ namespace VIGIL.Pages
             }
         }
 
-        /// <summary>Decoration, not data: a satellite on a 10:30 sun-synchronous orbit, placed where one really is.</summary>
-        private void AddSatellite()
+        /// <summary>
+        ///  Shows or hides the satellites behind the data, each on its own orbit. They are there
+        ///  to show where the measurements come from: no result depends on them.
+        /// </summary>
+        private void ShowSatellites(bool show)
         {
-            globe.AddSatellite(new GlobeSatellite("AppEEARS, NASA", 98.2, 705, Theme.Positive)
+            globe.ClearSatellites();
+            if (show)
             {
-                AscendingNodeLocalTime = 10.5,
-                TimeScale = 1
-            });
+                foreach (var satellite in MissionSatellites.Create())
+                {
+                    globe.AddSatellite(satellite);
+                }
+            }
         }
 
         /// <summary>Switches to the finding's variable, outlines its cell (and the paired cell of a contradiction) and flies there.</summary>

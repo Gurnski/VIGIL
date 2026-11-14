@@ -99,6 +99,12 @@
   pointer-events: auto;
 }
 
+/* A satellite behind a source kept for cross-checks, not in the scan: the quieter colour. */
+.globe-satellite-quiet {
+  background: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
 .globe-marker-significant {
   background: var(--accent);
   color: var(--accent);

@@ -18,6 +18,8 @@ export interface Satellite {
   label: string;
   /** Shown on hover: what it measures for VIGIL. */
   detail: string;
+  /** True when its data is in the first scan, false when it is behind a source kept for cross-checks. */
+  inScan: boolean;
   inclinationDegrees: number;
   altitudeKm: number;
   /**
@@ -31,15 +33,21 @@ export interface Satellite {
   phaseAtEpochDegrees?: number;
 }
 
+/** The line to show wherever the satellites are explained. */
+export const satelliteCaveat = "Each orbit is the mission's real one. Places along the orbits are for illustration, not tracked live.";
+
 /**
- * The satellites behind two of the scan's four variables. The other two, MERRA-2 and GLDAS,
+ * The satellites behind VIGIL's data. The desktop app has the same list in
+ * VIGIL/VIGIL/Controls/Globe/MissionSatellites.cs: keep the two in step. MERRA-2 and GLDAS
  * are models, not single spacecraft, so they have no orbit to draw.
  */
 export const missionSatellites: Satellite[] = [
+  // In the first scan.
   {
     id: 'terra',
     label: 'Terra',
     detail: 'Carries MODIS, the source of the vegetation (NDVI) record.',
+    inScan: true,
     inclinationDegrees: 98.2,
     altitudeKm: 705,
     // Terra crosses the equator southbound at 10:30, so northbound at 22:30.
@@ -49,11 +57,55 @@ export const missionSatellites: Satellite[] = [
     id: 'gpm',
     label: 'GPM Core Observatory',
     detail: 'The reference satellite of GPM IMERG, the source of the precipitation record.',
+    inScan: true,
     inclinationDegrees: 65,
     altitudeKm: 407,
     // Not sun-synchronous: its plane drifts round the Earth, so this starting angle is arbitrary.
     ascendingNodeDegrees: 40,
     phaseAtEpochDegrees: 120,
+  },
+
+  // Behind the sources the brief keeps for cross-checks. Not in the scan.
+  {
+    id: 'aqua',
+    label: 'Aqua',
+    detail: "Carries a second MODIS, for checking a vegetation trend against Terra's.",
+    inScan: false,
+    inclinationDegrees: 98.2,
+    altitudeKm: 705,
+    ascendingNodeLocalTime: 13.5,
+    phaseAtEpochDegrees: 200,
+  },
+  {
+    id: 'suomi-npp',
+    label: 'Suomi NPP',
+    detail: 'Carries VIIRS, which continues the MODIS vegetation record.',
+    inScan: false,
+    inclinationDegrees: 98.7,
+    altitudeKm: 824,
+    ascendingNodeLocalTime: 13.5,
+    phaseAtEpochDegrees: 75,
+  },
+  {
+    id: 'smap',
+    label: 'SMAP',
+    detail: 'Measures soil moisture from orbit, for comparing against the GLDAS model.',
+    inScan: false,
+    inclinationDegrees: 98.1,
+    altitudeKm: 685,
+    ascendingNodeLocalTime: 18,
+    phaseAtEpochDegrees: 290,
+  },
+  {
+    id: 'grace-fo',
+    label: 'GRACE-FO',
+    // Two spacecraft about 220 km apart on one orbit, drawn as one. The plane drifts, so the angle is arbitrary.
+    detail: 'A pair of satellites that weigh the water stored in a region through its pull on them.',
+    inScan: false,
+    inclinationDegrees: 89,
+    altitudeKm: 490,
+    ascendingNodeDegrees: 160,
+    phaseAtEpochDegrees: 30,
   },
 ];
 
