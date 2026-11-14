@@ -16,6 +16,8 @@ npm run dev
 
 `npm run build` type-checks and writes the site to `dist/`. Pushing to `main` builds it and puts it on the S3 bucket (`.github/workflows/deploy.yaml`).
 
+`npm run build:root` builds, then copies the result to the root of the repository as `index.html` and `viewer/`. Those are committed, so a plain web server pointed at a checkout of the repository serves the viewer with nothing to install. Run it and commit the result with every change to the viewer.
+
 ## Where things are
 
 | Path | What it is |
@@ -32,6 +34,6 @@ npm run dev
 
 ## Results
 
-Until real results exist the viewer shows the synthetic fixture and says so. To show a real scan, put its `snapshot.json` beside `index.html` in the bucket. Nothing needs rebuilding.
+Until real results exist the viewer shows the synthetic fixture and says so. To show a real scan, put its `snapshot.json` beside `index.html` on the server or in the bucket. Nothing needs rebuilding, and a deploy does not overwrite it. Without one the viewer reads `contract/fixture/snapshot.json`.
 
-The Detective needs the Python service. Set `VITE_VIGIL_API_URL` to its address when building. Without a service it gives the fixture's sample answers, marked as such.
+The Detective needs the Python service. If the same server hosts the page and the service (`POST /ask`), nothing needs setting. If the service is somewhere else, set `VITE_VIGIL_API_URL` to its address when building, and the service must allow the page's address through CORS. Without a service it gives the fixture's sample answers, marked as such.

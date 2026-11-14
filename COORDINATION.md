@@ -24,7 +24,7 @@ Each area has one owner. The split matches section 08 of `docs/brief/Project_Bri
 | `analysis` | Will | `python/vigil/analysis/` | Trends, significance, change points, cascades, contradictions, ranking |
 | `detective` | Will | `python/vigil/detective/` | The AI Detective: tool calls over the API, grounded answers |
 | `interface` | Dan | `VIGIL/` | The whole C# project: pages, controls, API client, models. This includes the chat panel, which is the C# side of the Detective. |
-| `web` | Dan | `web/`, `.github/workflows/deploy.yaml` | The web viewer: a React site that shows the same results in a browser (globe layer, findings list, Detective chat), and the workflow that builds it and the desktop app and puts both on the S3 bucket |
+| `web` | Dan | `web/`, `index.html`, `viewer/`, `.github/workflows/deploy.yaml` | The web viewer: a React site that shows the same results in a browser (globe layer, findings list, Detective chat), and the workflow that builds it and the desktop app and puts both on the S3 bucket |
 | `submission` | Open | `docs/submission/`, `README.md` | Demo video script, presentation, written project page. Shared out on the day. |
 | `project-docs` | Dan | `AGENTS.md`, `COORDINATION.md`, `CLAUDE.md`, `docs/brief/` | The rules and the plan |
 
@@ -64,6 +64,7 @@ Folder ownership doesn't cover these. Each has its own rule.
 | `VIGIL/VIGIL/VIGIL.csproj`, `VIGIL.csproj.user` | Add your own entry only. |
 | `*.Designer.cs`, `*.resx` | Only the person who owns that form or page touches them. |
 | `web/package.json`, `web/package-lock.json` | Ask Dan before adding a package. Commit both files together, and never edit the lock file by hand. |
+| `index.html`, `viewer/` (at the root) | The built viewer. Written only by `npm run build:root` in `web/`. Never edit them by hand, and never point `index.html` at source files: a browser cannot run them. |
 | `web/src/theme.css` | Mirrors `Theme.cs`. Add new variables at the end of the relevant group. Never rename or change an existing one without changing `Theme.cs` to match. |
 | `web/src/App.tsx`, `web/src/app.css` | The viewer's shell. Each part of the viewer keeps to its own folder under `web/src/` and is wired in here with one import. |
 

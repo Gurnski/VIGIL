@@ -66,3 +66,8 @@ web/node_modules/
 web/dist/
 web/public/snapshot.json
 web/public/ask.json
+
+# Results placed beside the root index.html on a server. Real results are never committed;
+# without them the viewer reads contract/fixture/.
+/snapshot.json
+/ask.json

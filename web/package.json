@@ -9,6 +9,7 @@
     "dev": "vite",
     "prebuild": "npm run fixture",
     "build": "tsc --noEmit && vite build",
+    "build:root": "npm run build && node scripts/publish-root.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },

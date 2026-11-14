@@ -4,9 +4,22 @@ import { loadAskFixture } from '../data';
 // The viewer never calls a language model itself and holds no API key: the service does that.
 const timeoutMs = 20000;
 
+const localService = 'http://127.0.0.1:8000';
+
+/**
+ * With no address built in, the service is taken to be on the machine serving the page: the
+ * local one while developing, and otherwise the same address the page came from, which needs
+ * no configuration and no cross-origin permission when one server hosts both.
+ */
+function defaultAddress(): string {
+  const host = window.location.hostname;
+  const local = host === '' || host === 'localhost' || host === '127.0.0.1';
+  return local ? localService : window.location.origin;
+}
+
 /** The address of the analysis service, without a trailing slash. */
 export const serviceAddress: string = (
-  (import.meta.env.VITE_VIGIL_API_URL as string | undefined) || 'http://127.0.0.1:8000'
+  (import.meta.env.VITE_VIGIL_API_URL as string | undefined) || defaultAddress()
 ).replace(/\/+$/, '');
 
 /** The service could not give an answer. The message says why, in words fit to show. */

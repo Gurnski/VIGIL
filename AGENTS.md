@@ -144,16 +144,17 @@ Real pages should use the designer (a `.Designer.cs` file). `GalleryPage`, `Plac
 It is a viewer, not a second copy of the app. It has one screen with three parts: the globe with a variable's trend layer, the ranked findings list, and the Detective chat. The desktop app stays the main one and gets new features first. Porting more of it to the web is a later decision, not something to start by drift.
 
 - Run it with `cd web`, `npm install`, `npm run dev`. `npm run build` type-checks and writes the site to `web/dist/`. You need Node 22.
-- It loads `snapshot.json` and `ask.json` from beside `index.html` when the page opens. `scripts/copy-fixture.mjs` copies them from `contract/fixture/` before every dev run and build, and the copies are not committed. To show real results, put a real `snapshot.json` in the bucket: no rebuild is needed.
+- It loads `snapshot.json` and `ask.json` from beside `index.html` when the page opens, and falls back to `contract/fixture/` when they are not there. To show real results, put a real `snapshot.json` beside `index.html` on the server or the bucket: no rebuild is needed, and a deploy never overwrites it. For local development `scripts/copy-fixture.mjs` copies the fixture into `web/public/`, and those copies are not committed.
+- A built copy of the viewer is committed at the root of the repository: `index.html` and `viewer/`. Any plain web server pointed at a checkout serves it, with no Node and no build on that machine. It goes stale when `web/src/` changes, so run `npm run build:root` and commit the result with every change to the viewer. Never edit those two by hand.
 - `src/contract.ts` is the contract as TypeScript types, with the JSON's own snake_case names. It only describes the format. Change it when Dan changes the contract, and never to suit the viewer.
 - `src/theme.css` holds the colours, spacing and type sizes as CSS variables, copied from `Theme.cs`. The UI rules above apply here too: tokens only, surfaces told apart by tone, status colours for meaning, no decoration, sentence case, UK English.
 - Each part keeps to its own folder under `src/` (`findings/`, `globe/`, `detective/`) with its own stylesheet and a class-name prefix to match. `src/App.tsx` is the shell that holds the shared state (the chosen finding, the layer, whether the chat is open) and passes it down.
-- The same honesty rules as the app: made-up results carry the "Synthetic fixture" badge, a fixture answer from the Detective is marked "Sample answer", and the viewer never calls a language model or holds a key. The Detective's address is the build-time variable `VITE_VIGIL_API_URL`, or `http://127.0.0.1:8000` without it.
+- The same honesty rules as the app: made-up results carry the "Synthetic fixture" badge, a fixture answer from the Detective is marked "Sample answer", and the viewer never calls a language model or holds a key. The Detective's address is the build-time variable `VITE_VIGIL_API_URL`. Without it, the viewer uses `http://127.0.0.1:8000` when the page is opened on localhost, and otherwise the address the page itself came from, so one server hosting both the page and the service needs no configuration.
 - All statistics still come from the Python service. The viewer displays what the document says and computes nothing but layout and the colour scale's range.
 - Packages so far: `react`, `react-dom`, `react-globe.gl` and `three`. Ask before adding one.
 - `.github/workflows/deploy.yaml` builds the viewer and the desktop app on every push to `main` and puts both on the S3 bucket: the viewer at the root, and the app as `download/VIGIL-win-x64.zip`, which the viewer links to.
 
-Before you finish a change in `web/`: `npm run build` must pass, and open the page at phone width as well as desktop width.
+Before you finish a change in `web/`: `npm run build:root` must pass, and open the page at phone width as well as desktop width.
 
 ## Windows Forms rules
 

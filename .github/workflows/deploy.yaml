@@ -102,14 +102,16 @@ jobs:
         with:
           name: vigil-app
 
-      # The viewer goes at the bucket root: index.html, snapshot.json, ask.json and viewer/.
-      # Its hashed files in viewer/ are synced first with --delete to clear out old builds,
-      # then the root files are copied with no-cache so a new build shows up straight away.
+      # The viewer goes at the bucket root: index.html and viewer/. Its hashed files in viewer/
+      # are synced first with --delete to clear out old builds, then index.html is copied with
+      # no-cache so a new build shows up straight away.
+      #
+      # snapshot.json and ask.json are never uploaded from here. A real snapshot.json put at the
+      # bucket root by the scan must survive a deploy, and without one the viewer reads the
+      # fixture from contract/fixture/, which the sync above has already put on the bucket.
       - name: Upload the viewer and the app
         run: |
           aws s3 sync viewer-build/viewer s3://${{ secrets.S3_BUCKET_NAME }}/viewer --delete
-          for file in index.html snapshot.json ask.json; do
-            aws s3 cp "viewer-build/$file" "s3://${{ secrets.S3_BUCKET_NAME }}/$file" --cache-control no-cache
-          done
+          aws s3 cp viewer-build/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html --cache-control no-cache
           aws s3 cp VIGIL-win-x64.zip s3://${{ secrets.S3_BUCKET_NAME }}/download/VIGIL-win-x64.zip \
             --content-type application/zip --cache-control no-cache
