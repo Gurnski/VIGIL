@@ -96,14 +96,16 @@ namespace VIGIL.Pages
             presets.SelectedChanged += Presets_SelectedChanged;
             bar.Controls.Add(presets);
 
-            bar.Controls.Add(new Divider
+            // The three switches sit in a group of their own, so they wrap to the next row together
+            // and one is never left behind on a row by itself.
+            var switches = new FlowLayoutPanel
             {
-                Orientation = Orientation.Vertical,
-                Width = Px(Theme.Space3),
-                Height = Px(Theme.ControlHeight),
-                Margin = new Padding(0, 0, 0, Px(Theme.Space2))
-            });
-
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                BackColor = Theme.Background,
+                Margin = Padding.Empty
+            };
             int toggleTop = Px((Theme.ControlHeight - Theme.ControlHeightSmall) / 2);
             foreach (var toggle in new[] { graticuleToggle, rotateToggle, overlayToggle })
             {
@@ -111,8 +113,9 @@ namespace VIGIL.Pages
                 toggle.Font = Theme.Body;
                 toggle.Width = TextRenderer.MeasureText(toggle.Text, Theme.Body, Size.Empty, TextFormatFlags.NoPadding).Width + Px(36 + Theme.Space3 + Theme.Space2);
                 toggle.Margin = new Padding(Px(Theme.Space2), toggleTop, Px(Theme.Space2), Px(Theme.Space2));
-                bar.Controls.Add(toggle);
+                switches.Controls.Add(toggle);
             }
+            bar.Controls.Add(switches);
             graticuleToggle.CheckedChanged += (s, e) => globe.ShowGraticule = graticuleToggle.Checked;
             rotateToggle.CheckedChanged += (s, e) => globe.AutoRotate = rotateToggle.Checked;
             overlayToggle.CheckedChanged += (s, e) => globe.GridOverlayOpacity = overlayToggle.Checked ? 0.65f : 0f;
@@ -125,7 +128,11 @@ namespace VIGIL.Pages
         {
             int edge = Px(Theme.Space4);
             legend.Location = new Point(edge, edge);
-            status.Location = new Point(globe.Width - edge - status.Width, edge);
+            // On a small globe the legend would sit on the planet, and the status badge would sit on the legend.
+            legend.Visible = globe.Width >= Px(620) && globe.Height >= Px(420);
+            int statusLeft = globe.Width - edge - status.Width;
+            bool clear = !legend.Visible || statusLeft >= legend.Right + edge;
+            status.Location = clear ? new Point(Math.Max(edge, statusLeft), edge) : new Point(edge, legend.Bottom + Px(Theme.Space2));
         }
 
         private void SetStatus(string text)

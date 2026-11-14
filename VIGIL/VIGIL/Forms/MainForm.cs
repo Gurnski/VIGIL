@@ -27,6 +27,48 @@ namespace VIGIL.Forms
 
             navRail.SelectedChanged += NavRail_SelectedChanged;
             navRail.Select("components");
+            FitToWidth();
+        }
+
+        // Window widths at 100% scale. Below the first the nav rail folds to icons, and below
+        // the second the page margins tighten, so the page keeps its room on a small screen.
+        private const int RailFoldWidth = 1180;
+        private const int TightWidth = 900;
+        private bool? railFolded;
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            FitToWidth();
+        }
+
+        /// <summary>
+        ///  Fits the shell to the window width. The rail only folds or unfolds as the width
+        ///  crosses the threshold, so a choice made with the Collapse button holds until then.
+        /// </summary>
+        private void FitToWidth()
+        {
+            if (navRail == null || WindowState == FormWindowState.Minimized)
+            {
+                return;
+            }
+
+            int Px(int value) => (int)Math.Round(value * DeviceDpi / 96f);
+            bool fold = ClientSize.Width < Px(RailFoldWidth);
+            if (fold != railFolded)
+            {
+                railFolded = fold;
+                navRail.Collapsed = fold;
+            }
+
+            bool tight = ClientSize.Width < Px(TightWidth);
+            var padding = tight
+                ? new Padding(Px(Theme.Space4), Px(Theme.Space4), Px(Theme.Space2), 0)
+                : new Padding(Px(Theme.PagePadding), Px(Theme.PagePaddingTop), Px(Theme.Space4), 0);
+            if (contentHost.Padding != padding)
+            {
+                contentHost.Padding = padding;
+            }
         }
 
         private void AddPage(string key, string glyph, string title, Func<Control> factory)

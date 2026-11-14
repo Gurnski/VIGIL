@@ -121,6 +121,9 @@ namespace VIGIL.Controls.Globe
         private GlobeRegion? selection;
         private GlobeRegion? selectionPreview;
         private Rectangle readoutBounds;
+        // Below this size (at 100% scale) the read-out shows the coordinates only.
+        private const int CompactWidth = 620;
+        private const int CompactHeight = 420;
 
         private bool autoRotate = true;
         private float autoRotateSpeed = 1.5f;
@@ -1684,12 +1687,25 @@ namespace VIGIL.Controls.Globe
             int width = Math.Max(Math.Max(coordinateSize.Width, detailSize.Width), sunlightSize.Width + Px(Theme.Space3)) + pad * 2;
             int height = Px(Theme.Space2) + coordinateSize.Height + Px(Theme.Space1) + detailSize.Height + Px(Theme.Space1) + sunlightSize.Height + Px(Theme.Space2);
             int edge = Px(Theme.Space4);
+
+            // On a small globe the full read-out covers the planet, so it shrinks to the coordinates alone.
+            bool compact = Width < Px(CompactWidth) || Height < Px(CompactHeight);
+            if (compact)
+            {
+                width = coordinateSize.Width + pad * 2;
+                height = Px(Theme.Space2) + coordinateSize.Height + Px(Theme.Space2);
+            }
             readoutBounds = new Rectangle(edge, Height - edge - height, width, height);
 
             Draw.RoundedBox(g, readoutBounds, Px(Theme.RadiusSmall), Theme.Surface, Theme.Border);
             int y = readoutBounds.Y + Px(Theme.Space2);
             Draw.Text(g, coordinates, coordinateFont, new Rectangle(readoutBounds.X + pad, y, coordinateSize.Width + 1, coordinateSize.Height),
                 cursorPosition != null ? Theme.TextPrimary : Theme.TextMuted);
+            if (compact)
+            {
+                sunDotBounds = Rectangle.Empty;
+                return;
+            }
             y += coordinateSize.Height + Px(Theme.Space1);
             Draw.Text(g, detail, Theme.Caption, new Rectangle(readoutBounds.X + pad, y, detailSize.Width + 1, detailSize.Height), Theme.TextSecondary);
             y += detailSize.Height + Px(Theme.Space1);
@@ -1719,9 +1735,16 @@ namespace VIGIL.Controls.Globe
             int bottom = Height - Px(22);
             if (showAttribution)
             {
-                Draw.Text(g, "Imagery: NASA Blue Marble and Black Marble", Theme.Caption,
-                    new Rectangle(0, bottom, Width, Px(18)), Theme.TextMuted,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                // Centred between the read-out on the left and the buttons on the right. Left out
+                // when there isn't room, so it never runs into either.
+                const string credit = "Imagery: NASA Blue Marble and Black Marble";
+                int left = (showHud ? readoutBounds.Right : 0) + Px(Theme.Space3);
+                int right = Width - (showHud ? Px(Theme.Space4 + 32) : 0) - Px(Theme.Space3);
+                if (Draw.Measure(g, credit, Theme.Caption).Width <= right - left)
+                {
+                    Draw.Text(g, credit, Theme.Caption, new Rectangle(left, bottom, right - left, Px(18)), Theme.TextMuted,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                }
                 bottom -= Px(20);
             }
 

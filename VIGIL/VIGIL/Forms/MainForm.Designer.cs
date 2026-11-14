@@ -57,7 +57,7 @@
             this.ClientSize = new System.Drawing.Size(1280, 800);
             this.Controls.Add(this.contentHost);
             this.Controls.Add(this.navRail);
-            this.MinimumSize = new System.Drawing.Size(1024, 680);
+            this.MinimumSize = new System.Drawing.Size(640, 480);
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "VIGIL";
