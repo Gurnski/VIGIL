@@ -22,6 +22,8 @@ namespace VIGIL.Forms
         private readonly VigilButton chatLauncher = new() { Variant = ButtonVariant.Secondary, IconGlyph = Icons.Chat, Text = "Ask the Detective" };
 
         public MainForm()
+        /// <param name="results">The results loaded at startup, shared by the pages that show them.</param>
+        public MainForm(ResultsDocument results)
         {
             InitializeComponent();
 
@@ -43,6 +45,7 @@ namespace VIGIL.Forms
                 page.CitationClicked += (s, id) => ShowFinding(id);
                 return page;
             });
+            AddPage("map", Icons.Globe, "Map", () => new MapPage(results));
             AddPage("components", Icons.Library, "Components", () => new GalleryPage());
 
             chatPanel = new ChatPanel(chats) { Visible = false };

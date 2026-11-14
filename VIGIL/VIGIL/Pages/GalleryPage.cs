@@ -1,5 +1,6 @@
 using VIGIL.Controls;
 using VIGIL.Controls.Chat;
+using VIGIL.Models;
 using VIGIL.Theming;
 
 namespace VIGIL.Pages
@@ -41,6 +42,7 @@ namespace VIGIL.Pages
             AddRow(layout, BuildStatRow());
             AddRow(layout, BuildChartCard());
             AddRow(layout, BuildControlsCard());
+            AddRow(layout, BuildFindingsCard());
             Controls.Add(layout);
 
             ShowDemoSeries();
@@ -216,6 +218,43 @@ namespace VIGIL.Pages
                 lastFlow.Margin = new Padding(0);
             }
             return card;
+        }
+
+        private Control BuildFindingsCard()
+        {
+            var card = new Card
+            {
+                Title = "Findings list (demo data)",
+                Size = new Size(Px(1000), Px(320))
+            };
+            var list = new FindingsList { Dock = DockStyle.Fill };
+            list.SetFindings(new[]
+            {
+                DemoFinding(1, FindingKind.Cascade, "Vegetation follows soil moisture by 2 months (r = +0.86). An association, not a cause.", true, 0.82, -8.75, -51.25, "GLDAS Noah", "Terra MODIS"),
+                DemoFinding(2, FindingKind.Trend, "Air temperature at 2 m: warming at +0.72 K per decade", true, 0.71, 61.25, 101.25, "MERRA-2"),
+                DemoFinding(3, FindingKind.ChangePoint, "Vegetation (NDVI): level shifts by +0.027 NDVI around 2010-06", true, 0.64, -26.25, 133.75, "Terra MODIS"),
+                DemoFinding(4, FindingKind.Contradiction, "Vegetation (NDVI): greening here, browning in the next cell east", true, 0.58, 13.75, 3.75, "Terra MODIS"),
+                DemoFinding(5, FindingKind.Trend, "Precipitation: no significant trend", false, 0.21, 51.25, 23.75, "GPM IMERG")
+            });
+            list.SelectedIndex = 1;
+            card.Controls.Add(list);
+            return card;
+        }
+
+        private static Finding DemoFinding(int rank, string kind, string summary, bool significant, double score,
+            double latitude, double longitude, params string[] missions)
+        {
+            return new Finding
+            {
+                Id = "demo." + rank,
+                Kind = kind,
+                Rank = rank,
+                Summary = summary,
+                Significant = significant,
+                Cell = new Cell { LatMin = latitude - 1.25, LatMax = latitude + 1.25, LonMin = longitude - 1.25, LonMax = longitude + 1.25 },
+                Variables = missions.Select(mission => new Variable { Mission = mission }).ToList(),
+                Score = new Score { Total = score }
+            };
         }
 
         /// <summary>
