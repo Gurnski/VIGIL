@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>VIGIL project brief</title>
+<!--
+  Source for Project_Brief.pdf. Edit this file, then print it to PDF:
+  msedge --headless --no-pdf-header-footer --print-to-pdf=Project_Brief.pdf Project_Brief.html
+-->
+<style>
+  @page {
+    size: A4;
+    margin: 17mm 17mm 20mm 17mm;
+    @bottom-left {
+      content: "VIGIL  /  NASA Space Apps 2026  /  Project brief";
+      font-family: "Segoe UI", "DejaVu Sans", Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #64748B;
+      border-top: 0.5pt solid #CBD5E1;
+      padding-top: 2mm;
+      vertical-align: top;
+    }
+    @bottom-right {
+      content: counter(page);
+      font-family: "Segoe UI", "DejaVu Sans", Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #64748B;
+      border-top: 0.5pt solid #CBD5E1;
+      padding-top: 2mm;
+      vertical-align: top;
+    }
+    @bottom-center {
+      content: "";
+      border-top: 0.5pt solid #CBD5E1;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Segoe UI", "DejaVu Sans", Arial, sans-serif;
+    font-size: 9pt;
+    line-height: 1.45;
+    color: #1E293B;
+    margin: 0;
+  }
+
+  .eyebrow {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #2563EB;
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 30pt;
+    line-height: 1.1;
+    margin: 3mm 0 1mm 0;
+    color: #0F172A;
+  }
+
+  .acronym {
+    font-size: 8.5pt;
+    color: #64748B;
+    margin: 0 0 2mm 0;
+  }
+
+  .subtitle {
+    font-size: 11.5pt;
+    color: #475569;
+    margin: 0 0 1.5mm 0;
+  }
+
+  .revision {
+    font-size: 8pt;
+    color: #64748B;
+    margin: 0 0 5mm 0;
+  }
+
+  h2 {
+    font-size: 13.5pt;
+    color: #0F172A;
+    margin: 0 0 2.5mm 0;
+    break-before: page;
+    break-after: avoid;
+  }
+
+  h2.first-section {
+    break-before: auto;
+    margin-top: 6.5mm;
+  }
+
+  h3 {
+    font-size: 9.5pt;
+    color: #0F172A;
+    margin: 3mm 0 0.5mm 0;
+    break-after: avoid;
+  }
+
+  h3 .tag { color: #2563EB; }
+
+  p { margin: 0 0 2mm 0; }
+
+  .lead { font-size: 9.5pt; }
+
+  .small { font-size: 8.2pt; }
+
+  ul, ol {
+    margin: 0 0 2mm 0;
+    padding-left: 5mm;
+  }
+
+  li { margin-bottom: 1mm; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5mm 0 2.5mm 0;
+    font-size: 8.2pt;
+    break-inside: avoid;
+  }
+
+  th {
+    text-align: left;
+    font-weight: 600;
+    background: #EAF2FD;
+    color: #1E293B;
+    padding: 2mm 2.5mm;
+    border: 0.5pt solid #D5DEEA;
+  }
+
+  td {
+    padding: 2mm 2.5mm;
+    border: 0.5pt solid #D5DEEA;
+    vertical-align: top;
+  }
+
+  td.key { font-weight: 600; white-space: nowrap; }
+
+  a { color: #2563EB; text-decoration: none; }
+
+  code {
+    font-family: Consolas, "DejaVu Sans Mono", monospace;
+    font-size: 8.2pt;
+  }
+
+  .keep { break-inside: avoid; }
+
+  td.src { font-weight: 600; }
+
+  td.src a {
+    display: block;
+    font-weight: 400;
+    font-size: 7.3pt;
+    margin-top: 0.6mm;
+    word-break: break-all;
+  }
+
+  .get {
+    display: block;
+    margin-top: 0.8mm;
+    color: #475569;
+  }
+
+  .owner {
+    display: block;
+    font-weight: 400;
+    color: #2563EB;
+  }
+
+  /* Architecture diagram */
+  .diagram {
+    display: flex;
+    align-items: center;
+    gap: 1.2mm;
+    margin: 2.5mm 0 2mm 0;
+    break-inside: avoid;
+  }
+
+  .box {
+    flex: 1 1 0;
+    border: 0.6pt solid #94A3B8;
+    border-radius: 1.5mm;
+    padding: 1.8mm 1.6mm;
+    font-size: 7pt;
+    line-height: 1.3;
+    color: #475569;
+    background: #F8FAFC;
+    text-align: center;
+  }
+
+  .box b {
+    display: block;
+    font-size: 7.8pt;
+    color: #0F172A;
+    margin-bottom: 0.6mm;
+  }
+
+  .box.accent {
+    border-color: #2563EB;
+    background: #EAF2FD;
+  }
+
+  .stack {
+    flex: 1.25 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2mm;
+  }
+
+  .arrow {
+    flex: 0 0 auto;
+    font-size: 10pt;
+    color: #64748B;
+  }
+</style>
+</head>
+<body>
+
+<p class="eyebrow">NASA INTERNATIONAL SPACE APPS CHALLENGE 2026 / EARTH SYSTEM TREND DETECTIVE</p>
+<h1>VIGIL</h1>
+<p class="acronym">(Visualising &amp; Identifying Global Indicators of Long-term change)</p>
+<p class="subtitle" style="margin-bottom: 5mm">Project brief | An autonomous Earth-system trend discovery and investigation platform</p>
+
+<p class="lead">Mission. VIGIL will search real Earth-observation records to discover significant environmental changes without being told which events to find. It will examine where, when and how Earth systems are changing, identify relationships and contradictions between variables, and produce transparent, reproducible evidence that users can interrogate.</p>
+
+<p class="lead">Design principle: discovery first, explanation second. California drought, Himalayan warming and other well-known cases are potential outputs of the engine, not hard-coded examples or regions chosen to guarantee a compelling result.</p>
+
+<h2 class="first-section">01 | Five mandatory capabilities</h2>
+<p class="small">The tag after each name is the stage by which that capability must work, and when the stage falls due. Section 02 sets out the stages.</p>
+
+<h3>1. Earth System Cascade Detection <span class="tag">[INTELLIGENCE, SUNDAY 12:00]</span></h3>
+<p class="small">Discover co-occurring or lagged changes across precipitation, temperature, soil moisture and vegetation. Build an evidence graph with measured direction, magnitude, timing and uncertainty. Describe these as associations unless independent causal evidence exists.</p>
+
+<h3>2. Statistical Significance Explorer <span class="tag">[FOUNDATION, SATURDAY 17:30]</span></h3>
+<p class="small">Calculate change rates, confidence intervals and significance for each eligible region/variable/time period. Visualise trend strength and uncertainty, distinguish statistical significance from practical magnitude, and expose raw values and methods.</p>
+
+<h3>3. AI Earth Detective <span class="tag">[INTELLIGENCE, SUNDAY 12:00]</span></h3>
+<p class="small">An in-software assistant that interprets a natural-language question, invokes authorised analysis tools, and answers only from computed results with dataset, geography, period, uncertainty and method references. It must say when evidence is inconclusive.</p>
+
+<h3>4. Environmental Change-Point Detection <span class="tag">[INTELLIGENCE, SUNDAY 12:00]</span></h3>
+<p class="small">Identify when a time series changes level or slope, distinguish abrupt shifts from long-term trends, estimate the change-point date and uncertainty, and check whether breakpoints coincide across variables.</p>
+
+<h3>5. Contradiction Finder <span class="tag">[INTELLIGENCE, SUNDAY 12:00]</span></h3>
+<p class="small">Search for nearby or comparable locations with opposite trends, e.g., one area greening while its neighbour browns. Rank by statistical reliability and comparability rather than visual drama, and flag plausible confounders.</p>
+
+<p class="small" style="margin-top:2.5mm">Development structure: all five capabilities are required, and each of them needs harmonised data before it can produce anything real. The work is split into work areas by layer (data, analysis, interface, assistant), set out in section 08. Each capability has a thin version that must ship, listed in section 02.</p>
+
+<h2>02 | Scope for the weekend</h2>
+
+<p>Hacking opens at 10:30 on Saturday and the submission deadline is 15:00 on Sunday. Inside the venue that is about fifteen working hours, plus whatever is done from home on Saturday night. The scope below is therefore the thin version of each capability, with a fixed order for cutting. Section 08 lists every job in the order it falls due, and section 09 sets the plan against the venue's timetable.</p>
+<p>The aim is to have every capability working by 21:00 on Saturday. Sunday morning is for fixing, tidying, the presentation and the video. The Sunday 12:00 date on the Intelligence stage is the last moment a capability can land, not the target.</p>
+
+<h3>The version of each capability that must ship</h3>
+<table>
+  <tr><th style="width:26%">Capability</th><th>Thin version</th></tr>
+  <tr><td>Significance Explorer</td><td>Mann-Kendall with Sen's slope on deseasonalised monthly anomalies, with an autocorrelation correction and false-discovery-rate control across grid cells.</td></tr>
+  <tr><td>Change-Point Detection</td><td>One detected break per series, with a date, an uncertainty range on that date, and the level before and after it.</td></tr>
+  <tr><td>Cascade Detection</td><td>Lagged correlation between pairs of variables within a grid cell, reported as associations.</td></tr>
+  <tr><td>Contradiction Finder</td><td>Neighbouring grid cells with significant trends of opposite sign.</td></tr>
+  <tr><td>AI Earth Detective</td><td>Tool calls over the API, answering only from the results returned, and saying so when the evidence is inconclusive.</td></tr>
+</table>
+
+<h3>Stages</h3>
+<table>
+  <tr><th style="width:15%">Stage</th><th style="width:19%">Due</th><th>Definition of done</th></tr>
+  <tr><td>Foundation</td><td>Saturday 17:30</td><td>A real multi-region scan runs on at least two aligned NASA variables; at least one ranked finding is generated automatically, with significance, magnitude and provenance.</td></tr>
+  <tr><td>Integration</td><td>Saturday 21:00</td><td>The app shows real findings on the globe and opens an evidence view for one of them.</td></tr>
+  <tr><td>Intelligence</td><td>Sunday 12:00</td><td>The AI can answer grounded questions using computed results; multi-variable cascades, change points and opposite-trend candidates are surfaced with uncertainty. Features are frozen.</td></tr>
+  <tr><td>Presentation</td><td>Sunday 14:30</td><td>A reliable end-to-end desktop demonstration shows a non-preselected finding, opens its evidence, explains limitations and reproduces its figures. It is recorded, and the recording is the backup for the live demo at 15:30.</td></tr>
+</table>
+
+<div class="keep">
+<h3>What gets cut first</h3>
+<ol class="small">
+  <li>Validation on a second dataset.</li>
+  <li>The cascade graph control, falling back to a table.</li>
+  <li>Live reruns, falling back to the precomputed scan only.</li>
+</ol>
+<p class="small">The five capabilities stay, in their thin versions. The fine pass in section 07 is stretch work and is dropped before anything on this list.</p>
+</div>
+
+<p class="small">Success is not measured by how many famous climate events VIGIL recognises. Success is a defensible, repeatable discovery process that can find important signals, or correctly report that the evidence is insufficient.</p>
+
+<h2>03 | Discovery before demonstration</h2>
+<ul>
+  <li>Define a neutral search space first: select a predeclared geographic grid or unbiased set of regions, supported variables and common observation windows based on coverage and data quality, not on famous events.</li>
+  <li>Screen systematically: process every eligible region using the same preprocessing, trend tests and thresholds; record non-significant, missing and contradictory results as well as discoveries.</li>
+  <li>Rank findings by a transparent score: combine effect size, uncertainty, coverage, robustness and cross-system relevance. The score is for prioritising investigation, not proof of a discovery.</li>
+  <li>Investigate what emerges: if a California water-stress pattern or Himalayan temperature anomaly ranks highly, drill down and explain it. If those cases do not emerge, present the actual highest-quality findings instead.</li>
+  <li>Separate discovery from validation: re-test shortlisted patterns on held-out years, alternative measures or an independent dataset where feasible; label exploratory results clearly when independent validation is unavailable.</li>
+</ul>
+
+<h3>Starting proposal for the scan</h3>
+<p class="small">These settings are fixed before the scan runs and are not tuned afterwards to make a result appear. They are a proposal until the first downloads confirm coverage.</p>
+<table>
+  <tr><th style="width:22%">Setting</th><th>Proposal</th></tr>
+  <tr><td class="key">Grid</td><td>2.5° by 2.5° cells over land, which is roughly 3,000 cells.</td></tr>
+  <tr><td class="key">Period</td><td>January 2001 to December 2025 in monthly steps, about 300 points per series.</td></tr>
+  <tr><td class="key">Eligibility</td><td>A cell and variable are scanned when at least 90% of months are present. Cells that are mostly ocean or permanent ice are left out.</td></tr>
+  <tr><td class="key">Series</td><td>The area-weighted mean of the cell, then the anomaly from that cell's own monthly climatology.</td></tr>
+  <tr><td class="key">Threshold</td><td>Adjusted p below 0.05 after false-discovery-rate control across every test in the scan.</td></tr>
+  <tr><td class="key">Record</td><td>Every cell and variable, whether significant or not, with the reason when a cell is skipped.</td></tr>
+</table>
+
+<h2>04 | Scientific defensibility: non-negotiable</h2>
+<ul>
+  <li>Harmonise spatial resolution, monthly/seasonal aggregation, units, missing-data rules and overlapping date ranges before comparing variables. Avoid comparing unrelated pixels or time periods.</li>
+  <li>Account for seasonality, temporal autocorrelation and multiple testing across many regions (e.g., false-discovery-rate control); disclose adjusted significance and confidence intervals.</li>
+  <li>Use a documented method suited to the series: seasonal trend estimation, regression or Mann-Kendall with appropriate serial-dependence treatment; use validated change-point analysis and sensitivity checks.</li>
+  <li>For cascade claims, test lagged correlations and temporal ordering; control for shared seasonal cycles. Never imply that correlations establish causation.</li>
+  <li>Every reported finding must retain provenance: mission/product, variable, source URL/identifier, spatial extent, date range, preprocessing, test, parameters, results and known limitations.</li>
+</ul>
+
+<h3>How VIGIL plans to meet each rule</h3>
+<table>
+  <tr><th style="width:22%">Rule</th><th>Planned approach</th></tr>
+  <tr><td class="key">Harmonising</td><td>The pipeline averages every product onto the same grid and the same monthly steps over the same period. Units are converted once, and the conversion is recorded.</td></tr>
+  <tr><td class="key">Seasonality</td><td>Each cell's monthly climatology is subtracted before any test runs, so tests see anomalies.</td></tr>
+  <tr><td class="key">Autocorrelation</td><td>A modified Mann-Kendall test with the Hamed-Rao variance correction, or pre-whitening. Both are in <code>pymannkendall</code>.</td></tr>
+  <tr><td class="key">Multiple testing</td><td>Benjamini-Hochberg false-discovery-rate control across all tests in the scan, from <code>statsmodels</code>. Both raw and adjusted p-values are kept.</td></tr>
+  <tr><td class="key">Change points</td><td><code>ruptures</code> on the anomaly series, rerun with a second penalty setting as the sensitivity check.</td></tr>
+  <tr><td class="key">Cascades</td><td>Lagged correlation between anomaly series at lags of 0 to 6 months, reported with its lag and sign as an association.</td></tr>
+  <tr><td class="key">Provenance</td><td>Every finding carries the fields listed in section 07.</td></tr>
+</table>
+<p class="small">Which autocorrelation correction to use is the main question to put to a mentor during Saturday's office hours.</p>
+
+<h2>05 | Satellite data and accessible sources</h2>
+<table>
+  <tr><th style="width:26%">Mission / source</th><th>Primary role in VIGIL</th></tr>
+  <tr><td>NASA MERRA-2</td><td>Long-term atmospheric temperature and related climate variables; gridded reanalysis, not direct satellite measurements alone.</td></tr>
+  <tr><td>GPM IMERG</td><td>Multi-satellite precipitation estimates for rainfall trends and temporal relationships.</td></tr>
+  <tr><td>Terra / Aqua MODIS</td><td>Vegetation indices (NDVI/EVI), land-surface temperature and land change; use consistent products and quality flags.</td></tr>
+  <tr><td>GLDAS / SMAP</td><td>Soil moisture and land-water context; GLDAS is a model/data-assimilation product, SMAP is satellite observation.</td></tr>
+  <tr><td>GRACE / GRACE-FO</td><td>Optional advanced analysis of coarse-resolution terrestrial water-storage anomalies, subject to coverage and resolution constraints.</td></tr>
+</table>
+<p class="small">Primary access: NASA Giovanni (giovanni.gsfc.nasa.gov), Earthdata Search (search.earthdata.nasa.gov), NASA GES DISC / LP DAAC product services. Google Earth Engine may accelerate preprocessing and prototyping where datasets and permissions allow. Precompute and cache a reproducible discovery run for demo reliability.</p>
+
+<h3>Products planned for the first scan</h3>
+<table>
+  <tr><th style="width:26%">Variable</th><th>Product</th><th style="width:22%">Resolution</th><th style="width:10%">From</th></tr>
+  <tr><td class="key">Air temperature at 2 m</td><td>MERRA-2 <code>M2TMNXSLV</code>, field <code>T2M</code></td><td>0.5° by 0.625°, monthly</td><td>1980</td></tr>
+  <tr><td class="key">Precipitation</td><td>GPM IMERG monthly, <code>GPM_3IMERGM</code></td><td>0.1°, monthly</td><td>2000</td></tr>
+  <tr><td class="key">Soil moisture, 0 to 10 cm</td><td>GLDAS Noah, <code>GLDAS_NOAH025_M</code></td><td>0.25°, monthly</td><td>2000</td></tr>
+  <tr><td class="key">Vegetation (NDVI)</td><td>MODIS Terra <code>MOD13C2</code></td><td>0.05°, monthly</td><td>2000</td></tr>
+</table>
+<p class="small">Check each identifier, resolution and start date against the files as they download. Temperature and precipitation come first, because the Foundation stage needs two aligned variables. Soil moisture and vegetation follow. Section 06 lists every other source we might draw on.</p>
+
+<h2>06 | Data sources and how to get them</h2>
+<p>Every source we might use, grouped by what it measures. Each entry has a link and the way to retrieve it. The first scan uses only the four products in section 05. The rest are for cross-checks, for explaining a finding, or for later.</p>
+<p class="small">Links to NASA products are searches by the product's short name in Earthdata Search. The short names and addresses were written from memory and only partly checked, so confirm each one before building on it.</p>
+
+<h3>Ways in</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">Earthdata Login<a href="https://urs.earthdata.nasa.gov">urs.earthdata.nasa.gov</a></td><td>The free NASA account that every NASA download below needs.<span class="get">Get it: register in the browser. It takes a few minutes.</span></td></tr>
+  <tr><td class="src">earthaccess<a href="https://earthaccess.readthedocs.io">earthaccess.readthedocs.io</a></td><td>A Python library that logs in, finds a product by its short name and opens or downloads the files. On a machine in Amazon's <code>us-west-2</code> region it reads straight from NASA's storage. Anywhere else it downloads over the web.<span class="get">Get it: <code>pip install earthaccess</code>.</span></td></tr>
+  <tr><td class="src">Earthdata Search<a href="https://search.earthdata.nasa.gov">search.earthdata.nasa.gov</a></td><td>The catalogue of every NASA Earth science product, with dates, coverage and file lists.<span class="get">Get it: search in the browser, then download files or a download script.</span></td></tr>
+  <tr><td class="src">Giovanni<a href="https://giovanni.gsfc.nasa.gov">giovanni.gsfc.nasa.gov</a></td><td>Draws a map or an area-averaged time series for a region you outline, with no code.<span class="get">Get it: use it in the browser and export the series as CSV. Best for checking one finding by hand.</span></td></tr>
+  <tr><td class="src">AppEEARS<a href="https://appeears.earthdatacloud.nasa.gov">appeears.earthdatacloud.nasa.gov</a></td><td>Cuts out the points or area you ask for from MODIS and similar products, and converts the awkward file formats for you.<span class="get">Get it: submit a request in the browser or through its API. Requests queue, and an email arrives when the files are ready.</span></td></tr>
+  <tr><td class="src">NASA POWER<a href="https://power.larc.nasa.gov">power.larc.nasa.gov</a></td><td>Monthly temperature and rainfall for a single point, as JSON or CSV. Its values come from MERRA-2, so it confirms we read our files correctly but is not an independent source.<span class="get">Get it: call its web API. No login is needed.</span></td></tr>
+  <tr><td class="src">Worldview<a href="https://worldview.earthdata.nasa.gov">worldview.earthdata.nasa.gov</a></td><td>Satellite images of any place on any date, for looking at what a finding looks like on the ground.<span class="get">Get it: use it in the browser.</span></td></tr>
+  <tr><td class="src">Google Earth Engine<a href="https://earthengine.google.com">earthengine.google.com</a></td><td>Holds copies of most of these products and does the averaging on Google's servers.<span class="get">Get it: sign up and wait for approval, which may not come through in time.</span></td></tr>
+</table>
+
+<h3>Temperature</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">MERRA-2 monthly, <code>M2TMNXSLV</code><a href="https://search.earthdata.nasa.gov/search?q=M2TMNXSLV">search.earthdata.nasa.gov/search?q=M2TMNXSLV</a></td><td>Air temperature 2 m above the ground, from 1980, in squares about 50 km across. A model blended with observations. In the first scan.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name, or Giovanni.</span></td></tr>
+  <tr><td class="src">MODIS land surface temperature, <code>MOD11C3</code><a href="https://search.earthdata.nasa.gov/search?q=MOD11C3">search.earthdata.nasa.gov/search?q=MOD11C3</a></td><td>The temperature of the ground itself as the satellite sees it, monthly from 2000, in 5 km squares. It differs from air temperature, most of all over bare or dry land.<span class="get">Get it: AppEEARS, or the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">GISTEMP v4<a href="https://data.giss.nasa.gov/gistemp">data.giss.nasa.gov/gistemp</a></td><td>NASA's temperature record built from weather stations and ships, from 1880, in squares about 200 km across. An independent check on MERRA-2 trends.<span class="get">Get it: download the file directly. No login is needed.</span></td></tr>
+</table>
+
+<h3>Rainfall and snowfall</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">GPM IMERG monthly, <code>GPM_3IMERGM</code><a href="https://search.earthdata.nasa.gov/search?q=GPM_3IMERGM">search.earthdata.nasa.gov/search?q=GPM_3IMERGM</a></td><td>Rain and snow estimated from a fleet of satellites, monthly from 2000, in 10 km squares. In the first scan.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name, or Giovanni.</span></td></tr>
+  <tr><td class="src">GPCP monthly, <code>GPCPMON</code><a href="https://search.earthdata.nasa.gov/search?q=GPCPMON">search.earthdata.nasa.gov/search?q=GPCPMON</a></td><td>A longer rainfall record, from 1983, in squares about 50 km across. Useful for asking whether a trend since 2001 is part of something older.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name, or Giovanni.</span></td></tr>
+  <tr><td class="src">CHIRPS<a href="https://chc.ucsb.edu/data/chirps">chc.ucsb.edu/data/chirps</a></td><td>Rainfall from satellites combined with rain gauges, from 1981, in 5 km squares, over land between 50° south and 50° north. Not a NASA product, so it is an independent check.<span class="get">Get it: download the files directly. No login is needed.</span></td></tr>
+</table>
+
+<h3>Soil moisture and water</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">GLDAS Noah monthly, <code>GLDAS_NOAH025_M</code><a href="https://search.earthdata.nasa.gov/search?q=GLDAS_NOAH025_M">search.earthdata.nasa.gov/search?q=GLDAS_NOAH025_M</a></td><td>Water in the top 10 cm of soil, monthly from 2000, in 25 km squares. A model driven by observations. The same files hold evaporation, runoff and snow. In the first scan.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name, or Giovanni.</span></td></tr>
+  <tr><td class="src">SMAP soil moisture, <code>SPL3SMP</code><a href="https://search.earthdata.nasa.gov/search?q=SPL3SMP">search.earthdata.nasa.gov/search?q=SPL3SMP</a></td><td>Soil moisture measured from orbit, daily from 2015, in squares about 36 km across. Too short for a 25-year trend, but a real measurement to compare the GLDAS model against.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">GRACE and GRACE-FO, <code>TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4</code><a href="https://search.earthdata.nasa.gov/search?q=TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4">search.earthdata.nasa.gov/search?q=TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4</a></td><td>All the water stored in a region, groundwater included, weighed from orbit through its pull on two satellites. Monthly from 2002 with a gap in 2017 and 2018, in squares about 300 km across.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name. It is a single file.</span></td></tr>
+  <tr><td class="src">MODIS snow cover, <code>MOD10CM</code><a href="https://search.earthdata.nasa.gov/search?q=MOD10CM">search.earthdata.nasa.gov/search?q=MOD10CM</a></td><td>The share of each 5 km square covered by snow, monthly from 2000. Relevant to mountain regions and to water supply downstream.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+</table>
+
+<h3>Vegetation and land</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">MODIS Terra vegetation index, <code>MOD13C2</code><a href="https://search.earthdata.nasa.gov/search?q=MOD13C2">search.earthdata.nasa.gov/search?q=MOD13C2</a></td><td>How green the land is (NDVI and EVI), monthly from 2000, in 5 km squares. In the first scan.<span class="get">Get it: AppEEARS, or the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">MODIS Aqua vegetation index, <code>MYD13C2</code><a href="https://search.earthdata.nasa.gov/search?q=MYD13C2">search.earthdata.nasa.gov/search?q=MYD13C2</a></td><td>The same measurement from a second satellite, from 2002. If a greening trend appears in one and not the other, suspect the instrument.<span class="get">Get it: AppEEARS, or the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">VIIRS vegetation index, <code>VNP13C2</code><a href="https://search.earthdata.nasa.gov/search?q=VNP13C2">search.earthdata.nasa.gov/search?q=VNP13C2</a></td><td>The newer instrument that continues the MODIS record, from 2012.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">MODIS land cover, <code>MCD12C1</code><a href="https://search.earthdata.nasa.gov/search?q=MCD12C1">search.earthdata.nasa.gov/search?q=MCD12C1</a></td><td>What each 5 km square is: forest, cropland, city, desert and so on, one map per year. Lets the Contradiction Finder say when two neighbours differ because one is farmland and the other is forest.<span class="get">Get it: AppEEARS, or the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+  <tr><td class="src">MODIS burned area, <code>MCD64A1</code><a href="https://search.earthdata.nasa.gov/search?q=MCD64A1">search.earthdata.nasa.gov/search?q=MCD64A1</a></td><td>Where and when land burned, monthly from 2000, at 500 m. A fire is a common reason for a sudden drop in greenness.<span class="get">Get it: AppEEARS, for the squares of interest only. The global files are large.</span></td></tr>
+</table>
+
+<h3>Oceans</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">MODIS Aqua ocean colour and sea surface temperature<a href="https://oceancolor.gsfc.nasa.gov">oceancolor.gsfc.nasa.gov</a></td><td>Chlorophyll (how much plant life is in the water) and sea surface temperature, monthly from 2002, in 4 km or 9 km squares. Outside the first scan, which covers land only.<span class="get">Get it: the Level 3 browser on the site, or the <code>earthaccess</code> Python library, searching by the short name.</span></td></tr>
+</table>
+
+<h3>Independent checks from outside NASA</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">NOAA Climate Data Online<a href="https://www.ncei.noaa.gov/cdo-web">www.ncei.noaa.gov/cdo-web</a></td><td>Records from individual weather stations. Useful for confirming that a satellite trend also shows up on the ground.<span class="get">Get it: request a free API token by email, then call the API or use the browser.</span></td></tr>
+  <tr><td class="src">KNMI Climate Explorer<a href="https://climexp.knmi.nl">climexp.knmi.nl</a></td><td>Plots time series and trends from many climate datasets for a region you choose.<span class="get">Get it: use the forms in the browser.</span></td></tr>
+  <tr><td class="src">ERA5<a href="https://cds.climate.copernicus.eu">cds.climate.copernicus.eu</a></td><td>The European counterpart to MERRA-2: temperature, rainfall and soil moisture from 1940. If both agree on a trend, the trend is not a quirk of one model.<span class="get">Get it: create a free account and API key, then use the <code>cdsapi</code> Python library.</span></td></tr>
+</table>
+
+<h3>Reference layers</h3>
+<table>
+  <tr><th style="width:38%">Source and link</th><th>What it gives, and how to get it</th></tr>
+  <tr><td class="src">MERRA-2 constants, <code>M2C0NXASM</code><a href="https://search.earthdata.nasa.gov/search?q=M2C0NXASM">search.earthdata.nasa.gov/search?q=M2C0NXASM</a></td><td>How much of each square is land, and how high it is. Used to leave ocean squares out of the scan.<span class="get">Get it: the <code>earthaccess</code> Python library, searching by the short name. It is a single file.</span></td></tr>
+  <tr><td class="src">Natural Earth<a href="https://www.naturalearthdata.com">www.naturalearthdata.com</a></td><td>Outlines of countries and regions, for naming where a grid cell is. Public domain.<span class="get">Get it: download the files directly.</span></td></tr>
+</table>
+
+<h3>Words used in this brief</h3>
+<table>
+  <tr><th style="width:22%">Word</th><th>What it means</th></tr>
+  <tr><td class="key">Product</td><td>One NASA dataset, such as monthly rainfall. Each has a short code name.</td></tr>
+  <tr><td class="key">Resolution</td><td>How big each square on the map is.</td></tr>
+  <tr><td class="key">Grid cell</td><td>One square on the map.</td></tr>
+  <tr><td class="key">Regrid</td><td>Redraw a dataset onto squares of a different size, by averaging the small squares that fall inside each large one.</td></tr>
+  <tr><td class="key">Harmonise</td><td>Make all the datasets line up: the same squares, the same months, the same units.</td></tr>
+  <tr><td class="key">Anomaly</td><td>How far a month is from normal for that time of year, so that summer being warmer than winter does not look like a trend.</td></tr>
+  <tr><td class="key">Reanalysis</td><td>A weather model rerun over past decades and corrected with the observations of the time. MERRA-2 and ERA5 are both reanalyses.</td></tr>
+  <tr><td class="key">Provenance</td><td>The paper trail for a number: which dataset, which dates, which method.</td></tr>
+</table>
+
+<h2>07 | Product experience and system architecture</h2>
+<p>Investigate → Detect → Verify → Explain. A global map reveals automatically discovered hotspots, trends and contradictions. Selecting a finding opens linked time-series charts, multi-variable relationship views, confidence/quality overlays, detected change points and a fully cited evidence report. Users can change the region, period or variables and rerun analysis.</p>
+
+<div class="diagram">
+  <div class="box accent"><b>VIGIL</b>WinForms, C#. Globe, findings, evidence view, chat panel</div>
+  <div class="arrow">↔</div>
+  <div class="box accent"><b>Python API</b>FastAPI, run locally or hosted. Serves results, runs reruns, hosts the assistant's tools</div>
+  <div class="arrow">↔</div>
+  <div class="stack">
+    <div class="box"><b>Results cache</b>Stored scan and its run record</div>
+    <div class="box"><b>Analysis engine</b>Trends, significance, change points, cascades, contradictions</div>
+    <div class="box"><b>AI Detective</b>LLM with tool calls over the same API</div>
+  </div>
+  <div class="arrow">←</div>
+  <div class="box"><b>Harmonised catalogue</b>One grid, monthly steps, provenance</div>
+  <div class="arrow">←</div>
+  <div class="box"><b>Data pipeline</b>xarray, rioxarray</div>
+  <div class="arrow">←</div>
+  <div class="box"><b>NASA data</b>MERRA-2, GPM IMERG, GLDAS, MODIS</div>
+</div>
+<p class="small">Data flows right to left. The pipeline fills the catalogue, the engine scans it and writes the results cache, and the API serves that cache to the app. The AI Detective calls back into the API, so it reads the same results the app does.</p>
+
+<ul>
+  <li>The app never touches NASA data or statistics directly. It talks to the Python service over HTTP, exchanging JSON, using <code>HttpClient</code> and <code>System.Text.Json</code>. No NuGet packages are needed.</li>
+  <li>The global scan runs ahead of time and is stored, so the API mostly reads finished results. Only a rerun that the user requests for one region computes anything live.</li>
+  <li>The data pipeline uses <code>xarray</code> and <code>rioxarray</code>. PyQGIS was considered and dropped: it cannot be installed with pip and ties every laptop to a QGIS install, which is setup time the weekend does not have. QGIS remains useful as a desktop tool for checking a raster by eye.</li>
+  <li>The analysis engine uses <code>pymannkendall</code>, <code>statsmodels</code>, <code>scipy</code> and <code>ruptures</code>.</li>
+  <li>The AI Detective lives on the Python side and has no source of numbers other than the API. The app holds only its chat panel. The AI may select and explain analyses; it must never invent or directly overwrite the numerical outputs. Every result is reproducible without AI.</li>
+  <li>The result contract is the JSON format of a finding, and it is the only place where the C# and Python halves meet. A fixture file of fake results in that format is committed before the event so the app, the API and the assistant can all be built before real numbers exist.</li>
+</ul>
+
+<h3>The discovery run</h3>
+<p class="small">The path from NASA's archive to finished findings is one job that runs in the cloud, and anyone can rerun it and get the same numbers.</p>
+<ol class="small">
+  <li>One cloud machine and one storage bucket, in Amazon's <code>us-west-2</code> region. NASA's files are stored there, so reading them is fast and free. Downloading them over venue wifi is neither.</li>
+  <li>The machine fetches the four products, one file per month from 2001 to 2025: about 1,200 files and 60 to 80 GB.</li>
+  <li>It regrids each product onto the shared grid and saves the result to the bucket. This is the catalogue: for every grid cell, one number per month for each measurement. Everyone reads this one copy.</li>
+  <li>It runs the analysis on every grid cell and saves the findings.</li>
+  <li>Each run writes a run record beside its results: the version of the code, the settings, how many cells were checked, how many were skipped and why, and how long it took.</li>
+  <li>The API is hosted on a web address, so the app, the AI Detective and anyone reviewing the project read the same results. It hands out results and never changes them.</li>
+  <li>One command, written in the README, reruns the whole thing from nothing.</li>
+</ol>
+<p class="small">A small run comes first. One year of one product is fetched, regridded, saved, analysed and read back through the API. The full run starts only when that works from end to end, and its timing replaces the estimates below.</p>
+<p class="small">Untested estimates: fetching and regridding the full set takes 30 minutes to 2 hours and happens once. The analysis then takes 10 to 20 minutes, so the scan can be rerun several times in an afternoon.</p>
+
+<h3 style="break-before: page; margin-top: 0">Two passes</h3>
+<p class="small">The scan decides where to look closely. We do not.</p>
+<ul class="small">
+  <li>The coarse pass covers the whole planet in 250 km squares, every square treated the same. This is the scan described in section 03.</li>
+  <li>The fine pass takes the top-ranked squares, about 20 of them, and repeats the analysis inside each at the products' own detail: 10 km for rainfall and 5 km for vegetation. It shows which valleys and slopes drive a change, and it is where neighbouring contradictions become visible. It needs about 30 to 60 minutes, provided the original files are kept on the cloud machine.</li>
+  <li>The fine pass describes a finding and does not prove it a second time. A square is chosen because it already looked significant, so its detailed view is labelled exploratory.</li>
+  <li>The fine pass is stretch work. It starts only when the coarse scan is solid.</li>
+</ul>
+<p class="small">Known-answer check: after the scan has run, we look at whether it flagged places with well-documented changes, such as California and the Himalayas. Finding them is evidence the method works. Missing them is a reason to investigate, not proof of a fault: whether a known change shows up depends on the variables, the grid size, the period and the threshold. They are checked afterwards and never fed in beforehand.</p>
+
+<h3>Running without the service</h3>
+<ul class="small">
+  <li>When a scan finishes, its findings are saved as one snapshot file and shipped with the app.</li>
+  <li>If the service cannot be reached, the app loads the snapshot. Everything works except live reruns and the AI Detective.</li>
+  <li>The app is published as a single download that needs nothing installed, on the repository's releases page, with a short note on how to run it. A reviewer who downloads it sees real findings without installing Python or fetching data.</li>
+  <li>The same fallback protects the live demo if the service fails in front of the judges.</li>
+</ul>
+
+<h3>If the cloud run is late</h3>
+<ul class="small">
+  <li>Dan's home PC is the fallback. It is powerful enough for the regridding, and Dan can reach it remotely from his laptop at the venue.</li>
+  <li>Temperature and rainfall start downloading to it on Friday night, so the two products the Foundation stage needs are in hand before the event, whatever happens to the cloud setup.</li>
+  <li>Each download asks for the one field we use, not the whole file. A MERRA-2 monthly file holds dozens of measurements and we want one.</li>
+  <li>Only the regridding needs a strong machine. The catalogue it produces is a few hundred megabytes, and the analysis runs on it in minutes on a laptop.</li>
+  <li>The cloud run stays the plan, because it gives the hosted API and a run anyone can repeat. The PC keeps Saturday on schedule if the cloud setup overruns.</li>
+</ul>
+
+<h3 style="break-before: page; margin-top: 0">What a finding carries</h3>
+<p class="small">This is the result contract in outline. The exact field names are fixed when the contract file is written.</p>
+<table>
+  <tr><th style="width:22%">Group</th><th>Fields</th></tr>
+  <tr><td class="key">Identity</td><td>An identifier and a kind: trend, change point, cascade or contradiction.</td></tr>
+  <tr><td class="key">Where and when</td><td>The grid cell and its bounds, the start and end dates, and the time step.</td></tr>
+  <tr><td class="key">Source</td><td>For each variable: its name and units, the mission and product identifier, and the source URL.</td></tr>
+  <tr><td class="key">Preprocessing</td><td>The regridding, aggregation and anomaly steps applied, the missing-data rule, and the share of months present.</td></tr>
+  <tr><td class="key">Method</td><td>The test used and its parameters.</td></tr>
+  <tr><td class="key">Result</td><td>Direction, magnitude per decade in the variable's units, confidence interval, p-value, adjusted p-value and whether it passes the threshold.</td></tr>
+  <tr><td class="key">Change point</td><td>The date, the uncertainty range on the date, and the level before and after.</td></tr>
+  <tr><td class="key">Links</td><td>Related findings, with the lag in months and the correlation for a cascade, or the paired cell for a contradiction.</td></tr>
+  <tr><td class="key">Score</td><td>The ranking score and each of its parts: effect size, uncertainty, coverage, robustness and cross-system relevance.</td></tr>
+  <tr><td class="key">Standing</td><td>Whether the finding is exploratory or has been re-tested, and its known limitations.</td></tr>
+</table>
+
+<h3>Draft API</h3>
+<table>
+  <tr><th style="width:22%">Call</th><th>Returns</th></tr>
+  <tr><td class="key"><code>GET /findings</code></td><td>The ranked list from the stored scan, filtered by kind, variable or region.</td></tr>
+  <tr><td class="key"><code>GET /findings/{id}</code></td><td>One finding with all the fields above.</td></tr>
+  <tr><td class="key"><code>GET /series</code></td><td>The raw and anomaly values for one cell and variable, for the charts.</td></tr>
+  <tr><td class="key"><code>POST /analyse</code></td><td>A fresh analysis for a region, period and set of variables the user has chosen.</td></tr>
+  <tr><td class="key"><code>POST /ask</code></td><td>The AI Detective's answer to a question, with the findings it cites.</td></tr>
+</table>
+<p class="small">The app and the AI Detective use the same calls. The list is a draft until the contract is agreed.</p>
+
+<h3>Repository layout</h3>
+<table>
+  <tr><th style="width:30%">Path</th><th>Holds</th></tr>
+  <tr><td class="key"><code>VIGIL/</code></td><td>The C# desktop app.</td></tr>
+  <tr><td class="key"><code>contract/</code></td><td>The result contract and the fixture file.</td></tr>
+  <tr><td class="key"><code>python/vigil/pipeline/</code></td><td>Downloads, regridding, the catalogue and the results cache.</td></tr>
+  <tr><td class="key"><code>python/vigil/api/</code></td><td>The FastAPI service.</td></tr>
+  <tr><td class="key"><code>python/vigil/analysis/</code></td><td>The analysis engine.</td></tr>
+  <tr><td class="key"><code>python/vigil/detective/</code></td><td>The AI Detective.</td></tr>
+  <tr><td class="key"><code>infra/</code></td><td>Scripts that set up the cloud machine and bucket, and the one command that reruns the scan.</td></tr>
+  <tr><td class="key"><code>docs/submission/</code></td><td>The demo script, presentation and written project page.</td></tr>
+</table>
+<p class="small">Only <code>VIGIL/</code> has code in it so far. The other folders exist and hold a short README each, saying what belongs there.</p>
+
+
+<h2>08 | Team and jobs</h2>
+<p>The team is Dan, who leads, with Will and Ethan. The jobs below are in the order they fall due. Ethan has the discovery run, Will has the analysis engine and the AI Detective, and Dan has the interface and the contract. The submission jobs still marked open are shared out on the day. Will may not arrive until 10:30 on Saturday, so Dan covers everything before then.</p>
+
+<h3>Before the event</h3>
+<table>
+  <tr><th style="width:15%">Due</th><th>Job</th><th style="width:17%">Area</th><th style="width:11%">Owner</th></tr>
+  <tr><td class="key">Tonight</td><td>Push the existing app to the shared repository.</td><td>Project</td><td class="key">Dan</td></tr>
+  <tr><td class="key">Tonight</td><td>Write the result contract and the fixture file of fake findings.</td><td>Contract</td><td class="key">Dan</td></tr>
+  <tr><td class="key">Tonight</td><td>Start temperature and rainfall downloading to the home PC, and check it can be reached from the laptop.</td><td>Discovery run</td><td class="key">Dan</td></tr>
+</table>
+
+<h3>Saturday 14 November</h3>
+<p class="small">Saturday is for building. Every capability should be working by the time the venue closes.</p>
+<table>
+  <tr><th style="width:15%">Due</th><th>Job</th><th style="width:17%">Area</th><th style="width:11%">Owner</th></tr>
+  <tr><td class="key">10:30</td><td>Check-in is done and the questions on the rules have been asked at the briefing.</td><td>Project</td><td class="key">Dan</td></tr>
+  <tr><td class="key">11:30</td><td>The Earthdata login, cloud machine and bucket are set up, the four products are confirmed to be in NASA's cloud archive, and a small run on one year of one product has gone end to end.</td><td>Discovery run</td><td class="key">Ethan</td></tr>
+  <tr><td class="key">13:00</td><td>Temperature and rainfall are on the shared grid and saved to the bucket.</td><td>Discovery run</td><td class="key">Ethan</td></tr>
+  <tr><td class="key">13:00</td><td>Trend and significance tests give the right answers on made-up series, then run on one real grid cell.</td><td>Analysis engine</td><td class="key">Will</td></tr>
+  <tr><td class="key">13:00</td><td>The findings list and the globe layer show the fixture, read through the API.</td><td>Interface</td><td class="key">Dan</td></tr>
+  <tr><td class="key">17:30</td><td>The first full scan has run and saved its ranked findings and run record.</td><td>Discovery run</td><td class="key">Ethan</td></tr>
+  <tr><td class="key">17:30</td><td>The ranking score is defined and applied to every finding.</td><td>Analysis engine</td><td class="key">Will</td></tr>
+  <tr><td class="key">17:30</td><td>The evidence view opens for a finding: its series, trend and sources.</td><td>Interface</td><td class="key">Dan</td></tr>
+  <tr><td class="key">17:30</td><td>The AI Detective answers questions from the fixture and says when it cannot.</td><td>AI Detective</td><td class="key">Will</td></tr>
+  <tr><td class="key">21:00</td><td>Soil moisture and vegetation are in the scan, and the API is live on a web address.</td><td>Discovery run</td><td class="key">Ethan</td></tr>
+  <tr><td class="key">21:00</td><td>Change points, contradictions and cascades are in the scan.</td><td>Analysis engine</td><td class="key">Will</td></tr>
+  <tr><td class="key">21:00</td><td>The app shows real findings in place of the fixture, and falls back to the snapshot when the service is down.</td><td>Interface</td><td class="key">Dan</td></tr>
+  <tr><td class="key">21:00</td><td>The chat panel talks to the AI Detective.</td><td>Interface</td><td class="key">Dan</td></tr>
+</table>
+
+<h3 style="break-before: page; margin-top: 0">Sunday 15 November</h3>
+<p class="small">Sunday is for cleaning up, the presentation and the video. Nothing new is started unless everything above already works.</p>
+<table>
+  <tr><th style="width:15%">Due</th><th>Job</th><th style="width:17%">Area</th><th style="width:11%">Owner</th></tr>
+  <tr><td class="key">09:30</td><td>A draft presentation and written summary are ready for the mentors.</td><td>Submission</td><td style="color:#64748B">Open</td></tr>
+  <tr><td class="key">10:30</td><td>The AI Detective answers from the real findings.</td><td>AI Detective</td><td class="key">Will</td></tr>
+  <tr><td class="key">12:00</td><td>Bugs from Saturday are fixed, and one command reruns the scan.</td><td>Everyone</td><td class="key">All</td></tr>
+  <tr><td class="key">14:30</td><td>The single download is built with the results snapshot inside.</td><td>Interface</td><td class="key">Dan</td></tr>
+  <tr><td class="key">14:30</td><td>The demo video is recorded, and the project page and presentation are finished.</td><td>Submission</td><td style="color:#64748B">Open</td></tr>
+  <tr><td class="key">14:30</td><td>Everything is submitted on the Space Apps website.</td><td>Submission</td><td class="key">Dan</td></tr>
+  <tr><td class="key">15:30</td><td>The live presentation to the judges.</td><td>Submission</td><td style="color:#64748B">Open</td></tr>
+</table>
+<p class="small">Small additions for Sunday morning, if there is time: dedicated views for cascades and contradictions, which are shown as tables until then; the fine pass in section 07; and validating the top findings on held-out years or a second dataset.</p>
+
+<div class="keep">
+<h3>How the split works</h3>
+<ul class="small">
+  <li>The pipeline stays with Ethan, since the aim is to run it in the cloud. If it falls behind, Will and Dan can write scripts and send them to him, and the home PC in section 07 covers the first two products.</li>
+  <li>The analysis does not wait for real data. Will starts on made-up series where the answer is known: a flat line with noise, then the same line with a trend added. A test that finds a trend in pure noise is wrong, and this shows it at once.</li>
+  <li>A wrong significance test still produces plausible numbers. Dan reads the significance code before the 17:30 scan, and Will comes to the mentor session at 14:00 when the method is checked.</li>
+  <li>Dan builds the interface against the fixture, and Will builds the AI Detective against it too, so neither waits for the scan. Dan keeps the chat panel, which is the C# side of the Detective.</li>
+  <li>The AI Detective starts as one call to the language model: the instructions, the question and the relevant findings. If there is time, it moves to tool calls, where the model asks the API for the findings it needs.</li>
+</ul>
+</div>
+
+<div class="keep">
+<h3>Working rules</h3>
+<ul class="small">
+  <li>One owner per folder. Everyone is working with AI coding assistants, which rewrite files freely, and two of them in one file means a merge conflict. <code>COORDINATION.md</code> in the repository maps each work area to its paths and its owner.</li>
+  <li>An assistant that needs a change outside its owner's paths stops and asks. It does not make the edit.</li>
+  <li>The result contract changes only through Dan. A field renamed on one side stops the two halves talking. Dan also decides what gets cut.</li>
+  <li>Commits are small and pushed often, so a broken build can be traced to one change.</li>
+  <li>Every assistant reads <code>AGENTS.md</code> and <code>COORDINATION.md</code> at the start of a session.</li>
+  <li>Anyone who stops while others carry on tells the others before they go: what works, what is broken and what to pick up next.</li>
+</ul>
+</div>
+
+<h2>09 | Schedule</h2>
+<p class="small">Times and venue sessions are from the organisers' published schedule. The right-hand column is what VIGIL needs from each block, by work area.</p>
+
+<h3>Saturday 14 November</h3>
+<table class="schedule">
+  <tr><th style="width:9%">Time</th><th style="width:25%">Venue</th><th>VIGIL</th></tr>
+  <tr><td class="key">08:30</td><td>Check-in and registration</td><td>Dan and Ethan set up and check the app builds and runs. Ethan creates his Earthdata login. Will may not arrive until 10:30.</td></tr>
+  <tr><td class="key">09:15</td><td>Opening ceremony and briefing</td><td>The briefing walks through the rules and judging criteria. Dan gets answers to the open items in section 12: pre-event work and declaring AI use.</td></tr>
+  <tr><td class="key">09:45</td><td>Team formation and pitching</td><td>If the team is short, this is the slot to recruit.</td></tr>
+  <tr><td class="key">10:30</td><td>Hacking begins</td><td>Will arrives. Discovery run: the cloud machine and bucket are set up by 11:30, then the first two variables go onto one grid. Analysis: trend and significance running on that data. Interface: the findings list and globe layer reading the fixture through the API. AI Detective: started against the fixture.</td></tr>
+  <tr><td class="key">13:00</td><td>Lunch</td><td>Check before eating: two real variables are aligned, and the app shows fixture findings served by the API.</td></tr>
+  <tr><td class="key">14:00</td><td>Development and mentor office hours</td><td>The first real scan, with ranked findings. The evidence view in the app. Ask a mentor to check the statistical method (seasonality, autocorrelation, multiple testing) while they are available.</td></tr>
+  <tr><td class="key">17:30</td><td>Evening checkpoint with organisers</td><td>Foundation stage due. Decide any cuts here, based on progress and who is present.</td></tr>
+  <tr><td class="key">18:00</td><td>Evening hacking</td><td>Soil moisture and vegetation join the scan. Change points, contradictions and cascades go into the engine. The app switches from the fixture to real results, and the chat panel is connected to the AI Detective.</td></tr>
+  <tr><td class="key">21:00</td><td>Venue closes</td><td>Integration stage due, and every capability should be working. The hosted API is live. If the fine pass is ready, start it now. Write the handover note.</td></tr>
+  <tr><td class="key">Overnight</td><td>Remote working allowed</td><td>The fine pass runs unattended, if it was started. Anyone still working from home leaves a handover note. Whoever is presenting on Sunday sleeps.</td></tr>
+</table>
+
+<h3>Sunday 15 November</h3>
+<table class="schedule">
+  <tr><th style="width:9%">Time</th><th style="width:25%">Venue</th><th>VIGIL</th></tr>
+  <tr><td class="key">08:30</td><td>Doors open, hacking resumes</td><td>Read the handover notes and the latest scan results. Run the known-answer check. Choose the finding to demonstrate from the top of the ranking. Draft the presentation and written summary.</td></tr>
+  <tr><td class="key">09:30</td><td>Pitch polish and final mentor checks</td><td>Mentors review decks, demo videos and repositories in this slot, so bring a draft presentation and written summary. In parallel: fix what broke on Saturday and point the AI Detective at the real findings.</td></tr>
+  <tr><td class="key">12:00</td><td></td><td>Feature freeze. Intelligence stage due at the latest. Anything still unfinished is cut in the order given in section 02.</td></tr>
+  <tr><td class="key">12:30</td><td>Lunch</td><td></td></tr>
+  <tr><td class="key">13:15</td><td></td><td>Save the results snapshot and build the single download. Record the demo video. Finish the written project page and the presentation. Push the final code.</td></tr>
+  <tr><td class="key">14:30</td><td></td><td>Presentation stage due. Submit now, leaving half an hour in hand.</td></tr>
+  <tr><td class="key">15:00</td><td>Project submission deadline</td><td>Hard stop. The repository, demo link, presentation assets and write-up must be published on the Space Apps website.</td></tr>
+  <tr><td class="key">15:30</td><td>Local presentations and demos</td><td>Live presentation to the judges, then questions. The recorded video is the backup if the live demo fails.</td></tr>
+  <tr><td class="key">17:00</td><td>Judges' deliberation</td><td></td></tr>
+  <tr><td class="key">17:30</td><td>Awards and global nominations</td><td></td></tr>
+  <tr><td class="key">18:00</td><td>Venue closes</td><td></td></tr>
+</table>
+
+<h2>10 | Demo and submission</h2>
+
+<h3>Demo walk-through</h3>
+<p class="small">The same sequence serves the recorded video and the live presentation at 15:30 on Sunday.</p>
+<ol>
+  <li>Open VIGIL. The globe shows the hotspots from the stored scan. Read the numbers from the run record: how many cells were scanned, how many passed the threshold after correction and how many showed nothing.</li>
+  <li>Open the top-ranked finding. It is whatever the ranking put first that morning, not a case picked in advance.</li>
+  <li>Show its evidence: the series, the trend with its confidence interval, any change point, and the raw values and method.</li>
+  <li>Show a linked variable in the same cell, with its lag. Call it an association, not a cause.</li>
+  <li>Show one contradiction: two neighbouring cells trending in opposite directions.</li>
+  <li>Ask the AI Detective a question it can answer, and point out the findings it cites. Then ask one the data cannot settle, and show it saying so.</li>
+  <li>Open the provenance and limitations for the finding, and reproduce one figure from the stored data.</li>
+  <li>Close by stating what was built before the event and where AI was used.</li>
+</ol>
+
+<h3>Submission checklist, due 15:00 on Sunday</h3>
+<ul>
+  <li>The repository is pushed and public, with a README that says how to run the app and the service.</li>
+  <li>The demo video is uploaded and its link works from another machine.</li>
+  <li>The presentation is finished and exported.</li>
+  <li>The written project page is published on the Space Apps website, with every data source named.</li>
+  <li>The page declares the pre-event work and the use of AI, in whatever form the rules ask for.</li>
+  <li>The presenting laptop runs the whole demo from the results snapshot with the network switched off.</li>
+  <li>The single download of the app, with the snapshot inside, is on the repository's releases page and has been tried on a machine that has never run VIGIL.</li>
+  <li>The recorded video is saved on the presenting laptop as the backup.</li>
+</ul>
+
+<h2>11 | Before the event</h2>
+
+<p>Where the project stands on 13 November. The desktop application exists as a shell: project structure, splash screen, dark theme, a set of reusable interface controls (buttons, cards, a time-series chart, navigation) and an interactive 3D globe textured with NASA's public-domain Blue Marble and Black Marble imagery. It contains no Earth-observation data and no analysis, and every chart and map layer shows placeholder values. The data pipeline, the analysis, the assistant and the screens that present their results are all still to be built.</p>
+
+<div class="keep">
+<h3>To do on Friday 13 November</h3>
+<ol class="small">
+  <li>Check that Dan and Will can each clone <a href="https://github.com/Gurnski/VIGIL">github.com/Gurnski/VIGIL</a>, build the app and run it. This needs the existing code pushed first, which is still an open item in section 12. Ethan does the same on Saturday morning.</li>
+  <li>Dan starts temperature and rainfall downloading to his home PC, as the fallback for the cloud run in section 07.</li>
+  <li>Arrange an API key for the language model behind the AI Detective.</li>
+  <li>Agree the result contract and commit the fixture file.</li>
+  <li>Put <code>COORDINATION.md</code> and the updated <code>AGENTS.md</code> into the shared repository, so every assistant reads the same rules. The <code>.gitignore</code> already keeps keys, logins and downloaded data out.</li>
+</ol>
+</div>
+
+<h2>12 | Open items</h2>
+<ul>
+  <li>Who takes which work area.</li>
+  <li>The Space Apps rules on work done before the event and on declaring AI use. These decide how the pre-event shell is declared in the submission. The 09:15 briefing on Saturday covers the rules, so ask there if it is not settled sooner.</li>
+  <li>When to push the existing code to the repository. The recommendation is to push it before the event as one clearly labelled commit and declare it in the submission, so the weekend's work sits visibly on top of it.</li>
+  <li>The judging criteria, and the exact submission format: video length, slide limits and what the written page must contain.</li>
+  <li>Which language model the AI Detective uses.</li>
+  <li>Which cloud account the discovery run uses, and who pays for it.</li>
+  <li>How the ranking score combines its parts. It decides what the demo shows, so it needs settling before the first real scan. Temperature alone may be significant almost everywhere after 25 years of warming.</li>
+  <li>Who VIGIL is for, in one sentence, for the written project page.</li>
+  <li>Whether assistants commit and push themselves, or leave changes for their person to commit.</li>
+  <li>The grid cell size and the common date range for the scan. Section 03 has a starting proposal, to confirm against the first downloads.</li>
+</ul>
+
+<h2>13 | Global-award ambition</h2>
+<p>Differentiate through scientific validity, genuine autonomous discovery, cross-system analysis, transparent uncertainty, usability and memorable storytelling. A polished globe attracts attention; a system that finds an unprompted anomaly, tests it against the evidence and explains its limitations earns trust. This is the intended standard for local judging and global consideration.</p>
+<p class="small">Challenge: <a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/">https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/</a></p>
+
+<h2>14 | Official challenge resources</h2>
+<p class="small">NASA Space Apps 2026 / Earth System Trend Detective: selected resources from the challenge Resources tab, with their specific role in VIGIL.</p>
+<table>
+  <tr><th style="width:36%">Resource</th><th>VIGIL usage</th></tr>
+  <tr><td class="key">NASA Giovanni</td><td>Browse Earth science variables and export regional time series. Best for immediate data validation.</td></tr>
+  <tr><td class="key">NASA AppEEARS</td><td>Retrieve and transform geospatial data for systematic multi-region scans, including vegetation products.</td></tr>
+  <tr><td class="key">NASA GES DISC Hydrology Time Series</td><td>Hydrological time-series exploration for precipitation, land-water and other related investigations.</td></tr>
+  <tr><td class="key">NOAA Climate Data Online</td><td>Historical weather observations for contextual or independent checks; not a substitute for NASA mission inputs.</td></tr>
+  <tr><td class="key">KNMI Climate Explorer</td><td>Scientific reference for climate variability, trend comparisons and analysis approaches.</td></tr>
+  <tr><td class="key" style="white-space:normal">NASA NTRS: SeaWiFS chlorophyll time-series study</td><td>Methodological example of remote-sensing time-series analysis and significance testing.</td></tr>
+  <tr><td class="key">NASA–CNES SWOT mission</td><td>Stretch resource for surface-water elevation and hydrology; short mission history limits long-term trend work.</td></tr>
+  <tr><td class="key">Canadian geospatial data / GEO.ca</td><td>Potential geospatial reference and validation context for Canadian case studies.</td></tr>
+</table>
+
+<div class="keep">
+<h3>Data policy and implementation implications</h3>
+<table>
+  <tr><th style="width:22%">Area</th><th>Implication</th></tr>
+  <tr><td class="key">Ingestion contract</td><td>Normalise each record to mission/product ID, variable, units, spatial bounds/resolution, time span/cadence, quality flags, provenance and uncertainties before analysis.</td></tr>
+  <tr><td class="key">Discovery policy</td><td>Choose a predefined region grid and eligibility criteria. Process all eligible cells consistently, include null findings, correct for many comparisons and preserve full provenance.</td></tr>
+  <tr><td class="key">Scientific controls</td><td>Match time windows and scales, account for seasonality and autocorrelation, and separate observed trends from claimed causal cascades. AI explanations cite calculated findings rather than generating statistics.</td></tr>
+  <tr><td class="key">Delivery order</td><td>Giovanni time series + AppEEARS multi-region ingestion first; cross-check with hydrology sources; add optional SWOT and partner agency sources only after the foundational discovery engine works.</td></tr>
+</table>
+<p class="small" style="color:#64748B"><i>Source: NASA Space Apps 2026 "Be An Earth System Trend Detective!" Resources tab. The listed resources are selected, not an exhaustive reproduction of every official link.</i></p>
+</div>
+
+</body>
+</html>

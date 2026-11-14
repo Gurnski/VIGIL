@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\UoPHackathonLogo.jpg" LogicalName="VIGIL.Assets.UoPHackathonLogo.jpg" Link="Assets\UoPHackathonLogo.jpg" />
+    <EmbeddedResource Include="..\..\assets\BlueMarbleDay.jpg" LogicalName="VIGIL.Assets.BlueMarbleDay.jpg" Link="Assets\BlueMarbleDay.jpg" />
+    <EmbeddedResource Include="..\..\assets\BlackMarbleNight.jpg" LogicalName="VIGIL.Assets.BlackMarbleNight.jpg" Link="Assets\BlackMarbleNight.jpg" />
+  </ItemGroup>
+
+</Project>

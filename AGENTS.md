@@ -6,7 +6,7 @@ Read this before changing code. It applies to people and to LLM coding agents al
 
 Read `COORDINATION.md` first. Several people and their agents work in this repo at once, and that file says which paths are yours to edit and what to do when a change falls outside them. This file covers how to write the code; that one covers which code is yours to write.
 
-The plan for the hackathon weekend (architecture, scope, schedule) is in `Project_Brief.pdf`.
+The plan for the hackathon weekend (architecture, scope, schedule) is in `docs/brief/Project_Brief.pdf`.
 
 ## Stack
 
@@ -163,12 +163,12 @@ Answered so far:
 - Datasets: MERRA-2 (temperature), GPM IMERG (precipitation), GLDAS (soil moisture) and MODIS (vegetation). See sections 05 and 06 of `Project_Brief.pdf`.
 - Methods: Mann-Kendall with Sen's slope on deseasonalised monthly anomalies, with an autocorrelation correction and false-discovery-rate control. This is the plan in section 02 of the brief, to be checked with a mentor on the Saturday.
 - Analysis runs in Python, not C#.
+- Who owns which work area: see the table in `COORDINATION.md`.
 
 Still open:
 
 - How the main window should be laid out.
 - The grid cell size and common date range for the scan.
-- Who owns which work area. See `claims/`.
 - Whether agents commit and push, or leave that to their person. See `COORDINATION.md`.
 
 Update this section as these get answered.
