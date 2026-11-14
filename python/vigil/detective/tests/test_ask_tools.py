@@ -411,3 +411,115 @@ def test_a_timeout_in_a_later_round_is_the_same_message(snapshot, examples):
 
     response = ask("q", snapshot["findings"], snapshot["run"], client=SlowSecondCall([tool("get_run_summary")]))
     assert "too long" in response["answer"]
+
+
+# ------------------------------------------------------------------ searches that an earlier one covers
+
+def covered(client, index):
+    return json.loads(results_of(client, index)[0]["content"]) == {"note": ask_module.COVERED_SEARCH}
+
+
+def two_searches(snapshot, examples, first, second):
+    _, client = question_and_answer(
+        snapshot, examples[2], [tool("search_findings", **first), tool("search_findings", **second), final(reply_from(examples[2]))],
+    )
+    return client
+
+
+def test_the_order_does_not_matter_once_a_search_returned_every_match(snapshot, examples):
+    first = dict(cell_id="r51c032", significant=False, sort_by="abs_slope")
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", significant=False)), 2)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", significant=False, sort_by="p_adjusted", limit=1)), 2)
+
+
+def test_a_search_that_only_adds_filters_is_covered_by_a_complete_one(snapshot, examples):
+    first = dict(cell_id="r51c032", significant=False)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", significant=False, kind="trend")), 2)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", significant=False, variable="temperature", direction="decreasing")), 2)
+
+
+def test_a_search_that_asks_for_something_else_is_run(snapshot, examples):
+    first = dict(cell_id="r51c032", significant=False)
+    for second in (dict(cell_id="r51c032"),                                  # the significant ones: a different set
+                   dict(cell_id="r60c112", significant=False),               # another cell
+                   dict(significant=False, kind="trend"),                    # dropped the cell: wider, not narrower
+                   dict(variable="temperature", significant=False)):
+        client = two_searches(snapshot, examples, first, second)
+        assert not covered(client, 2), second
+
+
+def test_a_narrower_search_after_an_incomplete_one_is_run(snapshot, examples):
+    first = dict(kind="trend", limit=2)                                       # more than 2 trends, so not complete
+    client = two_searches(snapshot, examples, first, dict(kind="trend", variable="temperature"))
+    assert json.loads(results_of(client, 1)[0]["content"])["complete"] is False
+    assert "findings" in json.loads(results_of(client, 2)[0]["content"])
+
+
+def test_a_smaller_limit_in_another_order_after_an_incomplete_search_is_run(snapshot, examples):
+    client = two_searches(snapshot, examples, dict(kind="trend", limit=3), dict(kind="trend", limit=2, sort_by="abs_slope"))
+    assert "findings" in json.loads(results_of(client, 2)[0]["content"])
+
+
+def logged(caplog, snapshot, examples, steps, example=2):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="vigil.detective.ask"):
+        question_and_answer(snapshot, examples[example], steps + [final(reply_from(examples[example]))])
+    return [r.getMessage().rsplit(": ", 1)[1] for r in caplog.records if r.getMessage().startswith("tool ")]
+
+
+def test_the_log_says_what_was_run_and_what_was_not(snapshot, examples, caplog):
+    outcomes = logged(caplog, snapshot, examples, [
+        tool("search_findings", cell_id="r51c032", significant=False),
+        tool("search_findings", cell_id="r51c032", significant=False, kind="trend"),
+        tool("search_findings", cell_id="r51c032", significant=False),
+        tool("search_findings", variable="methane"),
+    ])
+    assert outcomes == ["run", "covered by an earlier search, not run", "repeat, not run", "error"]
+
+
+def test_the_log_says_when_a_finding_was_already_given(snapshot, examples, caplog):
+    top = min(snapshot["findings"], key=lambda f: f["rank"])["id"]
+    assert logged(caplog, snapshot, examples, [tool("get_finding", id=top)], example=0) == ["already given, not run"]
+
+
+def test_the_prompt_tells_the_model_to_search_a_place_before_answering_about_it():
+    from vigil.detective.prompt import SYSTEM_PROMPT
+
+    assert "always search that cell or box" in SYSTEM_PROMPT
+    assert "even when some findings for it were already given to you" in SYSTEM_PROMPT
+    assert "Do not say a place has no other findings unless that search showed it" in SYSTEM_PROMPT
+    # The search it asks for is by cell or box, which the tool supports.
+    properties = TOOLS[0]["input_schema"]["properties"]
+    assert {"cell_id", "lat_min", "lat_max", "lon_min", "lon_max"} <= set(properties)
+
+
+def test_searching_a_cell_that_was_already_shown_still_runs(snapshot, examples):
+    # A finding in the first message does not stop a search of its cell: the cell may have more.
+    response, client = question_and_answer(
+        snapshot, examples[0], [tool("search_findings", cell_id="r60c112"), final(reply_from(examples[0]))],
+    )
+    result = json.loads(results_of(client, 1)[0]["content"])
+    assert "findings" in result and "trend.temperature.r60c112" in [f["id"] for f in result["findings"]]
+    assert response["status"] == "answered"
+
+
+def test_a_search_for_everything_covers_a_later_search_for_either_kind(snapshot, examples):
+    first = dict(cell_id="r51c032", include_not_significant=True)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", significant=False)), 2)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032")), 2)
+    assert covered(two_searches(snapshot, examples, first, dict(cell_id="r51c032", include_not_significant=True, kind="trend")), 2)
+
+
+def test_a_search_for_one_kind_does_not_cover_a_search_for_everything(snapshot, examples):
+    for first in (dict(cell_id="r51c032", significant=False), dict(cell_id="r51c032")):
+        client = two_searches(snapshot, examples, first, dict(cell_id="r51c032", include_not_significant=True))
+        assert not covered(client, 2), first
+
+
+def test_the_prompt_asks_for_everything_in_the_place(snapshot):
+    from vigil.detective.prompt import SYSTEM_PROMPT
+
+    assert "include_not_significant" in SYSTEM_PROMPT
+    assert "always search that cell or box with `search_findings`, with `include_not_significant` set to true" in SYSTEM_PROMPT
+    assert "include_not_significant" in TOOLS[0]["input_schema"]["properties"]

@@ -9,7 +9,7 @@ It never computes or alters a statistic itself.
 `ask(question, findings, run, history, finding_id)` is the one call the service makes for `POST /ask`.
 
 1. The model is shown the top 10 findings, the finding the user has open (with the ones it links to) and a summary of the run.
-2. For anything else it calls tools (`tools.py`): `search_findings` (by variable, kind, direction, cell or a latitude and longitude box, sorted by rank, size of change or p-value), `get_finding` and `get_run_summary`. At most 4 rounds of tool calls, then it must answer. The tools only read; they never compute a statistic.
+2. For anything else it calls tools (`tools.py`): `search_findings` (by variable, kind, direction, cell or a latitude and longitude box, sorted by rank, size of change or p-value; only significant findings unless `significant: false` or `include_not_significant: true` is given, and the Detective is told to use the latter for any question about a place), `get_finding` and `get_run_summary`. At most 4 rounds of tool calls, then it must answer. The tools only read; they never compute a statistic.
 3. Its reply is checked by `grounding.check_answer` against every finding it was shown or looked up. Every number in the answer must be in a cited finding or in the run record. A reply that fails is replaced by a plain message.
 
 `use_tools=False` is the older single call with the top 30 findings pasted in. It is also what runs if the API refuses a request that carries tools.

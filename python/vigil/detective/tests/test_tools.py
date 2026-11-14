@@ -205,3 +205,34 @@ def test_results_are_plain_json_with_no_nan(store):
                             ("get_run_summary", {})):
         result, _ = run_tool(store, name, arguments)
         json.loads(result_text(result), parse_constant=lambda c: pytest.fail(f"{c} in output"))
+
+
+# ------------------------------------------------------------------ both kinds of finding at once
+
+def test_include_not_significant_returns_both_kinds_significant_first(store, snapshot):
+    both = search(store, variable="temperature", kind="trend", include_not_significant=True, limit=10)
+    flags = [f["significant"] for f in both["findings"]]
+    assert True in flags and False in flags
+    assert flags == sorted(flags, reverse=True)
+    assert both["matching"] == search(store, variable="temperature", kind="trend")["matching"] + \
+        search(store, variable="temperature", kind="trend", significant=False)["matching"]
+    assert ids(search(store, cell_id="r51c032", include_not_significant=True)) == ["trend.temperature.r51c032"]
+
+
+def test_include_not_significant_overrides_significant(store):
+    only_false = search(store, variable="temperature", kind="trend", significant=False)
+    both = search(store, variable="temperature", kind="trend", significant=False, include_not_significant=True, limit=10)
+    assert both["matching"] > only_false["matching"]
+    assert search(store, include_not_significant=False)["matching"] == search(store)["matching"]
+
+
+def test_include_not_significant_must_be_true_or_false(store):
+    result, is_error = run_tool(store, "search_findings", {"include_not_significant": "yes"})
+    assert is_error and "include_not_significant" in result["error"]
+
+
+def test_a_cell_with_a_significant_and_a_not_significant_finding_shows_both(store):
+    # r60c112 holds a significant temperature trend. Asking for everything in the cell must not hide it.
+    result = search(store, cell_id="r60c112", include_not_significant=True, limit=10)
+    assert "trend.temperature.r60c112" in ids(result) and result["complete"] is True
+    assert search(store, cell_id="r60c112", significant=False)["matching"] == 0
