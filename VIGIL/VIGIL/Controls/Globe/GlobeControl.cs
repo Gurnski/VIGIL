@@ -116,6 +116,7 @@ namespace VIGIL.Controls.Globe
         private double lastInteractionSeconds = double.NegativeInfinity;
         private GlobeMarker? hoverMarker;
         private GlobeMarker? selectedMarker;
+        private bool hoverSatellite;
         private HudButton hudHover;
         private (double Latitude, double Longitude)? cursorPosition;
         private GlobeRegion? selection;
@@ -139,6 +140,7 @@ namespace VIGIL.Controls.Globe
         private bool flyToMarkerOnClick = true;
 
         public event EventHandler<MarkerEventArgs>? MarkerClicked;
+        public event EventHandler<SatelliteEventArgs>? SatelliteClicked;
         public event EventHandler<SurfaceClickEventArgs>? SurfaceClicked;
         public event EventHandler<RegionEventArgs>? RegionSelected;
         public event EventHandler<FlightEventArgs>? FlyToComplete;
@@ -1923,11 +1925,13 @@ namespace VIGIL.Controls.Globe
                 {
                     var marker = HitMarker(e.Location);
                     var hud = showHud ? HudHitTest(e.Location) : HudButton.None;
-                    if (marker != hoverMarker || hud != hudHover)
+                    bool overSatellite = marker == null && HitSatellite(e.Location) != null;
+                    if (marker != hoverMarker || hud != hudHover || overSatellite != hoverSatellite)
                     {
                         hoverMarker = marker;
                         hudHover = hud;
-                        Cursor = marker != null || hud != HudButton.None ? Cursors.Hand : Cursors.Default;
+                        hoverSatellite = overSatellite;
+                        Cursor = marker != null || overSatellite || hud != HudButton.None ? Cursors.Hand : Cursors.Default;
                         Invalidate();
                     }
                     else if (showHud)
@@ -1969,6 +1973,10 @@ namespace VIGIL.Controls.Globe
                     {
                         MarkerClicked?.Invoke(this, new MarkerEventArgs(marker));
                         SelectMarker(marker, flyToMarkerOnClick);
+                    }
+                    else if (HitSatellite(e.Location) is GlobeSatellite satellite)
+                    {
+                        SatelliteClicked?.Invoke(this, new SatelliteEventArgs(satellite));
                     }
                     else if (CurrentCamera().Unproject(e.X, e.Y, out double lat, out double lon))
                     {
@@ -2120,6 +2128,36 @@ namespace VIGIL.Controls.Globe
             easing = true;
             NoteInteraction();
             UpdateFrameClock();
+        }
+
+        /// <summary>The satellite drawn under a point, if there is one and the Earth is not in front of it.</summary>
+        private GlobeSatellite? HitSatellite(Point location)
+        {
+            if (satellites.Count == 0)
+            {
+                return null;
+            }
+
+            var camera = CurrentCamera();
+            var utc = DateTime.UtcNow;
+            float best = Px(12f);
+            GlobeSatellite? hit = null;
+            foreach (var satellite in satellites)
+            {
+                var position = satellite.PositionAt(utc);
+                if (!Projects(camera, position) || HiddenByEarth(camera, position))
+                {
+                    continue;
+                }
+                camera.Project(position, out var screen, out _);
+                float distance = MathF.Sqrt((screen.X - location.X) * (screen.X - location.X) + (screen.Y - location.Y) * (screen.Y - location.Y));
+                if (distance < best)
+                {
+                    best = distance;
+                    hit = satellite;
+                }
+            }
+            return hit;
         }
 
         private GlobeMarker? HitMarker(Point location)

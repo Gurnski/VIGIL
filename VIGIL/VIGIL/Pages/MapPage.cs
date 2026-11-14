@@ -44,6 +44,7 @@ namespace VIGIL.Pages
         private readonly Badge syntheticBadge = new() { Text = "Synthetic fixture", Tone = BadgeTone.Warning };
         private readonly ToggleSwitch satellitesToggle = new() { Text = "Satellites", Checked = true };
         private readonly ToolTip satellitesTip = new() { InitialDelay = 400 };
+        private readonly SatelliteCard satelliteCard = new() { Visible = false };
 
         private Place? flightDestination;
         private bool? findingsBelow;
@@ -74,6 +75,10 @@ namespace VIGIL.Pages
             legend.Follow(globe);
             globe.Controls.Add(legend);
             globe.Controls.Add(status);
+            satelliteCard.Width = Px(300);
+            satelliteCard.CloseRequested += (s, e) => satelliteCard.Visible = false;
+            globe.Controls.Add(satelliteCard);
+            globe.SatelliteClicked += Globe_SatelliteClicked;
 
             globe.MarkerClicked += Globe_MarkerClicked;
             globe.RegionSelected += Globe_RegionSelected;
@@ -232,6 +237,11 @@ namespace VIGIL.Pages
             legend.Visible = globe.GridOverlayScale != null && globe.Width >= Px(420) && globe.Height >= Px(320);
             int statusLeft = globe.Width - edge - status.Width;
             bool clear = !legend.Visible || statusLeft >= legend.Right + edge;
+            // The satellite card sits under the legend when there is room for all of it. On a short globe
+            // it moves up to fit, covering the legend while it is open rather than running off the bottom.
+            int underLegend = legend.Visible ? legend.Bottom + Px(Theme.Space2) : edge;
+            bool fits = underLegend + satelliteCard.Height + edge <= globe.Height;
+            satelliteCard.Location = new Point(edge, fits ? underLegend : Math.Max(edge, globe.Height - satelliteCard.Height - edge));
             status.Location = clear ? new Point(Math.Max(edge, statusLeft), edge) : new Point(edge, legend.Bottom + Px(Theme.Space2));
         }
 
@@ -340,6 +350,7 @@ namespace VIGIL.Pages
         private void ShowSatellites(bool show)
         {
             globe.ClearSatellites();
+            satelliteCard.Visible = false;
             if (show)
             {
                 foreach (var satellite in MissionSatellites.Create())
@@ -478,6 +489,33 @@ namespace VIGIL.Pages
                 findingsList.SelectFinding(finding);
             }
             return true;
+        }
+
+        /// <summary>Opens the card about a clicked satellite: its picture, who runs it, what it carries and what VIGIL uses it for.</summary>
+        private void Globe_SatelliteClicked(object? sender, SatelliteEventArgs e)
+        {
+            if (e.Satellite.Tag is not MissionInfo info)
+            {
+                return;
+            }
+
+            satelliteCard.SetContent(
+                e.Satellite.Label,
+                info.InScan ? "Its data is in the first scan" : "Not in the scan: behind a source kept for cross-checks",
+                info.InScan ? Theme.Positive : Theme.TextSecondary,
+                MissionSatellites.Picture(info),
+                new[]
+                {
+                    ("For VIGIL", info.Role),
+                    ("Run by", info.Operator),
+                    ("Launched", info.Launched),
+                    ("Carries", info.Instrument),
+                    ("Orbit", MissionSatellites.OrbitText(e.Satellite))
+                },
+                MissionSatellites.Caveat + " Picture: NASA.");
+            satelliteCard.Visible = true;
+            satelliteCard.BringToFront();
+            PositionOverlays();
         }
 
         private void Globe_RegionSelected(object? sender, RegionEventArgs e)

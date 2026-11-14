@@ -17,6 +17,7 @@ import { scaleLimit } from './colourScale';
 import { GlobeLegend } from './GlobeLegend';
 import { paintLayer } from './layerTexture';
 import { missionSatellites, satelliteCaveat } from './satellite';
+import { SatelliteCard } from './SatelliteCard';
 import { useSatellites } from './useSatellites';
 import './globe.css';
 
@@ -324,6 +325,9 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
   // ----- Satellites -----
 
   const satelliteElements = useRef(new Map<string, HTMLElement>());
+  // The satellite whose card is open. Hiding the satellites closes it.
+  const [openSatelliteId, setOpenSatelliteId] = useState<string | null>(null);
+  const openSatellite = showSatellites ? missionSatellites.find((satellite) => satellite.id === openSatelliteId) ?? null : null;
   useSatellites(globeRef, ready, showSatellites, satelliteElements);
 
   // ----- Selection: outline the cell (and a contradiction's paired cell) and fly there -----
@@ -394,7 +398,8 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
           ))}
           {showSatellites &&
             missionSatellites.map((satellite) => (
-              <div
+              <button
+                type="button"
                 key={satellite.id}
                 ref={(element) => {
                   if (element) {
@@ -403,14 +408,21 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
                     satelliteElements.current.delete(satellite.id);
                   }
                 }}
-                className={satellite.inScan ? 'globe-satellite' : 'globe-satellite globe-satellite-quiet'}
+                className={
+                  'globe-satellite' +
+                  (satellite.inScan ? '' : ' globe-satellite-quiet') +
+                  (satellite.id === openSatelliteId ? ' globe-satellite-open' : '')
+                }
+                aria-label={`About ${satellite.label}`}
+                onClick={() => setOpenSatelliteId(satellite.id)}
                 title={`${satellite.detail} ${satellite.inScan ? 'In the first scan.' : 'Not in the scan.'} ${satelliteCaveat}`}
               >
                 <span className="globe-marker-label">{satellite.label}</span>
-              </div>
+              </button>
             ))}
         </div>
       )}
+      {openSatellite && <SatelliteCard satellite={openSatellite} onClose={() => setOpenSatelliteId(null)} />}
       {layerShown && grid && <GlobeLegend title={`${labelText(grid.variable)} trend, ${grid.units}`} limit={limit} />}
     </div>
   );

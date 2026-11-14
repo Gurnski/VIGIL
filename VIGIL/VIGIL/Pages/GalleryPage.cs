@@ -1,4 +1,5 @@
 using VIGIL.Controls;
+using VIGIL.Controls.Globe;
 using VIGIL.Controls.Chat;
 using VIGIL.Models;
 using VIGIL.Theming;
@@ -212,6 +213,16 @@ namespace VIGIL.Pages
             Section("Chat",
                 new ChatInput { Width = Px(320) },
                 chip);
+
+            var satellite = MissionSatellites.Create()[0];
+            var satelliteCard = new SatelliteCard { Width = Px(300) };
+            if (satellite.Tag is MissionInfo mission)
+            {
+                satelliteCard.SetContent(satellite.Label, "Its data is in the first scan", Theme.Positive, MissionSatellites.Picture(mission),
+                    new[] { ("For VIGIL", mission.Role), ("Run by", mission.Operator), ("Launched", mission.Launched), ("Orbit", MissionSatellites.OrbitText(satellite)) },
+                    MissionSatellites.Caveat);
+            }
+            Section("Satellite card", satelliteCard);
 
             if (lastFlow != null)
             {

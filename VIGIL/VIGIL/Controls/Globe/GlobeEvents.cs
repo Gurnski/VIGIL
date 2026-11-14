@@ -10,6 +10,16 @@ namespace VIGIL.Controls.Globe
         public GlobeMarker Marker { get; }
     }
 
+    public sealed class SatelliteEventArgs : EventArgs
+    {
+        public SatelliteEventArgs(GlobeSatellite satellite)
+        {
+            Satellite = satellite;
+        }
+
+        public GlobeSatellite Satellite { get; }
+    }
+
     /// <summary>Raised when the planet's surface is clicked away from any marker.</summary>
     public sealed class SurfaceClickEventArgs : EventArgs
     {

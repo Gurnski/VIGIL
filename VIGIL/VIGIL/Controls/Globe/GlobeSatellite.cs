@@ -27,6 +27,9 @@ namespace VIGIL.Controls.Globe
         public string Label { get; set; }
         public Color Colour { get; set; }
         public string Detail { get; set; } = "";
+
+        /// <summary>Anything the app wants to carry with the satellite, handed back on click.</summary>
+        public object? Tag { get; set; }
         public double InclinationDegrees { get; }
         public double AltitudeKm { get; }
 

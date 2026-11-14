@@ -14,6 +14,12 @@
     <EmbeddedResource Include="..\..\assets\BlackMarbleNight.jpg" LogicalName="VIGIL.Assets.BlackMarbleNight.jpg" Link="Assets\BlackMarbleNight.jpg" />
     <EmbeddedResource Include="..\..\contract\fixture\snapshot.json" LogicalName="VIGIL.Fixture.snapshot.json" Link="Fixture\snapshot.json" />
     <EmbeddedResource Include="..\..\contract\fixture\ask.json" LogicalName="VIGIL.Fixture.ask.json" Link="Fixture\ask.json" />
+    <EmbeddedResource Include="..\..\assets\satellites\terra.png" LogicalName="VIGIL.Assets.Satellites.terra.png" Link="Assets\Satellites\terra.png" />
+    <EmbeddedResource Include="..\..\assets\satellites\gpm.png" LogicalName="VIGIL.Assets.Satellites.gpm.png" Link="Assets\Satellites\gpm.png" />
+    <EmbeddedResource Include="..\..\assets\satellites\aqua.png" LogicalName="VIGIL.Assets.Satellites.aqua.png" Link="Assets\Satellites\aqua.png" />
+    <EmbeddedResource Include="..\..\assets\satellites\suomi-npp.jpg" LogicalName="VIGIL.Assets.Satellites.suomi-npp.jpg" Link="Assets\Satellites\suomi-npp.jpg" />
+    <EmbeddedResource Include="..\..\assets\satellites\smap.jpg" LogicalName="VIGIL.Assets.Satellites.smap.jpg" Link="Assets\Satellites\smap.jpg" />
+    <EmbeddedResource Include="..\..\assets\satellites\grace-fo.jpg" LogicalName="VIGIL.Assets.Satellites.grace-fo.jpg" Link="Assets\Satellites\grace-fo.jpg" />
   </ItemGroup>
 
 </Project>

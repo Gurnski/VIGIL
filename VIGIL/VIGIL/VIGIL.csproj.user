@@ -19,6 +19,9 @@
     <Compile Update="Controls\Globe\GlobeControl.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="Controls\Globe\SatelliteCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Update="Controls\NavRail.cs">
       <SubType>Component</SubType>
     </Compile>

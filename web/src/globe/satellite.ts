@@ -7,6 +7,13 @@
 // along its orbit is not tracked from live orbit data, so the dot shows how the satellite
 // moves, not where it is right now. The label on the globe says so.
 
+import aquaPicture from '../../../assets/satellites/aqua.png';
+import gpmPicture from '../../../assets/satellites/gpm.png';
+import graceFoPicture from '../../../assets/satellites/grace-fo.jpg';
+import smapPicture from '../../../assets/satellites/smap.jpg';
+import suomiNppPicture from '../../../assets/satellites/suomi-npp.jpg';
+import terraPicture from '../../../assets/satellites/terra.png';
+
 const EarthRadiusKm = 6371;
 const EarthMu = 398600.4418; // km³/s²
 const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
@@ -18,6 +25,13 @@ export interface Satellite {
   label: string;
   /** Shown on hover: what it measures for VIGIL. */
   detail: string;
+  /** Who runs the mission. */
+  operator: string;
+  launched: string;
+  /** What it carries, the instrument VIGIL's source depends on first. */
+  instrument: string;
+  /** A public domain NASA picture of it. Credits are in assets/satellites/README.md. */
+  picture: string;
   /** True when its data is in the first scan, false when it is behind a source kept for cross-checks. */
   inScan: boolean;
   inclinationDegrees: number;
@@ -47,6 +61,10 @@ export const missionSatellites: Satellite[] = [
     id: 'terra',
     label: 'Terra',
     detail: 'Carries MODIS, the source of the vegetation (NDVI) record.',
+    operator: 'NASA',
+    launched: '18 December 1999',
+    instrument: 'MODIS, with ASTER, CERES, MISR and MOPITT',
+    picture: terraPicture,
     inScan: true,
     inclinationDegrees: 98.2,
     altitudeKm: 705,
@@ -57,6 +75,10 @@ export const missionSatellites: Satellite[] = [
     id: 'gpm',
     label: 'GPM Core Observatory',
     detail: 'The reference satellite of GPM IMERG, the source of the precipitation record.',
+    operator: 'NASA and JAXA',
+    launched: '27 February 2014',
+    instrument: 'GMI microwave imager and DPR radar',
+    picture: gpmPicture,
     inScan: true,
     inclinationDegrees: 65,
     altitudeKm: 407,
@@ -70,6 +92,10 @@ export const missionSatellites: Satellite[] = [
     id: 'aqua',
     label: 'Aqua',
     detail: "Carries a second MODIS, for checking a vegetation trend against Terra's.",
+    operator: 'NASA',
+    launched: '4 May 2002',
+    instrument: 'MODIS, with AIRS, AMSU and CERES',
+    picture: aquaPicture,
     inScan: false,
     inclinationDegrees: 98.2,
     altitudeKm: 705,
@@ -80,6 +106,10 @@ export const missionSatellites: Satellite[] = [
     id: 'suomi-npp',
     label: 'Suomi NPP',
     detail: 'Carries VIIRS, which continues the MODIS vegetation record.',
+    operator: 'NASA and NOAA',
+    launched: '28 October 2011',
+    instrument: 'VIIRS, with CrIS, ATMS, OMPS and CERES',
+    picture: suomiNppPicture,
     inScan: false,
     inclinationDegrees: 98.7,
     altitudeKm: 824,
@@ -90,6 +120,10 @@ export const missionSatellites: Satellite[] = [
     id: 'smap',
     label: 'SMAP',
     detail: 'Measures soil moisture from orbit, for comparing against the GLDAS model.',
+    operator: 'NASA',
+    launched: '31 January 2015',
+    instrument: 'L-band radiometer',
+    picture: smapPicture,
     inScan: false,
     inclinationDegrees: 98.1,
     altitudeKm: 685,
@@ -101,6 +135,10 @@ export const missionSatellites: Satellite[] = [
     label: 'GRACE-FO',
     // Two spacecraft about 220 km apart on one orbit, drawn as one. The plane drifts, so the angle is arbitrary.
     detail: 'A pair of satellites that weigh the water stored in a region through its pull on them.',
+    operator: 'NASA and GFZ',
+    launched: '22 May 2018',
+    instrument: 'Microwave and laser ranging between the two spacecraft',
+    picture: graceFoPicture,
     inScan: false,
     inclinationDegrees: 89,
     altitudeKm: 490,
@@ -140,6 +178,12 @@ function greenwichSiderealDegrees(time: number): number {
 export function periodSeconds(satellite: Satellite): number {
   const a = EarthRadiusKm + satellite.altitudeKm;
   return 2 * Math.PI * Math.sqrt((a * a * a) / EarthMu);
+}
+
+/** The orbit in words: "705 km up, tilted 98.2°, one lap in about 99 minutes". */
+export function orbitText(satellite: Satellite): string {
+  const minutes = Math.round(periodSeconds(satellite) / 60);
+  return `${satellite.altitudeKm} km up, tilted ${satellite.inclinationDegrees}°, one lap in about ${minutes} minutes`;
 }
 
 /** Radians along the orbit from the ascending node at a time (milliseconds since 1970, UTC). */

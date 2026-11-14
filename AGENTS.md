@@ -91,6 +91,7 @@ The look is flat and dark: neutral graphite surfaces, an off-white accent (`Them
 | `SpinnerControl` | Loading wheel |
 | `FindingsList` | The ranked list of findings. `SetFindings`, `SelectedFinding`, `SelectFinding`. Rows are as tall as their text, and only the rows in view are drawn. |
 | `GlobeControl` | The 3D globe on the Map page. See "The globe" below. |
+| `SatelliteCard` | The panel about a clicked satellite, in `Controls/Globe/`: picture, name, facts and a note. `SetContent(...)`, and it sets its own height. |
 | `ChatView` | A whole chat with the Detective: scrolling messages above an input. Set `Conversation`, and call `AskAbout(finding)` to attach a finding to the next question. See "The Detective" below. |
 | `ChatPanel` | `ChatView` in a floating panel with a title bar. `MainForm` owns the only one. |
 | `ChatTranscript`, `ChatInput`, `ContextChip`, `ConversationList` | The parts of the chat, in `Controls/Chat/`. Use `ChatView` unless you need one alone. |
@@ -128,6 +129,8 @@ Both front ends draw the same six satellites, from two lists that must be kept i
 - MERRA-2 and GLDAS are models, not single spacecraft, so they have no orbit to draw.
 
 Each orbit's height, tilt and period are the mission's own, and a sun-synchronous plane sits where it really is today. The place along each orbit is not tracked from live orbit data. That caveat (`MissionSatellites.Caveat`, `satelliteCaveat`) is the tooltip of the "Satellites" switch in both apps, and it must stay wherever the satellites are explained. No result depends on the satellites.
+
+Clicking a satellite opens a small card about it in both apps: its picture, whether its data is in the scan, what VIGIL uses it for, who runs it, when it was launched, what it carries and its orbit. On the desktop the globe raises `SatelliteClicked` and the facts travel in the satellite's `Tag` as a `MissionInfo`; on the web the card is `web/src/globe/SatelliteCard.tsx`. The pictures are public domain NASA images in `assets/satellites/`, with their credits in the README there. Add a satellite to both lists, with a picture and a credit, or to neither.
 
 Each app has a "Satellites" switch in the toolbar, beside the other switches, to hide them.
 
