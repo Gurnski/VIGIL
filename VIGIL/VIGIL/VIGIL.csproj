@@ -12,6 +12,8 @@
     <EmbeddedResource Include="..\..\assets\UoPHackathonLogo.jpg" LogicalName="VIGIL.Assets.UoPHackathonLogo.jpg" Link="Assets\UoPHackathonLogo.jpg" />
     <EmbeddedResource Include="..\..\assets\BlueMarbleDay.jpg" LogicalName="VIGIL.Assets.BlueMarbleDay.jpg" Link="Assets\BlueMarbleDay.jpg" />
     <EmbeddedResource Include="..\..\assets\BlackMarbleNight.jpg" LogicalName="VIGIL.Assets.BlackMarbleNight.jpg" Link="Assets\BlackMarbleNight.jpg" />
+    <EmbeddedResource Include="..\..\contract\fixture\snapshot.json" LogicalName="VIGIL.Fixture.snapshot.json" Link="Fixture\snapshot.json" />
+    <EmbeddedResource Include="..\..\contract\fixture\ask.json" LogicalName="VIGIL.Fixture.ask.json" Link="Fixture\ask.json" />
     <EmbeddedResource Include="..\..\contract\fixture\snapshot.json" LogicalName="VIGIL.Contract.Snapshot.json" Link="Contract\snapshot.json" />
   </ItemGroup>
 

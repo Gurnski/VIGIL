@@ -1,6 +1,7 @@
 using System.Globalization;
 using VIGIL.Controls;
 using VIGIL.Controls.Globe;
+using VIGIL.Data;
 using VIGIL.Models;
 using VIGIL.Theming;
 
@@ -44,6 +45,10 @@ namespace VIGIL.Pages
         private readonly Badge syntheticBadge = new() { Text = "Synthetic fixture", Tone = BadgeTone.Warning };
 
         private Place? flightDestination;
+        private readonly Dictionary<string, GlobeMarker> markersByCell = new();
+
+        /// <summary>Raised when a finding's marker is clicked, so the Detective can be asked about it.</summary>
+        public event EventHandler<FindingSummary>? FindingClicked;
         private bool? findingsBelow;
 
         public MapPage(ResultsDocument results)
@@ -60,7 +65,7 @@ namespace VIGIL.Pages
             Controls.Add(new PageHeader
             {
                 Title = "Map",
-                Subtitle = "Drag to rotate, scroll to zoom, right-drag to tilt, Shift+drag to select an area.",
+                Subtitle = "Drag to rotate, scroll to zoom, right-drag to tilt. Click a finding to ask the Detective about it.",
                 Dock = DockStyle.Top,
                 Height = Px(72)
             });
@@ -424,6 +429,44 @@ namespace VIGIL.Pages
         private void Globe_MarkerClicked(object? sender, MarkerEventArgs e)
         {
             flightDestination = null;
+            if (e.Marker.Tag is FindingSummary finding)
+            {
+                SetStatus(finding.KindLabel + " in cell " + finding.CellId);
+                FindingClicked?.Invoke(this, finding);
+            }
+        }
+
+        /// <summary>Flies to a finding and selects its marker. Returns false if it isn't on the map.</summary>
+        public bool ShowFinding(string findingId)
+        {
+            var finding = Fixture.FindFinding(findingId);
+            if (finding == null || !markersByCell.TryGetValue(finding.CellId, out var marker))
+            {
+                return false;
+            }
+
+            flightDestination = null;
+            presets.SelectedIndex = -1;
+            globe.SelectMarker(marker, fly: true);
+            SetStatus(finding.KindLabel + " in cell " + finding.CellId);
+            return true;
+        }
+
+        /// <summary>
+        ///  One marker per grid cell that has a finding, carrying the cell's top-ranked finding.
+        ///  They come from the contract's fixture, so they are made up and labelled as samples.
+        /// </summary>
+        private void AddFindingMarkers()
+        {
+            foreach (var cell in Fixture.Findings.GroupBy(f => f.CellId))
+            {
+                var top = cell.OrderBy(f => f.Rank).First();
+                int others = cell.Count() - 1;
+                string label = top.KindLabel + (others > 0 ? " and " + others + " more" : "");
+                var marker = globe.AddMarker(top.Latitude, top.Longitude, label,
+                    top.Significant ? Theme.Series : Theme.TextSecondary, "Sample result. " + top.Summary);
+                marker.Tag = top;
+                markersByCell[top.CellId] = marker;
             if (e.Marker.Tag is Finding finding)
             {
                 findingsList.SelectFinding(finding);
@@ -445,6 +488,63 @@ namespace VIGIL.Pages
                 SetStatus(place.Name + ": " + place.Description);
                 flightDestination = null;
             }
+        }
+
+        /// <summary>
+        ///  Made-up content standing in for real datasets: example sites, a study region, a
+        ///  synthetic warming trend per 2° cell and a satellite on a sun-synchronous orbit.
+        /// </summary>
+        private void AddDemoOverlays()
+        {
+            AddFindingMarkers();
+
+            globe.AddRegion(10, 20, -18, 40, Theme.Warning, "Sahel study region (demo)", 0.16f);
+
+            globe.SetGridOverlay(DemoTrendGrid(), -90, 90, -180, 180, ColourScale.BlueWhiteRed, -1, 1, 0.65f, smooth: true);
+
+            // AppEEARS orbit: the plane is where a 10:30 sun-synchronous satellite's really is
+            globe.AddSatellite(new GlobeSatellite("AppEEARS, NASA", 98.2, 705, Theme.Positive)
+            {
+                AscendingNodeLocalTime = 10.5,
+                TimeScale = 1
+            });
+        }
+
+        /// <summary>
+        ///  A plausible-looking warming pattern on a 2° grid: strongest in the Arctic, a cool
+        ///  patch in the Southern Ocean, some regional texture and noise. Antarctica's interior
+        ///  is left as NaN to show how missing data appears.
+        /// </summary>
+        private static double[,] DemoTrendGrid()
+        {
+            var random = new Random(42);
+            const int rows = 90, columns = 180;
+            var grid = new double[rows, columns];
+            for (int r = 0; r < rows; r++)
+            {
+                double lat = -90 + (r + 0.5) * 180.0 / rows;
+                double latRad = lat * Math.PI / 180;
+                for (int c = 0; c < columns; c++)
+                {
+                    double lon = -180 + (c + 0.5) * 360.0 / columns;
+                    double lonRad = lon * Math.PI / 180;
+                    if (lat < -80)
+                    {
+                        grid[r, c] = double.NaN;
+                        continue;
+                    }
+
+                    double arctic = 0.75 * Math.Pow((lat + 90) / 180, 3.5) - 0.04;
+                    double southernOcean = -0.55 * Math.Exp(-Math.Pow((lat + 58) / 9, 2)) * (0.6 + 0.4 * Math.Cos(lonRad - 1));
+                    double mediterranean = 0.45 * Math.Exp(-Math.Pow((lat - 36) / 11, 2) - Math.Pow((lon - 28) / 30, 2));
+                    double westernAmerica = 0.4 * Math.Exp(-Math.Pow((lat - 42) / 10, 2) - Math.Pow((lon + 112) / 16, 2));
+                    double tropicalPacific = -0.3 * Math.Exp(-Math.Pow(lat / 8, 2) - Math.Pow((lon + 130) / 30, 2));
+                    double texture = 0.12 * Math.Sin(3 * lonRad + 1) * Math.Cos(2 * latRad);
+                    double noise = (random.NextDouble() - 0.5) * 0.08;
+                    grid[r, c] = Math.Clamp(arctic + southernOcean + mediterranean + westernAmerica + tropicalPacific + texture + noise, -1, 1);
+                }
+            }
+            return grid;
         }
     }
 }

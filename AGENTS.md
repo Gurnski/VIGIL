@@ -44,8 +44,8 @@ Everything lives under `VIGIL/VIGIL/`, in folders with matching namespaces (`VIG
 | `Controls/` | Reusable custom-drawn controls (buttons, cards, chart, nav rail and so on) |
 | `Forms/` | Windows (`Form` subclasses) and their `.Designer.cs` and `.resx` files |
 | `Pages/` | Screens shown inside `MainForm`, one `UserControl` per nav item |
-| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. So far it holds `ResultsReader`, which reads a results document and the embedded snapshot. The HTTP calls are still to come. |
-| `Models/` | Plain data types that mirror the result contract: the results document, findings, series, globe layers and the run record. Property names follow the contract through `JsonNamingPolicy.SnakeCaseLower`, so `p_adjusted` is `PAdjusted`. |
+| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. Also the saved chats (`ChatService`) and the embedded fixture (`Fixture`). |
+| `Models/` | Plain data types that mirror the result contract: the Detective's question and answer, a finding's summary, a saved conversation |
 
 There is no C# `Analysis/` folder. Trends, significance, change points and every other statistic are computed by the Python service, and the app only displays what the service returns.
 
@@ -90,6 +90,9 @@ The look is flat and dark: neutral graphite surfaces, an off-white accent (`Them
 | `SpinnerControl` | Loading wheel |
 | `FindingsList` | The ranked list of findings. `SetFindings`, `SelectedFinding`, `SelectFinding`. Rows are as tall as their text, and only the rows in view are drawn. |
 | `GlobeControl` | The 3D globe on the Map page. See "The globe" below. |
+| `ChatView` | A whole chat with the Detective: scrolling messages above an input. Set `Conversation`, and call `AskAbout(finding)` to attach a finding to the next question. See "The Detective" below. |
+| `ChatPanel` | `ChatView` in a floating panel with a title bar. `MainForm` owns the only one. |
+| `ChatTranscript`, `ChatInput`, `ContextChip`, `ConversationList` | The parts of the chat, in `Controls/Chat/`. Use `ChatView` unless you need one alone. |
 
 `VigilControl` is the base class for custom-drawn controls. Inherit from it for new ones.
 
@@ -114,6 +117,16 @@ Adding data:
 `ColourScaleLegend.Follow(globe)` keeps a legend in step with the overlay.
 
 Performance: one timer drives all animation. Frames render at reduced resolution while moving and at full resolution when idle. Slow movement (auto-rotation, satellites, the pulsing sunlight dot) only redraws once something on screen has moved a quarter of a pixel, so nothing renders that would look the same. Each row of a frame only shades the span the globe and its halo cover, and copies the star field for the rest. It holds about 250 MB of memory once both textures and their mipmaps are loaded: the day texture keeps its water mask in the alpha byte rather than a separate array. Above roughly 4x zoom the 8K texture starts to soften. Set the environment variable `VIGIL_GLOBE_STATS=1` to show frame timings. The Map page shows the results document it is given: a layer per variable from `grids`, and a marker per cell that has a finding. Until the service is wired in, that document is the synthetic fixture, and the page says so. The satellite is decoration.
+
+### The Detective
+
+The chat is the C# side of the AI Detective. It only ever calls `POST /ask` on the Python service, in the shape the contract defines. The app never calls a language model itself and never holds an API key.
+
+- `Data/DetectiveClient` makes the call. The address is the environment variable `VIGIL_API_URL`, or `http://127.0.0.1:8000` when that isn't set.
+- `Data/ChatService` holds the conversations and is shared by the floating panel and the Detective page, so both show the same chats. It saves them to `%LOCALAPPDATA%\VIGIL\chats.json`, outside the repo.
+- When the service can't be reached, the four example questions from `contract/fixture/ask.json` get their canned answers, marked "Sample answer". Any other question gets a note that there is no answer. Never show a fixture answer without that mark.
+- Only a finding can be attached to a question, as the contract's `finding_id`. Don't put other text or numbers into the question for the user: the service rejects answers that use a number no finding backs.
+- The Map page's markers are the fixture's findings until the service returns real ones. Clicking one opens the panel with that finding attached.
 
 ### Adding a page
 
