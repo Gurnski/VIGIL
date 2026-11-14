@@ -356,3 +356,58 @@ def test_a_size_written_without_its_sign_passes_the_grounding_check(snapshot):
         "limitations": [],
     }
     assert check_answer(reply, [finding], snapshot["run"]).ok
+
+
+# ------------------------------------------------------------------ the time allowed
+
+def test_every_call_is_given_only_the_time_that_is_left(snapshot, examples, monkeypatch):
+    step = iter(range(10, 1000, 10))                       # the clock reads 0, then 10, 20, 30 ...
+    first = [0.0]
+    monkeypatch.setattr(ask_module.time, "monotonic", lambda: first.pop() if first else float(next(step)))
+    _, client = question_and_answer(snapshot, examples[0], [tool("get_run_summary"), tool("get_run_summary", ), final(reply_from(examples[0]))])
+    timeouts = [call["timeout"] for call in client.calls]
+    assert timeouts == [65.0, 55.0, 45.0]                  # 75 seconds, less 10 for each look at the clock
+    assert timeouts == sorted(timeouts, reverse=True)
+
+
+def test_the_first_call_gets_the_whole_deadline(snapshot, examples):
+    _, client = question_and_answer(snapshot, examples[0], [final(reply_from(examples[0]))])
+    assert 70 < client.calls[0]["timeout"] <= ask_module.DEADLINE_SECONDS
+
+
+def test_the_deadline_can_be_set_from_the_environment(snapshot, examples, monkeypatch):
+    monkeypatch.setenv("VIGIL_DETECTIVE_DEADLINE", "20")
+    assert ask_module.deadline_seconds() == 20.0
+    _, client = question_and_answer(snapshot, examples[0], [final(reply_from(examples[0]))])
+    assert 15 < client.calls[0]["timeout"] <= 20
+
+
+@pytest.mark.parametrize("value", ["", "abc", "0", "-5", "inf", "nan"])
+def test_a_bad_deadline_in_the_environment_is_ignored(value, monkeypatch):
+    monkeypatch.setenv("VIGIL_DETECTIVE_DEADLINE", value)
+    assert ask_module.deadline_seconds() == float(ask_module.DEADLINE_SECONDS)
+
+
+def test_the_default_deadline_is_below_the_function_timeout_and_the_apps_wait(monkeypatch):
+    monkeypatch.delenv("VIGIL_DETECTIVE_DEADLINE", raising=False)
+    assert ask_module.deadline_seconds() == 75.0 < 90.0
+
+
+def test_a_call_that_times_out_gives_the_plain_too_long_message(snapshot, examples):
+    error = anthropic.APITimeoutError(request=SimpleNamespace(method="POST", url="https://api.anthropic.com"))
+    response = ask("q", snapshot["findings"], snapshot["run"], client=ScriptedClient([], error=error))
+    assert response["status"] == "inconclusive" and "too long" in response["answer"]
+    assert response["citations"] == []
+
+
+def test_a_timeout_in_a_later_round_is_the_same_message(snapshot, examples):
+    error = anthropic.APITimeoutError(request=SimpleNamespace(method="POST", url="https://api.anthropic.com"))
+
+    class SlowSecondCall(ScriptedClient):
+        def _create(self, kwargs):
+            if self.calls:
+                raise error
+            return super()._create(kwargs)
+
+    response = ask("q", snapshot["findings"], snapshot["run"], client=SlowSecondCall([tool("get_run_summary")]))
+    assert "too long" in response["answer"]
