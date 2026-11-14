@@ -1,4 +1,5 @@
 using VIGIL.Controls;
+using VIGIL.Controls.Chat;
 using VIGIL.Theming;
 
 namespace VIGIL.Pages
@@ -204,6 +205,11 @@ namespace VIGIL.Pages
             Section("Inputs",
                 new SearchBox { Placeholder = "Search variables…", Width = Px(320) },
                 new SpinnerControl { ForeColor = Theme.Accent, Size = new Size(Px(24), Px(24)), Margin = new Padding(0, Px(6), 0, 0) });
+
+            var chip = new ContextChip { Text = "Trend in cell r60c112", Width = Px(320) };
+            Section("Chat",
+                new ChatInput { Width = Px(320) },
+                chip);
 
             if (lastFlow != null)
             {

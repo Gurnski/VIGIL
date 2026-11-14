@@ -44,5 +44,8 @@ namespace VIGIL.Theming
         public const string ZoomIn = "";
         public const string ZoomOut = "";
         public const string Sort = "";
+        public const string Chat = "";
+        public const string Send = "";
+        public const string FullScreen = "";
     }
 }

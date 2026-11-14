@@ -53,3 +53,7 @@ event-day*.png
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# The C# Data/ folder is source code. On Windows the data/ rule above matches it too, because
+# file names there ignore case, so it is let back in here.
+!/VIGIL/VIGIL/Data/

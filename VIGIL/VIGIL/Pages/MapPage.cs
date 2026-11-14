@@ -1,5 +1,7 @@
 using VIGIL.Controls;
 using VIGIL.Controls.Globe;
+using VIGIL.Data;
+using VIGIL.Models;
 using VIGIL.Theming;
 
 namespace VIGIL.Pages
@@ -26,6 +28,10 @@ namespace VIGIL.Pages
         private static readonly string[] PresetNames = { "Amazon", "Greenland", "Sahel", "Antarctica" };
 
         private Place? flightDestination;
+        private readonly Dictionary<string, GlobeMarker> markersByCell = new();
+
+        /// <summary>Raised when a finding's marker is clicked, so the Detective can be asked about it.</summary>
+        public event EventHandler<FindingSummary>? FindingClicked;
 
         public MapPage()
         {
@@ -38,7 +44,7 @@ namespace VIGIL.Pages
             Controls.Add(new PageHeader
             {
                 Title = "Map",
-                Subtitle = "Drag to rotate, scroll to zoom, right-drag to tilt, Shift+drag to select an area.",
+                Subtitle = "Drag to rotate, scroll to zoom, right-drag to tilt. Click a finding to ask the Detective about it.",
                 Dock = DockStyle.Top,
                 Height = Px(72)
             });
@@ -187,7 +193,45 @@ namespace VIGIL.Pages
         private void Globe_MarkerClicked(object? sender, MarkerEventArgs e)
         {
             flightDestination = null;
+            if (e.Marker.Tag is FindingSummary finding)
+            {
+                SetStatus(finding.KindLabel + " in cell " + finding.CellId);
+                FindingClicked?.Invoke(this, finding);
+            }
+        }
 
+        /// <summary>Flies to a finding and selects its marker. Returns false if it isn't on the map.</summary>
+        public bool ShowFinding(string findingId)
+        {
+            var finding = Fixture.FindFinding(findingId);
+            if (finding == null || !markersByCell.TryGetValue(finding.CellId, out var marker))
+            {
+                return false;
+            }
+
+            flightDestination = null;
+            presets.SelectedIndex = -1;
+            globe.SelectMarker(marker, fly: true);
+            SetStatus(finding.KindLabel + " in cell " + finding.CellId);
+            return true;
+        }
+
+        /// <summary>
+        ///  One marker per grid cell that has a finding, carrying the cell's top-ranked finding.
+        ///  They come from the contract's fixture, so they are made up and labelled as samples.
+        /// </summary>
+        private void AddFindingMarkers()
+        {
+            foreach (var cell in Fixture.Findings.GroupBy(f => f.CellId))
+            {
+                var top = cell.OrderBy(f => f.Rank).First();
+                int others = cell.Count() - 1;
+                string label = top.KindLabel + (others > 0 ? " and " + others + " more" : "");
+                var marker = globe.AddMarker(top.Latitude, top.Longitude, label,
+                    top.Significant ? Theme.Series : Theme.TextSecondary, "Sample result. " + top.Summary);
+                marker.Tag = top;
+                markersByCell[top.CellId] = marker;
+            }
         }
 
         private void Globe_RegionSelected(object? sender, RegionEventArgs e)
@@ -213,15 +257,7 @@ namespace VIGIL.Pages
         /// </summary>
         private void AddDemoOverlays()
         {
-            globe.AddMarker(50.37, -4.14, "Plymouth", Theme.Accent, "University of Plymouth, home of the team");
-            globe.AddMarker(72.58, -38.46, "Summit Station", Theme.Warning, "Greenland ice sheet: demo trend +0.6 °C/decade");
-            globe.AddMarker(78.22, 15.63, "Svalbard", Theme.Warning, "Sea-ice season: demo trend −9 days/decade");
-            globe.AddMarker(19.54, -155.58, "Mauna Loa", Theme.Accent, "CO₂ record: demo trend +24 ppm/decade");
-            globe.AddMarker(-3.12, -60.02, "Manaus", Theme.TextSecondary, "Amazon NDVI: demo trend −0.01/decade, not significant");
-            globe.AddMarker(13.0, 14.3, "Lake Chad", Theme.Warning, "Lake area: demo trend −2.1 %/decade");
-            globe.AddMarker(13.51, 2.12, "Niamey", Theme.Positive, "Sahel rainfall: demo trend +4 %/decade");
-            globe.AddMarker(45.0, 59.8, "Aral Sea", Theme.Warning, "Water extent: demo trend −3.5 %/decade");
-            globe.AddMarker(-18.29, 147.70, "Great Barrier Reef", Theme.Warning, "Sea surface temperature: demo trend +0.2 °C/decade");
+            AddFindingMarkers();
 
             globe.AddRegion(10, 20, -18, 40, Theme.Warning, "Sahel study region (demo)", 0.16f);
 
