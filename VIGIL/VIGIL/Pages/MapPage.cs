@@ -38,7 +38,7 @@ namespace VIGIL.Pages
             Controls.Add(new PageHeader
             {
                 Title = "Map",
-                Subtitle = "Where things are changing, region by region. Drag to rotate, scroll to zoom, right-drag to tilt, Shift+drag to select an area.",
+                Subtitle = "Drag to rotate, scroll to zoom, right-drag to tilt, Shift+drag to select an area.",
                 Dock = DockStyle.Top,
                 Height = Px(72)
             });
@@ -180,7 +180,7 @@ namespace VIGIL.Pages
         private void Globe_MarkerClicked(object? sender, MarkerEventArgs e)
         {
             flightDestination = null;
-            SetStatus("Demo data · " + e.Marker.Label);
+
         }
 
         private void Globe_RegionSelected(object? sender, RegionEventArgs e)
