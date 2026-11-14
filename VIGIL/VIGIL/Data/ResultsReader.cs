@@ -10,7 +10,7 @@ namespace VIGIL.Data
     /// </summary>
     public static class ResultsReader
     {
-        private const string SnapshotResource = "VIGIL.Contract.Snapshot.json";
+        private const string SnapshotResource = "VIGIL.Fixture.snapshot.json";
 
         // The contract's snake_case names map straight onto the models' PascalCase properties.
         // Fields the models don't know are skipped, which is what the contract asks of readers.
