@@ -147,6 +147,7 @@ from vigil.analysis.scan import (
     _mask_for,
     _plain,
     cell_object,
+    check_cell_offset,
 )
 from vigil.analysis.score import NOT_CROSS_SYSTEM, Evidence, cascade_robustness, rank_findings
 
@@ -471,6 +472,7 @@ def add_cascades(
     pairs=None,
     cells: str = WITH_TREND,
     exclude_variables=NOT_CROSS_SYSTEM,
+    cell_offset: tuple[int, int] = (0, 0),
 ) -> CascadeResult:
     """Find the cascades and rank them together with the findings so far.
 
@@ -486,6 +488,8 @@ def add_cascades(
                         pair does not decide who leads.
     ``cells``           ``"trend"`` (default): only cells with a significant trend in either variable.
                         ``"all"``: every cell where both variables were scanned.
+    ``cell_offset``     the one the scan was given for a region: the data's first cell sits at this
+                        ``(row, column)`` of the full grid, and the cell ids are the full grid's.
 
     Raises ``ValueError`` for bad input, or if the list already holds cascades.
     """
@@ -493,6 +497,7 @@ def add_cascades(
     arrays = {v: np.asarray(a, dtype=float) for v, a in data.items()}
     all_units = {**DEFAULT_UNITS, **(units or {})}
     rows, columns, months = _check_inputs(arrays, start_month, grid, min_coverage, threshold, ci_level, all_units)
+    cell_offset = check_cell_offset(cell_offset)
     if int(max_lag_months) != max_lag_months or max_lag_months < 1:
         raise ValueError("max_lag_months must be a whole number of months, 1 or more")
     max_lag = int(max_lag_months)
@@ -523,7 +528,10 @@ def add_cascades(
         variable = f["variables"][0]["id"]
         if f["kind"] == "trend" and f["significant"] and variable in has_trend:
             row, column = f["cell"]["row"], f["cell"]["column"]
-            has_trend[variable][row, column] = True
+            here = (row - cell_offset[0], column - cell_offset[1])
+            if not (0 <= here[0] < rows and 0 <= here[1] < columns):
+                raise ValueError(f"{f['id']} is outside the data given (cell_offset {cell_offset}, {rows} x {columns} cells)")
+            has_trend[variable][here] = True
             trend_at[(variable, row, column)] = f["id"]
 
     new: list[dict] = []
@@ -563,7 +571,7 @@ def add_cascades(
         for i, p_adjusted in zip(candidates, adjusted):
             if not p_adjusted < threshold:
                 continue
-            cell = cell_object(int(where_rows[i]), int(where_columns[i]), grid)
+            cell = cell_object(int(where_rows[i]), int(where_columns[i]), grid, cell_offset)
             finding = _plain(_cascade((a, b), tests, int(i), cell, all_units, int(both_present[i]), months,
                                       float(p_adjusted), settings))
             _check_finite(finding)

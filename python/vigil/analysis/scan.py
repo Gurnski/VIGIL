@@ -253,9 +253,13 @@ def _annual_result(result: TrendResult, years_present: int, years_total: int) ->
 
 
 def _test_series(
-    series: np.ndarray, start_month: int, threshold: float, ci_level: float, annual: bool = False
+    series: np.ndarray, start_month: int, threshold: float, ci_level: float, annual: bool = False, keep_all: bool = False
 ) -> _Outcome:
-    """Deseasonalise and test one raw monthly series (or, with ``annual``, its annual means)."""
+    """Deseasonalise and test one raw monthly series (or, with ``annual``, its annual means).
+
+    The full result and the noise are kept only when the raw p-value is below the threshold (the
+    only tests that can be significant), or for every test with ``keep_all``.
+    """
     if annual:
         anomalies = _annual_means(series)        # a sum over whole years has no seasonal cycle to remove
         reference = anomalies
@@ -277,6 +281,8 @@ def _test_series(
     if not math.isfinite(result.p_value) or not math.isfinite(result.slope_per_decade):
         raise ValueError("the trend test returned a p-value or slope that is not a number")
     if result.p_value >= threshold:
+        if keep_all and result.slope_per_decade != 0:
+            return _Outcome(result.p_value, result.slope_per_decade, result, detrended_sd(anomalies))
         return _Outcome(result.p_value, result.slope_per_decade)
     if result.slope_per_decade == 0:
         # Mann-Kendall sees a drift but the median slope is zero, which happens when most
@@ -295,15 +301,33 @@ def cell_id(row: int, column: int) -> str:
     return f"r{row:02d}c{column:03d}"
 
 
-def cell_object(row: int, column: int, grid: dict) -> dict:
-    """The contract's ``cell`` object: id, row, column and the cell's bounds."""
+def check_cell_offset(cell_offset) -> tuple[int, int]:
+    """``cell_offset`` as a pair of whole numbers that are not negative."""
+    try:
+        row0, column0 = cell_offset
+    except (TypeError, ValueError):
+        raise ValueError("cell_offset must be a pair (row, column)") from None
+    if any(isinstance(v, bool) or not isinstance(v, (int, np.integer)) or v < 0 for v in (row0, column0)):
+        raise ValueError("cell_offset must be two whole numbers that are not negative")
+    return int(row0), int(column0)
+
+
+def cell_object(row: int, column: int, grid: dict, cell_offset: tuple[int, int] = (0, 0)) -> dict:
+    """The contract's ``cell`` object: id, row, column and the cell's bounds.
+
+    ``row`` and ``column`` are positions in the array that was scanned, and ``grid`` describes
+    that array (its south-west corner), so the bounds follow from them. ``cell_offset`` is where
+    that array's corner sits on the full scan grid: the id, row and column are the full grid's,
+    so a cell keeps its id whether it is scanned alone or with the rest of the world.
+    """
     deg = float(grid["cell_degrees"])
     lat_min = float(grid["lat_min"]) + row * deg
     lon_min = float(grid["lon_min"]) + column * deg
+    row0, column0 = cell_offset
     return {
-        "id": cell_id(row, column),
-        "row": int(row),
-        "column": int(column),
+        "id": cell_id(row + row0, column + column0),
+        "row": int(row) + row0,
+        "column": int(column) + column0,
         "lat_min": round(lat_min, 6),
         "lat_max": round(lat_min + deg, 6),
         "lon_min": round(lon_min, 6),
@@ -390,6 +414,8 @@ def scan_trends(
     units: dict[str, str] | None = None,
     min_total: dict[str, float] | None = None,
     annual_variables=ANNUAL_VARIABLES,
+    cell_offset: tuple[int, int] = (0, 0),
+    include_not_significant: bool = False,
     progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
     """Test every unmasked cell of every variable and rank the significant trends.
@@ -407,6 +433,18 @@ def scan_trends(
                    it are skipped as ``coverage``.
     ``annual_variables``  variables tested on annual means (``ANNUAL_VARIABLES``: ``earthquakes``).
                    They need at least 10 whole years; a year with a missing month counts as missing.
+    ``cell_offset``  ``(row, column)`` of the data's first cell on the full scan grid, for a scan of a
+                   region. ``grid`` then describes the region's own south-west corner (``lat_min`` and
+                   ``lon_min`` of its first cell), ``data`` and ``mask`` cover the region, and every cell id,
+                   row and column in the output is the full grid's (a cell is ``r60c112`` however it is
+                   scanned). The correction for many tests then covers the region's tests only.
+                   Pass the same offset to every later step. The layers describe the region.
+    ``include_not_significant``  also return a finding (``significant: false``, ``direction: none``) for
+                   every test that ran and did not pass, so a question about one cell can be answered. This is
+                   what ``POST /analyse`` on a region wants. Off for the stored scan, where every finding is a
+                   significant test. The counts do not change, but ``len(findings)`` is then more than
+                   ``counts["tests_significant"]``. Flat series and zero-slope tests have no result to report
+                   and get no finding. Every later step ignores the findings that are not significant.
     ``progress``   called as ``progress(tests_done, tests_to_run)`` now and then.
 
     Raises ``ValueError`` for bad input, and names the variable and cell if one
@@ -417,6 +455,7 @@ def scan_trends(
     arrays = {v: np.asarray(a, dtype=float) for v, a in data.items()}
     all_units = {**DEFAULT_UNITS, **(units or {})}
     rows, columns, months = _check_inputs(arrays, start_month, grid, min_coverage, threshold, ci_level, all_units)
+    cell_offset = check_cell_offset(cell_offset)
     variables = list(arrays)
     annual = {v for v in variables if v in set(annual_variables)}
     if annual and months < MIN_YEARS_TO_TEST * MONTHS_PER_YEAR:
@@ -450,10 +489,11 @@ def scan_trends(
         for row, column in zip(*np.nonzero(skip[variable] == None)):  # noqa: E711
             try:
                 outcomes[(variable, int(row), int(column))] = _test_series(
-                    arrays[variable][row, column], start_month, threshold, ci_level, variable in annual
+                    arrays[variable][row, column], start_month, threshold, ci_level, variable in annual,
+                    include_not_significant,
                 )
             except Exception as error:
-                raise ValueError(f"{variable} {cell_id(int(row), int(column))}: {error}") from error
+                raise ValueError(f"{variable} {cell_id(int(row) + cell_offset[0], int(column) + cell_offset[1])}: {error}") from error
             done += 1
             if progress and done % 200 == 0:
                 progress(done, to_run)
@@ -478,11 +518,16 @@ def scan_trends(
 
     # --- findings, scored and ranked
     findings, evidence = [], {}
-    for key in significant_keys:
+    significant_set = set(significant_keys)
+    reported = keys if include_not_significant else significant_keys
+    for key in reported:
         variable, row, column = key
         outcome = outcomes[key]
+        if outcome.trend is None:
+            continue                       # a flat series or a zero slope: nothing to report
         finding, finding_evidence = _finding(
-            variable, row, column, grid, all_units[variable], outcome, p_adjusted_by_key[key], threshold
+            variable, row, column, grid, all_units[variable], outcome, p_adjusted_by_key[key], threshold, cell_offset,
+            key in significant_set,
         )
         findings.append(finding)
         evidence[finding["id"]] = finding_evidence
@@ -574,13 +619,14 @@ def _counts(variables, rows, columns, skip, outcomes, significant_keys) -> dict:
     }
 
 
-def _finding(variable, row, column, grid, units, outcome: _Outcome, p_adjusted, threshold):
+def _finding(variable, row, column, grid, units, outcome: _Outcome, p_adjusted, threshold, cell_offset=(0, 0),
+             significant=True):
     result = outcome.trend
-    cell = cell_object(row, column, grid)
+    cell = cell_object(row, column, grid, cell_offset)
     finding = {
         "id": f"trend.{variable}.{cell['id']}",
         "kind": "trend",
-        "significant": True,
+        "significant": significant,
         "cell": cell,
         "variables": [{"id": variable, "units": units}],
         "preprocessing": {
