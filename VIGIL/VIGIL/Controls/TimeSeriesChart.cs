@@ -34,7 +34,7 @@ namespace VIGIL.Controls
             reveal.Jump(1f);
         }
 
-        protected override Size DefaultSize => new(600, 300);
+        protected override Size DefaultSize => Theme.Scaled(600, 300);
 
         [DefaultValue(true)]
         public bool ShowTrendLine

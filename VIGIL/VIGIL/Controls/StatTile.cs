@@ -25,7 +25,7 @@ namespace VIGIL.Controls
         private Color deltaColour = Theme.Accent;
         private double[] sparkline = Array.Empty<double>();
 
-        protected override Size DefaultSize => new(280, 132);
+        protected override Size DefaultSize => Theme.Scaled(280, 132);
 
         [DefaultValue("Caption")]
         public string Caption

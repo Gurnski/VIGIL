@@ -20,7 +20,7 @@ namespace VIGIL.Controls.Globe
         private string units = "";
         private string valueFormat = "0.0";
 
-        protected override Size DefaultSize => new(240, 68);
+        protected override Size DefaultSize => Theme.Scaled(240, 68);
 
         [Browsable(false)]
         public ColourScale ColourScale
