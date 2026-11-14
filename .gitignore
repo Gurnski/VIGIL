@@ -71,3 +71,6 @@ web/public/ask.json
 # without them the viewer reads contract/fixture/.
 /snapshot.json
 /ask.json
+
+# Screenshots and reference clips for the advert. Large, and not part of the project.
+advert-assets/

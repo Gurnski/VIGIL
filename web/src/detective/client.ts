@@ -2,7 +2,8 @@ import type { AskFixture, AskRequest, AskResponse } from '../contract';
 import { loadAskFixture } from '../data';
 
 // The viewer never calls a language model itself and holds no API key: the service does that.
-const timeoutMs = 20000;
+// The Detective may look things up over several rounds: the service allows it 75 seconds, and the desktop app waits 90.
+const timeoutMs = 90000;
 
 const localService = 'http://127.0.0.1:8000';
 
