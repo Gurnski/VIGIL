@@ -74,6 +74,12 @@ CROSS_SYSTEM_BY_VARIABLES = (0.0, 0.5, 0.8, 1.0)
 TOP_N = 20
 MAX_GROUP_SHARE = 0.25
 
+# Variables that are not a climate system. A finding on one of these is ranked in
+# its own group, but it gives no cross-system credit to the findings around it and
+# gets none: an earthquake in the same cell as a warming trend is not two Earth
+# systems changing together.
+NOT_CROSS_SYSTEM = frozenset({"earthquakes"})
+
 
 @dataclass(frozen=True)
 class Evidence:
@@ -224,17 +230,24 @@ def cross_system_scores(findings: list[dict]) -> dict[str, float]:
 
     Counts the distinct variables that have a significant finding in the same
     cell. A cascade contributes both of its variables. A finding that is not
-    significant scores 0 whatever its neighbours do.
+    significant scores 0 whatever its neighbours do. Variables in
+    ``NOT_CROSS_SYSTEM`` are not counted, and a finding made only of them scores 0.
     """
     in_cell: dict[str, set[str]] = {}
     for f in findings:
         if f["significant"]:
-            in_cell.setdefault(f["cell"]["id"], set()).update(v["id"] for v in f["variables"])
+            in_cell.setdefault(f["cell"]["id"], set()).update(
+                v["id"] for v in f["variables"] if v["id"] not in NOT_CROSS_SYSTEM
+            )
     top = len(CROSS_SYSTEM_BY_VARIABLES) - 1
-    return {
-        f["id"]: CROSS_SYSTEM_BY_VARIABLES[min(len(in_cell[f["cell"]["id"]]) - 1, top)] if f["significant"] else 0.0
-        for f in findings
-    }
+
+    def score(f: dict) -> float:
+        counted = in_cell.get(f["cell"]["id"], set())
+        if not f["significant"] or all(v["id"] in NOT_CROSS_SYSTEM for v in f["variables"]):
+            return 0.0
+        return CROSS_SYSTEM_BY_VARIABLES[min(len(counted) - 1, top)]
+
+    return {f["id"]: score(f) for f in findings}
 
 
 # ------------------------------------------------------------------ one finding
