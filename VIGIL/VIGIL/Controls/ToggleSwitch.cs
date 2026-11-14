@@ -22,7 +22,7 @@ namespace VIGIL.Controls
             Cursor = Cursors.Hand;
         }
 
-        protected override Size DefaultSize => new(200, Theme.ControlHeightSmall);
+        protected override Size DefaultSize => Theme.Scaled(200, Theme.ControlHeightSmall);
 
         [DefaultValue(false)]
         public bool Checked
@@ -48,7 +48,37 @@ namespace VIGIL.Controls
             }
         }
 
-        protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Invalidate(); }
+        protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); GrowToFit(); Invalidate(); }
+        protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); GrowToFit(); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); GrowToFit(); }
+        protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); GrowToFit(); }
+
+        /// <summary>
+        ///  The room the track and label need. The control never gets smaller than this, so the
+        ///  switch and its label are not cut off whatever size a page gives it.
+        /// </summary>
+        private Size ContentSize()
+        {
+            int label = Text.Length > 0
+                ? Px(Theme.Space3) + TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width + Px(2)
+                : 0;
+            return new Size(Px(36) + label, Math.Max(Px(Theme.ControlHeightSmall), Font.Height + Px(4)));
+        }
+
+        private void GrowToFit()
+        {
+            var need = ContentSize();
+            if (Width < need.Width || Height < need.Height)
+            {
+                Size = new Size(Math.Max(Width, need.Width), Math.Max(Height, need.Height));
+            }
+        }
+
+        protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
+        {
+            var need = ContentSize();
+            base.SetBoundsCore(x, y, Math.Max(width, need.Width), Math.Max(height, need.Height), specified);
+        }
         protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
         protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
         protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }

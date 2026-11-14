@@ -14,7 +14,7 @@ namespace VIGIL.Controls
         private string title = "Page title";
         private string subtitle = "";
 
-        protected override Size DefaultSize => new(800, 72);
+        protected override Size DefaultSize => Theme.Scaled(800, 72);
 
         [DefaultValue("Page title")]
         public string Title

@@ -37,7 +37,7 @@ namespace VIGIL.Controls
             Controls.Add(textBox);
         }
 
-        protected override Size DefaultSize => new(280, Theme.ControlHeight);
+        protected override Size DefaultSize => Theme.Scaled(280, Theme.ControlHeight);
 
         [Browsable(true), EditorBrowsable(EditorBrowsableState.Always)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]

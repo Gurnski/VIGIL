@@ -12,7 +12,7 @@ namespace VIGIL.Controls
         private string label = "";
         private Orientation orientation = Orientation.Horizontal;
 
-        protected override Size DefaultSize => new(200, 16);
+        protected override Size DefaultSize => Theme.Scaled(200, 16);
 
         [DefaultValue("")]
         public string Label
