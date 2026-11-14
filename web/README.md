@@ -1,6 +1,6 @@
 # web
 
-The web viewer: a static React site that shows VIGIL's results in a browser. It has the globe with a variable's trend layer, the ranked findings list and the Detective chat. It reads the same result contract as the desktop app (`contract/`).
+The web viewer: a static React site that shows VIGIL's results in a browser. It has the globe with a variable's trend layer, the ranked findings list, the evidence view each finding opens into, and the Detective chat. It reads the same result contract as the desktop app (`contract/`).
 
 Dan owns this folder. See `COORDINATION.md`, and "The web viewer" in `AGENTS.md` for how the code is written.
 
@@ -28,7 +28,8 @@ npm run dev
 | `src/theme.css` | Colours, spacing and type sizes, copied from the app's `Theme.cs` |
 | `src/format.ts` | Labels and place names shared by the parts |
 | `src/findings/` | The ranked findings list |
-| `src/globe/` | The 3D globe, its trend layer, markers and legend |
+| `src/evidence/` | The evidence view a finding opens into: its series chart, numbers, score and sources |
+| `src/globe/` | The 3D globe, its trend layer, markers, legend and the satellites on their orbits |
 | `src/detective/` | The Detective chat and its call to `POST /ask` |
 | `scripts/copy-fixture.mjs` | Copies the fixture from `contract/fixture/` into `public/` before a dev run or build |
 

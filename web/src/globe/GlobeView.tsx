@@ -16,6 +16,8 @@ import { cellCentre, labelText } from '../format';
 import { scaleLimit } from './colourScale';
 import { GlobeLegend } from './GlobeLegend';
 import { paintLayer } from './layerTexture';
+import { missionSatellites } from './satellite';
+import { useSatellites } from './useSatellites';
 import './globe.css';
 
 export interface GlobeViewProps {
@@ -27,6 +29,8 @@ export interface GlobeViewProps {
   significantOnly: boolean;
   /** The chosen finding: outline its cell and fly to it when it changes. */
   selected: Finding | null;
+  /** Draw the satellites behind the data on their orbits. */
+  showSatellites: boolean;
   /** A finding's marker was clicked. */
   onFindingClick: (finding: Finding) => void;
 }
@@ -47,6 +51,8 @@ const DefaultThreshold = 0.05;
 const FlightAltitude = 0.6;
 const FlightMilliseconds = 1200;
 const AutoRotateSpeed = 0.35;
+/** Said wherever a satellite is named: the orbit is the real one, the place along it is not tracked. */
+const SatelliteCaveat = 'The orbit is its real one. Its place along the orbit is shown for illustration, not tracked live.';
 
 interface Marker {
   cellId: string;
@@ -123,7 +129,7 @@ function useEarthImage(): string | null {
 }
 
 /** The 3D globe: the trend layer, a marker per cell with findings, and the selected cell's outline. */
-export function GlobeView({ results, layerVariable, showLayer, significantOnly, selected, onFindingClick }: GlobeViewProps) {
+export function GlobeView({ results, layerVariable, showLayer, significantOnly, selected, showSatellites, onFindingClick }: GlobeViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods>();
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -279,14 +285,23 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
     }));
     let frame = 0;
     let lastView = '';
+    let settling = 0;
     const place = () => {
       frame = requestAnimationFrame(place);
       const camera = globe.camera().position;
       const view = `${camera.x.toFixed(3)},${camera.y.toFixed(3)},${camera.z.toFixed(3)},${size.width},${size.height}`;
-      if (view === lastView) {
+      // The camera's matrices are only brought up to date when the scene is drawn, which can be
+      // after this runs. So the frame after the last move is placed too: without it, markers
+      // are left where the camera was one frame before it stopped, well off on a slow device.
+      if (view !== lastView) {
+        lastView = view;
+        settling = 2;
+      } else if (settling === 0) {
         return;
+      } else {
+        settling--;
       }
-      lastView = view;
+      globe.camera().updateMatrixWorld();
       for (const { marker, position } of placed) {
         const element = markerElements.current.get(marker.cellId);
         if (!element) {
@@ -307,6 +322,11 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
     place();
     return () => cancelAnimationFrame(frame);
   }, [ready, markers, size]);
+
+  // ----- Satellites -----
+
+  const satelliteElements = useRef(new Map<string, HTMLElement>());
+  useSatellites(globeRef, ready, showSatellites, satelliteElements);
 
   // ----- Selection: outline the cell (and a contradiction's paired cell) and fly there -----
 
@@ -374,6 +394,23 @@ export function GlobeView({ results, layerVariable, showLayer, significantOnly, 
               <span className="globe-marker-label">{marker.label}</span>
             </button>
           ))}
+          {showSatellites &&
+            missionSatellites.map((satellite) => (
+              <div
+                key={satellite.id}
+                ref={(element) => {
+                  if (element) {
+                    satelliteElements.current.set(satellite.id, element);
+                  } else {
+                    satelliteElements.current.delete(satellite.id);
+                  }
+                }}
+                className="globe-satellite"
+                title={satellite.detail + ' ' + SatelliteCaveat}
+              >
+                <span className="globe-marker-label">{satellite.label}</span>
+              </div>
+            ))}
         </div>
       )}
       {layerShown && grid && <GlobeLegend title={`${labelText(grid.variable)} trend, ${grid.units}`} limit={limit} />}

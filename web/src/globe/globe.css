@@ -84,6 +84,21 @@
   inset: -8px;
 }
 
+/* A satellite: a dot on its orbit with its name beside it. Not a button: there is nothing to choose. */
+.globe-satellite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--background);
+  border-radius: 50%;
+  background: var(--positive);
+  color: var(--positive);
+  pointer-events: auto;
+}
+
 .globe-marker-significant {
   background: var(--accent);
   color: var(--accent);

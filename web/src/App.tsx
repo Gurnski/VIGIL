@@ -5,19 +5,24 @@ import { count, labelText } from './format';
 import { FindingsList } from './findings/FindingsList';
 import { GlobeView } from './globe/GlobeView';
 import { DetectiveChat } from './detective/DetectiveChat';
+import { EvidencePanel } from './evidence/EvidencePanel';
 
 /**
  * The viewer's one screen: the globe with a variable's trend layer, the ranked findings beside
- * it (underneath on a narrow screen), and the Detective in a panel that slides over. It is a
- * read-only companion to the desktop app and shows the same results document.
+ * it (underneath on a narrow screen), each opening into its evidence, and the Detective in a
+ * panel that slides over. It is a read-only companion to the desktop app and shows the same
+ * results document.
  */
 export function App() {
   const [results, setResults] = useState<ResultsDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Whether the findings card shows the chosen finding's evidence or the list.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [layerVariable, setLayerVariable] = useState<string | null>(null);
   const [showLayer, setShowLayer] = useState(true);
   const [significantOnly, setSignificantOnly] = useState(false);
+  const [showSatellites, setShowSatellites] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [attached, setAttached] = useState<Finding | null>(null);
 
@@ -33,10 +38,11 @@ export function App() {
   const findings = useMemo(() => results?.findings ?? [], [results]);
   const selected = useMemo(() => findings.find((finding) => finding.id === selectedId) ?? null, [findings, selectedId]);
 
-  /** Choosing a finding, in the list or on the globe, also switches to its variable's layer. */
+  /** Choosing a finding, in the list or on the globe, opens its evidence and switches to its variable's layer. */
   const selectFinding = useCallback(
     (finding: Finding) => {
       setSelectedId(finding.id);
+      setEvidenceOpen(true);
       const variable = finding.variables[0]?.id;
       if (variable && results?.grids?.some((grid) => grid.variable === variable)) {
         setLayerVariable(variable);
@@ -125,6 +131,11 @@ export function App() {
           <span className="track" aria-hidden="true" />
           Significant only
         </label>
+        <label className="switch">
+          <input type="checkbox" checked={showSatellites} onChange={(event) => setShowSatellites(event.target.checked)} />
+          <span className="track" aria-hidden="true" />
+          Satellites
+        </label>
       </div>
 
       <main className="app-main">
@@ -135,26 +146,39 @@ export function App() {
             showLayer={showLayer}
             significantOnly={significantOnly}
             selected={selected}
+            showSatellites={showSatellites}
             onFindingClick={selectFinding}
           />
         </section>
 
         <section className="card findings-card" aria-label="Findings">
-          <div className="card-title">
-            <h2>Findings</h2>
-            {selected && (
-              <button className="button" onClick={() => askAbout(selected)}>
-                Ask about #{selected.rank}
-              </button>
-            )}
-          </div>
-          {counts && (
-            <p className="scan-line">
-              {count(counts.tests_significant)} of {count(counts.tests_run)} tests significant after correction,{' '}
-              {count(findings.length)} findings listed.
-            </p>
+          {selected && evidenceOpen ? (
+            <EvidencePanel
+              finding={selected}
+              results={results}
+              onBack={() => setEvidenceOpen(false)}
+              onAsk={askAbout}
+              onOpenFinding={showCitation}
+            />
+          ) : (
+            <>
+              <div className="card-title">
+                <h2>Findings</h2>
+                {selected && (
+                  <button className="button" onClick={() => setEvidenceOpen(true)}>
+                    Evidence for #{selected.rank}
+                  </button>
+                )}
+              </div>
+              {counts && (
+                <p className="scan-line">
+                  {count(counts.tests_significant)} of {count(counts.tests_run)} tests significant after correction,{' '}
+                  {count(findings.length)} findings listed.
+                </p>
+              )}
+              <FindingsList findings={findings} selectedId={selectedId} onSelect={selectFinding} />
+            </>
           )}
-          <FindingsList findings={findings} selectedId={selectedId} onSelect={selectFinding} />
         </section>
       </main>
 
