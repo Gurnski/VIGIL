@@ -53,6 +53,14 @@ def validate_schema(document, definition=None):
         errors.append(f"schema: {'/'.join(str(p) for p in error.absolute_path)}: {error.message[:160]}")
 
 
+def rank_group(finding):
+    """What a finding counts against in the rank cap: its first variable, or "cascade"."""
+    if finding.get("kind") == "cascade":
+        return "cascade"
+    variables = finding.get("variables") or [{}]
+    return variables[0].get("id", "unknown")
+
+
 def check_cell(cell, grid, where):
     if grid is None:
         return
@@ -77,8 +85,18 @@ def check_results(document):
     grids = {g["variable"]: g for g in document.get("grids", [])}
 
     expect([f["rank"] for f in findings] == sorted(f["rank"] for f in findings), "findings are not in rank order")
-    scores = [f["score"]["total"] for f in findings]
-    expect(scores == sorted(scores, reverse=True), "rank does not follow the score")
+    flags = [bool(f["significant"]) for f in findings]
+    expect(flags == sorted(flags, reverse=True), "a non-significant finding is ranked above a significant one")
+    # With a rank cap the list as a whole need not follow the score, because the cap
+    # moves findings between groups. It never reorders findings in the same group.
+    capped = bool(settings and settings.get("rank_cap"))
+    totals = {}
+    for f in findings:
+        group = rank_group(f) if capped else "all findings"
+        totals.setdefault((bool(f["significant"]), group), []).append(f["score"]["total"])
+    for (significant, group), values in totals.items():
+        label = f"{'significant' if significant else 'non-significant'} {group}"
+        expect(values == sorted(values, reverse=True), f"rank does not follow the score ({label})")
 
     for f in findings:
         where = f["id"]

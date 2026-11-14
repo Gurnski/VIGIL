@@ -28,10 +28,14 @@
       "max_lag_months": 6,
       "score_weights": {
         "effect_size": 0.3,
-        "certainty": 0.25,
-        "coverage": 0.1,
-        "robustness": 0.15,
-        "cross_system": 0.2
+        "certainty": 0.2,
+        "coverage": 0.05,
+        "robustness": 0.2,
+        "cross_system": 0.25
+      },
+      "rank_cap": {
+        "top_n": 20,
+        "max_share": 0.25
       }
     },
     "counts": {
@@ -218,7 +222,7 @@
         }
       ],
       "score": {
-        "total": 0.9212,
+        "total": 0.9091,
         "effect_size": 0.864,
         "certainty": 1.0,
         "coverage": 0.993,
@@ -319,7 +323,7 @@
         }
       ],
       "score": {
-        "total": 0.8972,
+        "total": 0.8793,
         "effect_size": 0.84,
         "certainty": 1.0,
         "coverage": 0.997,
@@ -409,7 +413,7 @@
         }
       ],
       "score": {
-        "total": 0.6709,
+        "total": 0.6554,
         "effect_size": 0.522,
         "certainty": 0.7,
         "coverage": 0.99,
@@ -490,7 +494,7 @@
         }
       ],
       "score": {
-        "total": 0.6699,
+        "total": 0.6507,
         "effect_size": 0.775,
         "certainty": 0.571,
         "coverage": 1.0,
@@ -564,7 +568,7 @@
       },
       "links": [],
       "score": {
-        "total": 0.6693,
+        "total": 0.621,
         "effect_size": 1.0,
         "certainty": 0.66,
         "coverage": 1.0,
@@ -644,7 +648,7 @@
         }
       ],
       "score": {
-        "total": 0.6284,
+        "total": 0.5938,
         "effect_size": 0.556,
         "certainty": 0.754,
         "coverage": 0.99,
@@ -657,89 +661,9 @@
       }
     },
     {
-      "id": "trend.vegetation.r41c073",
-      "kind": "trend",
-      "rank": 7,
-      "summary": "Vegetation (NDVI): greening at +0.0117 NDVI per decade",
-      "significant": true,
-      "cell": {
-        "id": "r41c073",
-        "row": 41,
-        "column": 73,
-        "lat_min": 12.5,
-        "lat_max": 15.0,
-        "lon_min": 2.5,
-        "lon_max": 5.0
-      },
-      "period": {
-        "start": "2001-01-01",
-        "end": "2025-12-01",
-        "step": "monthly"
-      },
-      "variables": [
-        {
-          "id": "vegetation",
-          "name": "Vegetation (NDVI)",
-          "units": "NDVI",
-          "mission": "Terra MODIS",
-          "product": "MOD13C2",
-          "field": "CMG 0.05 Deg Monthly NDVI",
-          "source_url": "https://search.earthdata.nasa.gov/search?q=MOD13C2",
-          "native_resolution": "0.05 degrees, monthly"
-        }
-      ],
-      "preprocessing": {
-        "regridding": "Area-weighted mean onto the 2.5 degree grid",
-        "aggregation": "Monthly mean",
-        "anomaly": "Monthly climatology of the same cell over the full period, subtracted",
-        "missing_data_rule": "A cell is scanned when at least 90% of months are present. Missing months are left out of the test.",
-        "months_present": 300,
-        "months_expected": 300,
-        "coverage": 1.0
-      },
-      "method": {
-        "test": "mann_kendall",
-        "parameters": {
-          "slope_estimator": "sen",
-          "autocorrelation_correction": "none",
-          "multiple_testing": "benjamini_hochberg",
-          "threshold": 0.05
-        }
-      },
-      "result": {
-        "direction": "increasing",
-        "slope_per_decade": 0.0117255,
-        "units": "NDVI per decade",
-        "ci_low": 0.00852331,
-        "ci_high": 0.0150336,
-        "ci_level": 0.95,
-        "p_value": 4.4249e-11,
-        "p_adjusted": 8.02146e-08
-      },
-      "links": [
-        {
-          "finding_id": "contradiction.vegetation.r41c073-r41c074",
-          "kind": "contradiction",
-          "cell_id": "r41c074"
-        }
-      ],
-      "score": {
-        "total": 0.61,
-        "effect_size": 0.489,
-        "certainty": 0.722,
-        "coverage": 1.0,
-        "robustness": 0.775,
-        "cross_system": 0.333
-      },
-      "standing": {
-        "status": "exploratory",
-        "limitations": ["Synthetic fixture value. Not a real result."]
-      }
-    },
-    {
       "id": "trend.soil_moisture.r32c051",
       "kind": "trend",
-      "rank": 8,
+      "rank": 7,
       "summary": "Soil moisture, 0 to 10 cm: soil drying at -0.813 kg per m2 per decade",
       "significant": true,
       "cell": {
@@ -811,12 +735,92 @@
         }
       ],
       "score": {
-        "total": 0.6081,
+        "total": 0.5885,
         "effect_size": 0.407,
         "certainty": 0.654,
         "coverage": 1.0,
         "robustness": 0.594,
         "cross_system": 0.667
+      },
+      "standing": {
+        "status": "exploratory",
+        "limitations": ["Synthetic fixture value. Not a real result."]
+      }
+    },
+    {
+      "id": "trend.vegetation.r41c073",
+      "kind": "trend",
+      "rank": 8,
+      "summary": "Vegetation (NDVI): greening at +0.0117 NDVI per decade",
+      "significant": true,
+      "cell": {
+        "id": "r41c073",
+        "row": 41,
+        "column": 73,
+        "lat_min": 12.5,
+        "lat_max": 15.0,
+        "lon_min": 2.5,
+        "lon_max": 5.0
+      },
+      "period": {
+        "start": "2001-01-01",
+        "end": "2025-12-01",
+        "step": "monthly"
+      },
+      "variables": [
+        {
+          "id": "vegetation",
+          "name": "Vegetation (NDVI)",
+          "units": "NDVI",
+          "mission": "Terra MODIS",
+          "product": "MOD13C2",
+          "field": "CMG 0.05 Deg Monthly NDVI",
+          "source_url": "https://search.earthdata.nasa.gov/search?q=MOD13C2",
+          "native_resolution": "0.05 degrees, monthly"
+        }
+      ],
+      "preprocessing": {
+        "regridding": "Area-weighted mean onto the 2.5 degree grid",
+        "aggregation": "Monthly mean",
+        "anomaly": "Monthly climatology of the same cell over the full period, subtracted",
+        "missing_data_rule": "A cell is scanned when at least 90% of months are present. Missing months are left out of the test.",
+        "months_present": 300,
+        "months_expected": 300,
+        "coverage": 1.0
+      },
+      "method": {
+        "test": "mann_kendall",
+        "parameters": {
+          "slope_estimator": "sen",
+          "autocorrelation_correction": "none",
+          "multiple_testing": "benjamini_hochberg",
+          "threshold": 0.05
+        }
+      },
+      "result": {
+        "direction": "increasing",
+        "slope_per_decade": 0.0117255,
+        "units": "NDVI per decade",
+        "ci_low": 0.00852331,
+        "ci_high": 0.0150336,
+        "ci_level": 0.95,
+        "p_value": 4.4249e-11,
+        "p_adjusted": 8.02146e-08
+      },
+      "links": [
+        {
+          "finding_id": "contradiction.vegetation.r41c073-r41c074",
+          "kind": "contradiction",
+          "cell_id": "r41c074"
+        }
+      ],
+      "score": {
+        "total": 0.5794,
+        "effect_size": 0.489,
+        "certainty": 0.722,
+        "coverage": 1.0,
+        "robustness": 0.775,
+        "cross_system": 0.333
       },
       "standing": {
         "status": "exploratory",
@@ -887,7 +891,7 @@
         }
       ],
       "score": {
-        "total": 0.5998,
+        "total": 0.5724,
         "effect_size": 0.441,
         "certainty": 0.708,
         "coverage": 1.0,
@@ -968,7 +972,7 @@
         }
       ],
       "score": {
-        "total": 0.596,
+        "total": 0.5595,
         "effect_size": 0.529,
         "certainty": 0.7,
         "coverage": 1.0,
@@ -1044,7 +1048,7 @@
         }
       ],
       "score": {
-        "total": 0.5516,
+        "total": 0.5235,
         "effect_size": 0.287,
         "certainty": 0.708,
         "coverage": 1.0,
@@ -1118,7 +1122,7 @@
       },
       "links": [],
       "score": {
-        "total": 0.4262,
+        "total": 0.3812,
         "effect_size": 0.366,
         "certainty": 0.503,
         "coverage": 1.0,
@@ -1192,7 +1196,7 @@
       },
       "links": [],
       "score": {
-        "total": 0.3111,
+        "total": 0.2636,
         "effect_size": 0.612,
         "certainty": 0.05,
         "coverage": 1.0,
@@ -1266,7 +1270,7 @@
       },
       "links": [],
       "score": {
-        "total": 0.1308,
+        "total": 0.0833,
         "effect_size": 0.011,
         "certainty": 0.05,
         "coverage": 1.0,

@@ -282,7 +282,15 @@
             "multiple_testing": { "type": "string" },
             "ci_level": { "$ref": "#/$defs/probability" },
             "max_lag_months": { "type": "integer", "minimum": 0 },
-            "score_weights": { "type": "object", "additionalProperties": { "type": "number" } }
+            "score_weights": { "type": "object", "additionalProperties": { "type": "number" } },
+            "rank_cap": {
+              "type": "object",
+              "required": ["top_n", "max_share"],
+              "properties": {
+                "top_n": { "type": "integer", "minimum": 1 },
+                "max_share": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              }
+            }
           }
         },
         "counts": {

@@ -80,7 +80,7 @@ One type covers all four kinds. The fields in the first table are always present
 |---|---|---|
 | `id` | string | Stable across reruns on the same grid: kind, variable and cell, such as `trend.temperature.r60c112`. Lower case, digits, dots, hyphens and underscores only, so it is safe in a URL. |
 | `kind` | string | `trend`, `change_point`, `cascade` or `contradiction` |
-| `rank` | integer | 1 is the top of the list. Follows `score.total`. |
+| `rank` | integer | 1 is the top of the list. Follows `score.total`, with two exceptions set out under "rank" below. |
 | `summary` | string | One line for the findings list, written by the service |
 | `significant` | boolean | Whether it passes `run.settings.threshold` after correction for multiple testing |
 | `cell` | object | `id`, `row`, `column`, `lat_min`, `lat_max`, `lon_min`, `lon_max` |
@@ -198,7 +198,30 @@ Every part runs from 0 to 1 and higher is better. `total` is the weighted sum of
 | `robustness` | How well it survives a sensitivity check |
 | `cross_system` | How many other variables or findings it connects to |
 
-The numbers in the fixture come from placeholder formulas. How each part is worked out is Will's to define.
+The weights in the fixture are the real ones, from `WEIGHTS` in `python/vigil/analysis/score.py`. A real run writes that same dictionary into `run.settings.score_weights`, so the numbers live in one place. They are fixed before the first real scan and not tuned afterwards.
+
+The parts in the fixture come from stand-in formulas. The real ones are Will's, in `score.py`.
+
+### rank
+
+The list is ordered in four steps:
+
+1. Significant findings come before non-significant ones.
+2. Within each, higher `score.total` comes first.
+3. Ties go to the finding whose `id` sorts first.
+4. If `run.settings.rank_cap` is present, the cap is applied to the significant findings.
+
+The cap stops one variable filling the top of the list. Temperature warmed almost everywhere, so without it the first screen would be all temperature. Each finding belongs to a group: its first variable, or `cascade` if it is a cascade. Walking down the list, a finding takes the next of the first `top_n` places unless its group already holds `max_share` of them (rounded up, so 5 of 20). A finding that is passed over keeps its order and follows straight after those places.
+
+Three things follow:
+
+- `score.total` is never changed by the cap. It is still the plain weighted sum.
+- Findings in the same group are never reordered, so within a group `rank` always follows `score.total`.
+- The cap is a rule for filling places, not a promise about the result. With few groups, or fewer than `top_n` significant findings, a group can still end up with more than its share.
+
+When `rank_cap` is absent there is no cap, and `rank` follows steps 1 to 3 alone.
+
+The app sorts by `rank` and never re-sorts by `score.total`. The service applies the cap once, so the screen, `GET /findings?limit=N` and the Detective all see the same order.
 
 ## A series
 
@@ -241,7 +264,7 @@ A cell is either scanned, with a slope and a p-value, or skipped, with a reason.
 | `started`, `finished` | Timestamps |
 | `duration_seconds` | How long it took |
 | `code_version` | The git commit the run was made from |
-| `settings` | Everything fixed before the scan: `grid`, `period`, `variables`, `min_coverage`, `threshold`, `multiple_testing`, `ci_level`, `max_lag_months`, `score_weights` |
+| `settings` | Everything fixed before the scan: `grid`, `period`, `variables`, `min_coverage`, `threshold`, `multiple_testing`, `ci_level`, `max_lag_months`, `score_weights`, `rank_cap` (optional) |
 | `counts` | What the scan did. See below. |
 
 A test is one variable in one cell.
@@ -314,7 +337,6 @@ For Will:
 - Whether per-decade slopes suit every variable, and whether the units strings are the ones the analysis will write.
 - How a change point gets its date range. `ruptures` gives a date and no interval, so the range needs another method, such as the spread between the two penalty settings or a bootstrap.
 - What makes a change point `significant`.
-- How each part of the score is worked out, and the weights.
 
 For Dan:
 
