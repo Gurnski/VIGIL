@@ -19,6 +19,10 @@ namespace VIGIL.Models
     public sealed class RunSettings
     {
         public GridSettings Grid { get; set; } = new();
+
+        /// <summary>Present when the run covered part of the grid, as POST /analyse does. The counts then relate to it.</summary>
+        public GridRegion? Region { get; set; }
+
         public Period Period { get; set; } = new();
 
         /// <summary>Variable ids.</summary>
@@ -44,6 +48,15 @@ namespace VIGIL.Models
         public int Columns { get; set; }
         public double LatMin { get; set; }
         public double LonMin { get; set; }
+    }
+
+    /// <summary>A block of cells on the scan grid. Row and Column are its south-west cell, counted on the full grid.</summary>
+    public sealed class GridRegion
+    {
+        public int Row { get; set; }
+        public int Column { get; set; }
+        public int Rows { get; set; }
+        public int Columns { get; set; }
     }
 
     /// <summary>Stops one variable filling the top of the list. See "rank" in the contract.</summary>

@@ -277,6 +277,17 @@
             },
             "period": { "$ref": "#/$defs/period" },
             "variables": { "type": "array", "items": { "$ref": "#/$defs/variable_id" } },
+            "region": {
+              "description": "Present when the run covered only part of the grid, as POST /analyse does. row and column are the south-west cell of the block, counted on the full grid. The run's counts then relate to this block.",
+              "type": "object",
+              "required": ["row", "column", "rows", "columns"],
+              "properties": {
+                "row": { "type": "integer", "minimum": 0 },
+                "column": { "type": "integer", "minimum": 0 },
+                "rows": { "type": "integer", "minimum": 1 },
+                "columns": { "type": "integer", "minimum": 1 }
+              }
+            },
             "min_coverage": { "$ref": "#/$defs/probability" },
             "threshold": { "$ref": "#/$defs/probability" },
             "multiple_testing": { "type": "string" },

@@ -186,6 +186,8 @@ export interface RunRecord {
   code_version: string;
   settings: {
     grid: { cell_degrees: number; rows: number; columns: number; lat_min: number; lon_min: number };
+    /** Present when the run covered part of the grid, as POST /analyse does. The counts then relate to it. */
+    region?: { row: number; column: number; rows: number; columns: number };
     period: Period;
     variables: VariableId[];
     min_coverage: number;

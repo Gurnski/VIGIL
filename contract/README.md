@@ -264,7 +264,7 @@ A cell is either scanned, with a slope and a p-value, or skipped, with a reason.
 | `started`, `finished` | Timestamps |
 | `duration_seconds` | How long it took |
 | `code_version` | The git commit the run was made from |
-| `settings` | Everything fixed before the scan: `grid`, `period`, `variables`, `min_coverage`, `threshold`, `multiple_testing`, `ci_level`, `max_lag_months`, `score_weights`, `rank_cap` (optional) |
+| `settings` | Everything fixed before the scan: `grid`, `region` (optional), `period`, `variables`, `min_coverage`, `threshold`, `multiple_testing`, `ci_level`, `max_lag_months`, `score_weights`, `rank_cap` (optional) |
 | `counts` | What the scan did. See below. |
 
 A test is one variable in one cell.
@@ -283,6 +283,21 @@ A test is one variable in one cell.
 | `findings_total`, `findings_by_kind` | Findings in the stored list |
 
 `tests_run + tests_skipped = tests_total`, and `tests_significant + tests_not_significant = tests_run`.
+
+### A run over part of the grid
+
+`POST /analyse` scans a region, not the whole grid. Its run record says so with `settings.region`:
+
+| Field | Meaning |
+|---|---|
+| `row`, `column` | The south-west cell of the block, counted on the full grid in `settings.grid` |
+| `rows`, `columns` | How many cells the block is tall and wide |
+
+When `region` is present, every count relates to the region: `cells_total` is `region.rows * region.columns`, and the test counts follow from that. `settings.grid` still describes the full grid, and cell ids stay full-grid ids, so `r60c112` names the same cell in a region run as in the whole scan. Every finding's cell lies inside the region. A region does not wrap across the date line: `column + columns` is at most `grid.columns`.
+
+When `region` is absent the run covered the whole grid, and `cells_total` is `grid.rows * grid.columns`.
+
+`region` was added after version 0.1 was first written. It is optional and readers ignore fields they do not know, so the version number has not changed.
 
 In the fixture the findings list is short on purpose: 14 findings, while the layers hold 1,300 or so significant tests. In a real scan every significant test is a trend finding.
 

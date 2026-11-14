@@ -14,7 +14,7 @@ The plan for the hackathon weekend (architecture, scope, schedule) is in `docs/b
 - Nullable reference types and implicit usings are on (see `VIGIL/VIGIL/VIGIL.csproj`)
 - One project, one solution: `VIGIL/VIGIL.sln`
 - No NuGet packages yet. Ask before adding one, and say why it beats writing the code ourselves.
-- A Python analysis service (FastAPI) under `python/`, which the app calls over HTTP on localhost. All data handling and statistics live there, not in C#. The app talks to it with `HttpClient` and `System.Text.Json`, which need no packages.
+- A Python analysis service (FastAPI) under `python/`, which the app calls over HTTP on localhost. The service itself is `python/vigil/api/`: its README lists the calls, the settings and how a stored scan is made from the pipeline's data. All data handling and statistics live there, not in C#. The app talks to it with `HttpClient` and `System.Text.Json`, which need no packages.
 - The JSON format the two halves exchange is the result contract in `contract/`. It is read-only for everyone except Dan.
 - A web viewer under `web/`: React 18 and TypeScript, built with Vite into static files. It reads the same contract. See "The web viewer" below.
 

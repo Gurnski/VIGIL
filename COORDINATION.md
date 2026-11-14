@@ -20,7 +20,8 @@ Each area has one owner. The split matches section 08 of `docs/brief/Project_Bri
 | Area | Owner | Paths | What it is |
 |---|---|---|---|
 | `contract` | Dan | `contract/` | The JSON format of a finding, and the fixture file of fake results |
-| `data-api` | Ethan | `python/vigil/pipeline/`, `python/vigil/api/`, `infra/` | The discovery run: the cloud machine and bucket, downloading and regridding NASA data, the catalogue and results cache, the run record, and the FastAPI service |
+| `data` | Ethan | `python/vigil/pipeline/`, `infra/` | The discovery run: the cloud machine and bucket, downloading and regridding NASA data onto the scan grid, and handing it over as the `.npz` file that `ScanData` in `python/vigil/api/document.py` describes |
+| `api` | Dan | `python/vigil/api/` | The FastAPI service and the step before it: running the analysis on the gridded data, adding the descriptive text and the run record, and writing the results document |
 | `analysis` | Will | `python/vigil/analysis/` | Trends, significance, change points, cascades, contradictions, ranking |
 | `detective` | Will | `python/vigil/detective/` | The AI Detective: tool calls over the API, grounded answers |
 | `interface` | Dan | `VIGIL/` | The whole C# project: pages, controls, API client, models. This includes the chat panel, which is the C# side of the Detective. |

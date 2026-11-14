@@ -1,8 +1,12 @@
 anthropic==2.8.0
+fastapi==0.163.0
+httpx==0.28.1
 jsonschema==4.26.0
+mangum==0.22.0
 numpy==2.5.4
 pymannkendall==1.4.3
 pytest==9.2.0
 ruptures==1.1.9
 scipy==1.18.1
 statsmodels==0.15.0
+uvicorn==0.54.0

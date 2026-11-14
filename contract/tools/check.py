@@ -186,7 +186,19 @@ def check_results(document):
         expect(counts["tests_run"] + counts["tests_skipped"] == counts["tests_total"], "run: tests_run + tests_skipped is not tests_total")
         expect(counts["tests_significant"] + counts["tests_not_significant"] == counts["tests_run"], "run: significant + not significant is not tests_run")
         expect(sum(counts["skipped_by_reason"].values()) == counts["tests_skipped"], "run: skipped_by_reason does not add up to tests_skipped")
-        expect(counts["cells_total"] == grid["rows"] * grid["columns"], "run: cells_total is not rows x columns")
+        region = run["settings"].get("region")
+        if region:
+            # A run over part of the grid, as POST /analyse makes: its counts relate to the region.
+            inside = region["row"] + region["rows"] <= grid["rows"] and region["column"] + region["columns"] <= grid["columns"]
+            expect(inside, "run: settings.region runs off the grid")
+            expect(counts["cells_total"] == region["rows"] * region["columns"], "run: cells_total is not the region's rows x columns")
+            for f in findings:
+                cell = f["cell"]
+                expect(region["row"] <= cell["row"] < region["row"] + region["rows"]
+                       and region["column"] <= cell["column"] < region["column"] + region["columns"],
+                       f"{f['id']}: cell is outside settings.region")
+        else:
+            expect(counts["cells_total"] == grid["rows"] * grid["columns"], "run: cells_total is not rows x columns")
         if findings and "grids" in document:
             expect(counts["findings_total"] == len(findings), "run: findings_total differs from the list")
         for row in counts["by_variable"]:
