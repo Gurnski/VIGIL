@@ -19,7 +19,10 @@ from vigil.analysis.score import (
     change_point_robustness,
     correlation_certainty,
     cross_system_scores,
+    MAX_GROUP_SHARE,
+    TOP_N,
     detrended_sd,
+    graded_robustness,
     rank_findings,
     score_finding,
     standardised_effect,
@@ -219,6 +222,27 @@ def test_input_findings_are_not_changed():
     assert "score" not in f and "rank" not in f
 
 
+def test_trend_robustness_is_graded_with_no_cliff_at_alpha():
+    assert graded_robustness(True, 0.001, 0.05) == 1.0  # cross-check passes and agrees
+    assert graded_robustness(False, 0.001, 0.05) == 0.0  # passes but disagrees (opposite sign)
+    assert graded_robustness(False, 0.05, 0.05) == pytest.approx(1.0)
+    assert graded_robustness(False, 0.051, 0.05) > 0.99  # just missing costs almost nothing
+    assert graded_robustness(False, 0.2, 0.05) == pytest.approx(0.537, abs=0.001)
+    assert graded_robustness(False, 1.0, 0.05) == 0.0
+    ps = np.linspace(0.05, 1.0, 50)
+    values = [graded_robustness(False, p, 0.05) for p in ps]
+    assert all(b < a for a, b in zip(values, values[1:]))
+    with pytest.raises(ValueError):
+        graded_robustness(False, float("nan"), 0.05)
+
+    # From real TrendResults: a clear trend is fully robust, flat noise is not.
+    rng = np.random.default_rng(5)
+    clear = trend_test(deseasonalise(make_series(300, trend_per_decade=0.8, noise_sd=0.5, rng=rng)))
+    flat = trend_test(deseasonalise(make_series(300, noise_sd=0.5, rng=rng)))
+    assert trend_robustness(clear) == 1.0
+    assert 0.0 <= trend_robustness(flat) < 1.0
+
+
 def test_robustness_helpers():
     assert change_point_robustness(100, 100) == 1.0
     assert change_point_robustness(100, 106) == pytest.approx(0.5)
@@ -290,7 +314,7 @@ def test_end_to_end_from_series_through_the_trend_test_to_the_score():
             "preprocessing": {"coverage": result.coverage},
             "result": result.result_block(result.p_value, "mm per month per decade"),
         })
-        evidence[findings[-1]["id"]] = Evidence(noise_sd=detrended_sd(anomalies), robustness=trend_robustness(result.robust))
+        evidence[findings[-1]["id"]] = Evidence(noise_sd=detrended_sd(anomalies), robustness=trend_robustness(result))
     ranked = rank_findings(findings, evidence)
     assert ranked[0]["id"] == "trend.precipitation.r01c01"
     strong, weak = ranked[0]["score"], ranked[1]["score"]
@@ -313,7 +337,11 @@ def test_rescored_fixture_passes_the_contract_checker(tmp_path):
         s = series[(f["cell"]["id"], f["variables"][0]["id"])]
         anomaly = [np.nan if v is None else v for v in s["anomaly"]]
         evidence[f["id"]] = Evidence(noise_sd=detrended_sd(anomaly), robustness=0.8, certainty=0.7)
-    snapshot["findings"] = rank_findings(findings, evidence, snapshot["run"]["settings"]["score_weights"] or WEIGHTS, diversify=False)
+    settings = snapshot["run"]["settings"]
+    # The contract's copies of the weights and the cap must match this module's.
+    assert settings["score_weights"] == WEIGHTS
+    assert settings["rank_cap"] == {"top_n": TOP_N, "max_share": MAX_GROUP_SHARE}
+    snapshot["findings"] = rank_findings(findings, evidence, settings["score_weights"], **settings["rank_cap"])
     path = tmp_path / "rescored.json"
     path.write_text(json.dumps(snapshot, allow_nan=False))
     done = subprocess.run([sys.executable, str(REPO / "contract" / "tools" / "check.py"), str(path)], capture_output=True, text=True)

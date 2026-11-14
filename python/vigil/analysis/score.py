@@ -42,7 +42,7 @@ from datetime import date
 import numpy as np
 from scipy.stats import norm
 
-from vigil.analysis.trend import sens_slope
+from vigil.analysis.trend import TrendResult, sens_slope
 
 PART_NAMES = ("effect_size", "certainty", "coverage", "robustness", "cross_system")
 
@@ -81,7 +81,7 @@ class Evidence:
 
     ``noise_sd``     the noise standard deviation in the variable's units: ``detrended_sd``
                      for a trend or contradiction, ``step_sd`` for a change point.
-    ``robustness``   0 to 1 from ``trend_robustness``, ``change_point_robustness`` or
+    ``robustness``   0 to 1 from ``trend_robustness(result)``, ``change_point_robustness`` or
                      ``cascade_robustness``. For a contradiction, the lower of its two trends.
     ``certainty``    a contradiction only: the lower ``trend_certainty`` of its two trends.
     ``effective_months``  a cascade only, optional: the number of independent months
@@ -162,9 +162,30 @@ def correlation_certainty(correlation: float, months: float, ci_level: float = C
     return 1.0 / (1.0 + (high - low) / 2.0 / r)
 
 
-def trend_robustness(robust: bool) -> float:
-    """1 when the Hamed-Rao test and trend-free pre-whitening agree (``TrendResult.robust``), else 0."""
-    return 1.0 if robust else 0.0
+def trend_robustness(result: TrendResult) -> float:
+    """Robustness of a trend from its ``TrendResult``: does the cross-check back the trend?
+
+    The cross-check is the trend-free pre-whitening test, with the same alpha
+    the trend test was run at. See ``graded_robustness`` for the scale.
+    """
+    return graded_robustness(result.robust, result.robust_p_value, result.parameters["alpha"])
+
+
+def graded_robustness(agree: bool, cross_check_p: float, alpha: float) -> float:
+    """How strongly a cross-check supports a trend, from 0 to 1.
+
+    When the cross-check passes at ``alpha``: 1 if it agrees with the primary
+    test (``agree``), 0 if it does not (it found the opposite sign, or the
+    primary test found nothing).
+
+    When it does not pass: log(p) / log(alpha), which is 1 at ``p = alpha`` and
+    falls smoothly to 0 at ``p = 1``. With alpha 0.05, p = 0.06 scores 0.94,
+    p = 0.2 scores 0.54 and p = 0.5 scores 0.23. A plain pass-or-fail score
+    would swing the total by its whole weight between p = 0.049 and p = 0.051.
+    """
+    if cross_check_p < alpha:
+        return 1.0 if agree else 0.0
+    return clip01(math.log(cross_check_p) / math.log(alpha))
 
 
 def change_point_robustness(date_months: float, alt_date_months: float | None) -> float:
