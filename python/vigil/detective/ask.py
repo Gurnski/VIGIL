@@ -1,10 +1,16 @@
-"""The AI Detective: one call to the language model, checked afterwards.
+"""The AI Detective: the model looks things up with tools, and its answer is checked afterwards.
 
 ``ask`` takes a question and the scan's findings and returns an answer in the
-shape the contract defines for ``POST /ask``. The model sees only the findings
-it is given. Whatever it says is checked by ``grounding.check_answer`` before it
-is returned, and an answer that fails the check is replaced by a plain message,
-so the app never shows a claim that is not backed by a finding.
+shape the contract defines for ``POST /ask``. The model is first shown the top of
+the ranking (and the finding the user has open). For anything else it calls the
+tools in ``tools.py`` to search or fetch findings, up to ``MAX_TOOL_ROUNDS`` times.
+Whatever it finally says is checked by ``grounding.check_answer`` against every
+finding it was given or looked up, and an answer that fails the check is replaced
+by a plain message, so the app never shows a claim that is not backed by a finding.
+
+``use_tools=False`` goes back to a single call with the top ``MAX_FINDINGS``
+findings and no tools. It is also what happens if the API refuses a request that
+carries tools, so a problem there cannot take the Detective down.
 
 The API key is read from the ``ANTHROPIC_API_KEY`` environment variable. It
 lives only on the server side and is never in the repository or the C# app.
@@ -14,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 import anthropic
 
@@ -24,13 +31,17 @@ from vigil.detective.prompt import (
     build_context,
     build_user_message,
 )
+from vigil.detective.tools import DEFAULT_LIMIT, TOOLS, FindingStore, result_text, run_tool
 
 log = logging.getLogger(__name__)
 
 CONTRACT_VERSION = "0.1"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
-MAX_FINDINGS = 30
+MAX_FINDINGS = 30          # shown up front when there are no tools
+SHOWN_WITH_TOOLS = 10      # shown up front when there are tools; the model looks up the rest
+MAX_TOOL_ROUNDS = 4        # rounds of tool calls before the model must answer
+DEADLINE_SECONDS = 75      # the app waits 90, so stop before it gives up
 MAX_TOKENS = 2000
 
 
@@ -59,32 +70,57 @@ def ask(
     client=None,
     model: str = DEFAULT_MODEL,
     use_fallbacks: bool = True,
+    use_tools: bool = True,
 ) -> dict:
     """Answer one question from the findings. Returns the contract's ask response."""
     run_id = run["id"] if run else None
-    shown = select_findings(findings, finding_id)
+    shown = select_findings(findings, finding_id, SHOWN_WITH_TOOLS if use_tools else MAX_FINDINGS)
+    seen = {f["id"]: f for f in shown}        # everything the model has been given or has looked up
+    made: dict[str, dict] = {}                # the tool calls already made for this question
+    store = FindingStore(findings, run)
     context = build_context(shown, run)
 
     messages = [{"role": turn["role"], "content": turn["text"]} for turn in (history or [])]
     messages.append({"role": "user", "content": build_user_message(question, context)})
 
     client = client or anthropic.Anthropic()
-    request = {
+    base = {
         "model": model,
         "max_tokens": MAX_TOKENS,
         "system": SYSTEM_PROMPT,
-        "messages": messages,
         "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": RESPONSE_SCHEMA}},
     }
-    try:
-        if use_fallbacks:
-            # If the safety classifiers decline, the API retries the same request on a fallback model.
-            response = client.beta.messages.create(betas=[FALLBACK_BETA], fallbacks="default", **request)
-        else:
-            response = client.messages.create(**request)
-    except anthropic.APIError as error:
-        log.error("Detective request failed: %s", error)
-        return _unavailable(run_id, model, "The assistant could not be reached.")
+    if use_tools:
+        base["tools"] = TOOLS
+
+    started = time.monotonic()
+    for round_number in range(MAX_TOOL_ROUNDS + 1):
+        if round_number and time.monotonic() - started > DEADLINE_SECONDS:
+            return _unavailable(run_id, model, "That took too long.")
+        request = {**base, "messages": messages}
+        if use_tools and round_number == MAX_TOOL_ROUNDS:
+            request["tool_choice"] = {"type": "none"}     # out of rounds: it has to answer now
+        try:
+            if use_fallbacks:
+                # If the safety classifiers decline, the API retries the same request on a fallback model.
+                response = client.beta.messages.create(betas=[FALLBACK_BETA], fallbacks="default", **request)
+            else:
+                response = client.messages.create(**request)
+        except anthropic.BadRequestError as error:
+            if use_tools and round_number == 0:
+                log.warning("The API refused a request with tools (%s); answering without them", error)
+                return ask(question, findings, run, history, finding_id, client, model, use_fallbacks, use_tools=False)
+            log.error("Detective request failed: %s", error)
+            return _unavailable(run_id, model, "The assistant could not be reached.")
+        except anthropic.APIError as error:
+            log.error("Detective request failed: %s", error)
+            return _unavailable(run_id, model, "The assistant could not be reached.")
+
+        if response.stop_reason == "tool_use" and use_tools and round_number < MAX_TOOL_ROUNDS:
+            messages.append({"role": "assistant", "content": _blocks(response.content)})
+            messages.append({"role": "user", "content": _run_tools(response.content, store, seen, made)})
+            continue
+        break
 
     if response.stop_reason == "refusal":
         log.warning("Detective request was declined: %s", getattr(response, "stop_details", None))
@@ -104,7 +140,7 @@ def ask(
         log.warning("Detective reply was missing fields")
         return _ungrounded(run_id, model)
 
-    check = check_answer(draft, shown, run)
+    check = check_answer(draft, list(seen.values()), run)
     if not check.ok:
         log.warning("Detective answer failed the grounding check: %s", "; ".join(check.problems))
         return _ungrounded(run_id, model)
@@ -117,6 +153,79 @@ def ask(
         draft["limitations"],
         getattr(response, "model", model),
     )
+
+
+def _blocks(content) -> list[dict]:
+    """The model's reply as plain request blocks, to send back as its earlier turn."""
+    blocks = []
+    for block in content:
+        if block.type == "text":
+            blocks.append({"type": "text", "text": block.text})
+        elif block.type == "tool_use":
+            blocks.append({"type": "tool_use", "id": block.id, "name": block.name, "input": block.input})
+    return blocks
+
+
+REPEATED_CALL = (
+    "You already made this exact call. Its result is earlier in this conversation: use it instead of asking again."
+)
+COVERED_SEARCH = (
+    "You already made this search, and its results include everything this one would return. "
+    "They are earlier in this conversation: use them instead of asking again."
+)
+ALREADY_GIVEN = (
+    "This finding has already been given to you, either in the findings at the start or in an earlier tool result. "
+    "Use that copy."
+)
+
+
+def _filters_and_limit(block):
+    """A search's options without its limit (as a string to compare), and its limit as a whole number or None."""
+    if block.name != "search_findings" or not isinstance(block.input, dict):
+        return None, None
+    filters = json.dumps({k: v for k, v in block.input.items() if k != "limit"}, sort_keys=True, default=str)
+    limit = block.input.get("limit", DEFAULT_LIMIT)
+    return filters, (limit if isinstance(limit, int) and not isinstance(limit, bool) else None)
+
+
+def _run_tools(content, store: FindingStore, seen: dict[str, dict], made: dict[str, dict]) -> list[dict]:
+    """Run every tool the model asked for. Findings it is shown count as given to it.
+
+    ``made`` remembers the calls already made for this question. Asking again for the same
+    search, for a search that an earlier one already covered (the same filters with the
+    same or a smaller limit, or any limit once it returned every match), or for a finding
+    it already holds, is answered with a pointer to what it has instead of the same data
+    a second time.
+    """
+    results = []
+    for block in content:
+        if block.type != "tool_use":
+            continue
+        key = f"{block.name}:{json.dumps(block.input, sort_keys=True, default=str)}"
+        wanted = block.input.get("id") if isinstance(block.input, dict) else None
+        wanted = wanted if isinstance(wanted, str) else None
+        filters, limit = _filters_and_limit(block)
+        earlier = made.get(f"search:{filters}") if filters is not None else None
+        if key in made:
+            result, is_error = {"note": REPEATED_CALL}, False
+        elif earlier and (earlier["complete"] or (limit is not None and limit <= earlier["shown"])):
+            result, is_error = {"note": COVERED_SEARCH}, False
+        elif block.name == "get_finding" and wanted in seen:
+            result, is_error = {"note": ALREADY_GIVEN, "id": wanted}, False
+        else:
+            result, is_error = run_tool(store, block.name, block.input)
+            made[key] = result
+            if filters is not None and not is_error:
+                made[f"search:{filters}"] = {"complete": result["complete"], "shown": result["shown"]}
+        log.info("tool %s(%s)%s", block.name, json.dumps(block.input), " -> error" if is_error else "")
+        for compact in [*result.get("findings", []), result.get("finding")]:
+            if compact and compact["id"] in store.by_id:
+                seen[compact["id"]] = store.by_id[compact["id"]]
+        block_result = {"type": "tool_result", "tool_use_id": block.id, "content": result_text(result)}
+        if is_error:
+            block_result["is_error"] = True
+        results.append(block_result)
+    return results
 
 
 def _ungrounded(run_id: str | None, model: str) -> dict:
