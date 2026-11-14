@@ -29,13 +29,17 @@ MAX_LAG = 6
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "fixture"
 
+# The real weights, from WEIGHTS in python/vigil/analysis/score.py. Keep the two the same.
 SCORE_WEIGHTS = {
     "effect_size": 0.30,
-    "certainty": 0.25,
-    "coverage": 0.10,
-    "robustness": 0.15,
-    "cross_system": 0.20,
+    "certainty": 0.20,
+    "coverage": 0.05,
+    "robustness": 0.20,
+    "cross_system": 0.25,
 }
+
+# No group may take more than max_share of the first top_n places. See "rank" in the README.
+RANK_CAP = {"top_n": 20, "max_share": 0.25}
 
 VARIABLES = {
     "temperature": {
@@ -524,7 +528,8 @@ def build_findings(rng, places, series, p_adjusted):
     for finding in findings.values():
         finding.setdefault("links", [])
 
-    # Scores. The parts and weights are placeholders until the ranking is defined.
+    # Scores. The weights are the real ones. The formulas for the parts are stand-ins:
+    # the real ones are in python/vigil/analysis/score.py.
     for finding in findings.values():
         kind = finding["kind"]
         if kind == "trend":
@@ -554,7 +559,20 @@ def build_findings(rng, places, series, p_adjusted):
         total = sum(SCORE_WEIGHTS[name] * value for name, value in parts.items())
         finding["score"] = {"total": round(total, 4), **parts}
 
-    ranked = sorted(findings.values(), key=lambda f: (-f["score"]["total"], f["id"]))
+    # The same order as rank_findings in score.py: significant first, then by total,
+    # then by id, then the cap on the significant ones.
+    ranked = sorted(findings.values(), key=lambda f: (not f["significant"], -f["score"]["total"], f["id"]))
+    limit = max(1, math.ceil(RANK_CAP["max_share"] * RANK_CAP["top_n"]))
+    used, head = {}, []
+    for finding in ranked:
+        if len(head) >= RANK_CAP["top_n"] or not finding["significant"]:
+            break
+        group = "cascade" if finding["kind"] == "cascade" else finding["variables"][0]["id"]
+        if used.get(group, 0) < limit:
+            head.append(finding)
+            used[group] = used.get(group, 0) + 1
+    chosen = {finding["id"] for finding in head}
+    ranked = head + [finding for finding in ranked if finding["id"] not in chosen]
     for position, finding in enumerate(ranked, start=1):
         finding["rank"] = position
     order = ["id", "kind", "rank", "summary", "significant", "cell", "period", "variables", "preprocessing", "method",
@@ -632,6 +650,7 @@ def build_snapshot():
             "ci_level": CI_LEVEL,
             "max_lag_months": MAX_LAG,
             "score_weights": SCORE_WEIGHTS,
+            "rank_cap": RANK_CAP,
         },
         "counts": {
             "cells_total": ROWS * COLUMNS,
