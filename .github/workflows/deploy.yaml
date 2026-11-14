@@ -76,21 +76,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # The viewer's files and the app download are left out of this sync, so that --delete
-      # does not remove what the steps below put on the bucket.
-      - name: Sync files to S3 Bucket
-        run: |
-          aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} \
-            --delete \
-            --exclude ".git/*" \
-            --exclude ".github/*" \
-            --exclude "README.md" \
-            --exclude "index.html" \
-            --exclude "snapshot.json" \
-            --exclude "ask.json" \
-            --exclude "viewer/*" \
-            --exclude "download/*"
-
       - name: Fetch the viewer build
         uses: actions/download-artifact@v4
         with:
@@ -102,16 +87,26 @@ jobs:
         with:
           name: vigil-app
 
-      # The viewer goes at the bucket root: index.html and viewer/. Its hashed files in viewer/
-      # are synced first with --delete to clear out old builds, then index.html is copied with
-      # no-cache so a new build shows up straight away.
+      # Only the website goes on the bucket, which is public: the viewer, the fixture it falls
+      # back on, and the app download. The repository itself is not uploaded, so the source,
+      # the brief and the docs are not on the site.
       #
-      # snapshot.json and ask.json are never uploaded from here. A real snapshot.json put at the
-      # bucket root by the scan must survive a deploy, and without one the viewer reads the
-      # fixture from contract/fixture/, which the sync above has already put on the bucket.
-      - name: Upload the viewer and the app
+      # Nothing at the bucket root is ever deleted from here. That keeps what other things put
+      # there: a real snapshot.json from the scan, and the Lambda's processed/ folder.
+      #
+      #   viewer/   the viewer's script, styles and pictures. Their names carry a hash of their
+      #             contents, so --size-only skips the ones already there and --delete clears
+      #             out old builds. --delete reaches no further than this folder.
+      #   index.html                 copied with no-cache, so a new build shows straight away
+      #   contract/fixture/*.json    what the viewer shows when there is no real snapshot.json
+      #   download/                  the desktop app
+      - name: Upload the website
+        env:
+          BUCKET: s3://${{ secrets.S3_BUCKET_NAME }}
         run: |
-          aws s3 sync viewer-build/viewer s3://${{ secrets.S3_BUCKET_NAME }}/viewer --delete
-          aws s3 cp viewer-build/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html --cache-control no-cache
-          aws s3 cp VIGIL-win-x64.zip s3://${{ secrets.S3_BUCKET_NAME }}/download/VIGIL-win-x64.zip \
+          aws s3 sync viewer-build/viewer "$BUCKET/viewer" --delete --size-only
+          aws s3 cp viewer-build/index.html "$BUCKET/index.html" --cache-control no-cache
+          aws s3 cp contract/fixture/snapshot.json "$BUCKET/contract/fixture/snapshot.json" --cache-control no-cache
+          aws s3 cp contract/fixture/ask.json "$BUCKET/contract/fixture/ask.json" --cache-control no-cache
+          aws s3 cp VIGIL-win-x64.zip "$BUCKET/download/VIGIL-win-x64.zip" \
             --content-type application/zip --cache-control no-cache

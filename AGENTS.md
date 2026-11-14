@@ -169,7 +169,7 @@ It is a viewer, not a second copy of the app. It has one screen with four parts:
 - The same honesty rules as the app: made-up results carry the "Synthetic fixture" badge, a fixture answer from the Detective is marked "Sample answer", and the viewer never calls a language model or holds a key. The Detective's address is the build-time variable `VITE_VIGIL_API_URL`. Without it, the viewer uses `http://127.0.0.1:8000` when the page is opened on localhost, and otherwise the address the page itself came from, so one server hosting both the page and the service needs no configuration.
 - All statistics still come from the Python service. The viewer displays what the document says and computes nothing but layout and the colour scale's range.
 - Packages so far: `react`, `react-dom`, `react-globe.gl` and `three`. Ask before adding one.
-- `.github/workflows/deploy.yaml` builds the viewer and the desktop app on every push to `main` and puts both on the S3 bucket: the viewer at the root, and the app as `download/VIGIL-win-x64.zip`, which the viewer links to.
+- `.github/workflows/deploy.yaml` builds the viewer and the desktop app on every push to `main` and puts both on the S3 bucket: the viewer at the root, and the app as `download/VIGIL-win-x64.zip`, which the viewer links to. The bucket is the public website, so only the site goes on it: the viewer, the fixture it falls back on, and the app download. The repository itself is never uploaded. The deploy deletes nothing outside `viewer/`, so a real `snapshot.json` and anything else another job puts in the bucket survive it.
 
 Before you finish a change in `web/`: `npm run build:root` must pass, and open the page at phone width as well as desktop width.
 
