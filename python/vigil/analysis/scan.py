@@ -57,6 +57,44 @@ tests made, and a test is significant when its adjusted p is below
 Every cell and variable is either tested (slope and p present, skip reason
 ``None``) or skipped (slope and p ``None``, a skip reason). Never both.
 
+Earthquakes
+-----------
+``earthquakes`` is a fifth variable that sits beside the four climate ones in the same
+scan, with its own globe layer, its own false-discovery family and its own findings.
+The value for a cell and month is the **number of earthquakes of magnitude 4.5 or more**
+in that cell that month (units: ``events per month``). Differences from the climate variables:
+
+* A month with no earthquakes is a real zero, not a missing value. NaN is only for months
+  the catalogue does not cover, so coverage is normally 100%.
+* Earthquakes happen at sea, so a mask given for all variables at once is not applied to
+  them. A mask given for ``earthquakes`` by name is.
+* A quiet cell has too few events to test. A cell is tested only if it holds at least
+  ``DEFAULT_MIN_TOTAL["earthquakes"]`` events over the period (100); fewer are skipped
+  with the reason ``coverage``, which the contract has no better word for. In the run
+  record those skips therefore mean "too little data", months or events.
+* The test runs on **annual means**: the mean monthly count of each run of 12 months from
+  the first value (a partial run at the end is left out). Month by month a count series is
+  mostly zeros, which leaves Sen's slope resting on ties (with the raw 2001 to 2025
+  catalogue it was exactly zero in 96% of the busy cells). Annual means have far fewer.
+  Annual means have no seasonal cycle, so none is removed. Mann-Kendall, Hamed-Rao (lag
+  3 years) and the pre-whitening cross-check run on them as usual, and at least 10 whole
+  years are needed.
+* The slope is still **events per month per decade**, and the interval, the noise and the
+  effect size are in the same unit. ``months_present`` and ``months_expected`` are the
+  months in the years used. ``method.parameters`` says ``aggregation`` and
+  ``max_lag_years``, not ``max_lag_months``. The series the app charts stay monthly.
+* A test whose Sen slope is exactly zero is not called significant (``zero_slope_tests``).
+* In the ranking, earthquakes are their own group in the rank cap, and take no part in
+  the cross-system score: a quake in the same cell as a warming trend is not "two Earth
+  systems changing together" (``NOT_CROSS_SYSTEM`` in ``score.py``).
+
+What the data cannot say, and the pipeline should state in ``standing.limitations`` for
+every earthquake finding: the catalogue grows more complete with time, so a rising count
+can reflect better detection; earthquakes cluster, and one large event with its aftershocks
+can produce a "trend" or a step without any change in the underlying rate; no declustering
+is applied; and the result is a statement about the count of M4.5+ events, nothing about
+cause or prediction. The catalogue is binned onto the scan grid by the pipeline, not here.
+
 What the pipeline still adds
 ----------------------------
 The findings carry what the analysis owns. These contract fields are left to
@@ -95,7 +133,7 @@ from __future__ import annotations
 import math
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 import numpy as np
@@ -113,7 +151,29 @@ DEFAULT_UNITS = {
     "precipitation": "mm per month",
     "soil_moisture": "kg per m2",
     "vegetation": "NDVI",
+    "earthquakes": "events per month",
 }
+
+# Variables that are counts of events (zeros are real values, not missing data) and
+# that happen at sea as well as on land. A mask given for all variables at once is
+# not applied to them; only a mask given for the variable by name is. See "Earthquakes".
+UNMASKED_BY_DEFAULT = frozenset({"earthquakes"})
+
+# A cell is tested only if its values add up to at least this much over the whole
+# period. For a count variable this means "enough events to have a series worth
+# testing"; cells below it are skipped with the reason ``coverage``. Override per
+# variable with ``min_total``. Variables not listed here have no such rule.
+DEFAULT_MIN_TOTAL = {"earthquakes": 100}
+
+# Variables tested on annual means instead of monthly values. A count series is mostly
+# zeros month by month, which leaves Sen's slope (the median of the pairwise slopes)
+# resting on ties; the mean of each run of 12 months has far fewer. The slope is still
+# reported per month per decade, so it stays comparable with the monthly series.
+ANNUAL_VARIABLES = frozenset({"earthquakes"})
+MONTHS_PER_YEAR = 12
+MIN_YEARS_TO_TEST = 10
+# Hamed-Rao autocorrelation lag for annual series, in years (monthly series use 12 months).
+ANNUAL_MAX_LAG = 3
 
 # trend_test needs at least this many non-missing months.
 MIN_MONTHS_TO_TEST = 10
@@ -140,6 +200,9 @@ class ScanResult:
     elapsed_seconds: float = 0.0
     # Cells that were tested but had no trend to find (flat series). Informational.
     flat_tests: int = 0
+    # Tests whose p-value passed the threshold but whose Sen slope is exactly zero.
+    # They have no direction to report, so they were given p = 1. Informational.
+    zero_slope_tests: int = 0
 
 
 @dataclass
@@ -153,23 +216,75 @@ class _Outcome:
     trend: TrendResult | None = None
     noise_sd: float | None = None
     flat: bool = False
+    zero_slope: bool = False
 
 
 # ------------------------------------------------------------------ one series
 
-def _test_series(series: np.ndarray, start_month: int, threshold: float, ci_level: float) -> _Outcome:
-    """Deseasonalise and test one raw monthly series."""
-    anomalies = deseasonalise(series, start_month)
+def _annual_means(series: np.ndarray) -> np.ndarray:
+    """Mean of each run of 12 months, from the first value. A run with a missing month is NaN.
+
+    A partial run at the end is left out.
+    """
+    years = series.size // MONTHS_PER_YEAR
+    return series[: years * MONTHS_PER_YEAR].reshape(years, MONTHS_PER_YEAR).mean(axis=1)
+
+
+def _annual_result(result: TrendResult, years_present: int, years_total: int) -> TrendResult:
+    """Put a trend test run on annual means into the units and labels the rest of the scan uses.
+
+    ``trend_test`` multiplies by 120 for "per decade" on the assumption that each step is a
+    month. For annual steps the factor is 10, so the slope and interval are divided by 12.
+    The month counts are the years' months, and the lag is labelled in years.
+    """
+    factor = 1.0 / MONTHS_PER_YEAR
+    parameters = {k: v for k, v in result.parameters.items() if k != "max_lag_months"}
+    parameters["max_lag_years"] = result.parameters["max_lag_months"]
+    parameters["aggregation"] = "annual mean of monthly values"
+    return replace(
+        result,
+        slope_per_decade=result.slope_per_decade * factor,
+        ci_low=result.ci_low * factor,
+        ci_high=result.ci_high * factor,
+        months_present=years_present * MONTHS_PER_YEAR,
+        months_expected=years_total * MONTHS_PER_YEAR,
+        parameters=parameters,
+    )
+
+
+def _test_series(
+    series: np.ndarray, start_month: int, threshold: float, ci_level: float, annual: bool = False
+) -> _Outcome:
+    """Deseasonalise and test one raw monthly series (or, with ``annual``, its annual means)."""
+    if annual:
+        anomalies = _annual_means(series)        # a sum over whole years has no seasonal cycle to remove
+        reference = anomalies
+    else:
+        anomalies = deseasonalise(series, start_month)
+        reference = series
     present = anomalies[np.isfinite(anomalies)]
-    scale = float(np.max(np.abs(series[np.isfinite(series)])))
+    scale = float(np.max(np.abs(reference[np.isfinite(reference)])))
     if float(np.ptp(present)) <= FLAT_TOLERANCE * scale:
         return _Outcome(p_value=1.0, slope_per_decade=0.0, flat=True)
 
-    result = trend_test(anomalies, alpha=threshold, ci_level=ci_level)
+    if annual:
+        result = _annual_result(
+            trend_test(anomalies, alpha=threshold, ci_level=ci_level, max_lag=ANNUAL_MAX_LAG),
+            present.size, anomalies.size,
+        )
+    else:
+        result = trend_test(anomalies, alpha=threshold, ci_level=ci_level)
     if not math.isfinite(result.p_value) or not math.isfinite(result.slope_per_decade):
         raise ValueError("the trend test returned a p-value or slope that is not a number")
     if result.p_value >= threshold:
         return _Outcome(result.p_value, result.slope_per_decade)
+    if result.slope_per_decade == 0:
+        # Mann-Kendall sees a drift but the median slope is zero, which happens when most
+        # values are tied. A trend with no size and no direction cannot be reported, so it
+        # is not called significant.
+        return _Outcome(1.0, 0.0, zero_slope=True)
+    # For annual means the values are already in the unit of the slope (per month), so the
+    # noise is in the same unit and the effect size comes out in sigma per decade as usual.
     return _Outcome(result.p_value, result.slope_per_decade, result, detrended_sd(anomalies))
 
 
@@ -241,7 +356,10 @@ def _mask_for(mask, variable: str, rows: int, columns: int) -> np.ndarray:
     reasons = np.full((rows, columns), None, dtype=object)
     if mask is None:
         return reasons
-    given = mask.get(variable) if isinstance(mask, dict) else mask
+    if isinstance(mask, dict):
+        given = mask.get(variable)
+    else:
+        given = None if variable in UNMASKED_BY_DEFAULT else mask
     if given is None:
         return reasons
     given = np.asarray(given, dtype=object)
@@ -270,6 +388,8 @@ def scan_trends(
     rank_cap: dict | None = None,
     weights: dict | None = None,
     units: dict[str, str] | None = None,
+    min_total: dict[str, float] | None = None,
+    annual_variables=ANNUAL_VARIABLES,
     progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
     """Test every unmasked cell of every variable and rank the significant trends.
@@ -281,7 +401,12 @@ def scan_trends(
     ``rank_cap``   ``{"top_n": 20, "max_share": 0.25}`` as in ``run.settings.rank_cap``, or
                    ``None`` for no cap.
     ``weights``    score weights; default ``WEIGHTS`` from ``score.py``.
-    ``units``      units of the raw values per variable; defaults cover the four contract variables.
+    ``units``      units of the raw values per variable; defaults cover the five known variables.
+    ``min_total``  per variable, the least the values must add up to over the period for a cell to
+                   be tested (``DEFAULT_MIN_TOTAL``: 100 events for ``earthquakes``). Cells below
+                   it are skipped as ``coverage``.
+    ``annual_variables``  variables tested on annual means (``ANNUAL_VARIABLES``: ``earthquakes``).
+                   They need at least 10 whole years; a year with a missing month counts as missing.
     ``progress``   called as ``progress(tests_done, tests_to_run)`` now and then.
 
     Raises ``ValueError`` for bad input, and names the variable and cell if one
@@ -293,13 +418,27 @@ def scan_trends(
     all_units = {**DEFAULT_UNITS, **(units or {})}
     rows, columns, months = _check_inputs(arrays, start_month, grid, min_coverage, threshold, ci_level, all_units)
     variables = list(arrays)
+    annual = {v for v in variables if v in set(annual_variables)}
+    if annual and months < MIN_YEARS_TO_TEST * MONTHS_PER_YEAR:
+        raise ValueError(
+            f"{sorted(annual)} are tested on annual means and need at least {MIN_YEARS_TO_TEST} years, got {months} months"
+        )
 
     # --- decide which cells are tested
     skip = {}
+    minimum = {**DEFAULT_MIN_TOTAL, **(min_total or {})}
     for variable in variables:
         reasons = _mask_for(mask, variable, rows, columns)
-        present = np.isfinite(arrays[variable]).sum(axis=2)
-        too_thin = (present / months < min_coverage) | (present < MIN_MONTHS_TO_TEST)
+        if variable in annual:
+            years = months // MONTHS_PER_YEAR
+            blocks = arrays[variable][:, :, : years * MONTHS_PER_YEAR].reshape(rows, columns, years, MONTHS_PER_YEAR)
+            present = np.isfinite(blocks.mean(axis=3)).sum(axis=2)
+            too_thin = (present / years < min_coverage) | (present < MIN_YEARS_TO_TEST)
+        else:
+            present = np.isfinite(arrays[variable]).sum(axis=2)
+            too_thin = (present / months < min_coverage) | (present < MIN_MONTHS_TO_TEST)
+        if variable in minimum:
+            too_thin = too_thin | (np.nansum(arrays[variable], axis=2) < minimum[variable])
         reasons[(reasons == None) & too_thin] = "coverage"  # noqa: E711  (elementwise, on an object array)
         skip[variable] = reasons
     to_run = sum(int((skip[v] == None).sum()) for v in variables)  # noqa: E711
@@ -311,7 +450,7 @@ def scan_trends(
         for row, column in zip(*np.nonzero(skip[variable] == None)):  # noqa: E711
             try:
                 outcomes[(variable, int(row), int(column))] = _test_series(
-                    arrays[variable][row, column], start_month, threshold, ci_level
+                    arrays[variable][row, column], start_month, threshold, ci_level, variable in annual
                 )
             except Exception as error:
                 raise ValueError(f"{variable} {cell_id(int(row), int(column))}: {error}") from error
@@ -364,6 +503,7 @@ def scan_trends(
         evidence=evidence,
         elapsed_seconds=time.perf_counter() - began,
         flat_tests=sum(1 for o in outcomes.values() if o.flat),
+        zero_slope_tests=sum(1 for o in outcomes.values() if o.zero_slope),
     )
 
 

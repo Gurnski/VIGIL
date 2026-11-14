@@ -289,3 +289,169 @@ def test_cell_helpers_match_the_contract_examples():
     assert cell_id(60, 112) == "r60c112"
     cell = cell_object(60, 112, GRID)
     assert (cell["lat_min"], cell["lat_max"], cell["lon_min"], cell["lon_max"]) == (60.0, 62.5, 100.0, 102.5)
+
+
+# ------------------------------------------------------------------ earthquakes
+
+def quake_data(seed=5):
+    """Poisson counts: about 1 a month everywhere, a rising rate in one cell, nearly none in another."""
+    rng = np.random.default_rng(seed)
+    counts = rng.poisson(1.0, size=(ROWS, COLUMNS, MONTHS)).astype(float)
+    counts[1, 2] = rng.poisson(0.5 + 3.5 * np.arange(MONTHS) / MONTHS)      # busier every year
+    counts[3, 0] = rng.poisson(0.1, size=MONTHS)                            # about 24 events in all
+    return counts
+
+
+def test_earthquake_trend_is_found_and_a_quiet_cell_is_skipped():
+    result = run({"earthquakes": quake_data()})
+    assert [f["id"] for f in result.findings] == ["trend.earthquakes.r01c002"]
+    top = result.findings[0]
+    assert top["variables"] == [{"id": "earthquakes", "units": "events per month"}]
+    assert top["result"]["units"] == "events per month per decade"
+    assert top["result"]["direction"] == "increasing"
+    assert result.grids[0]["units"] == "events per month per decade"
+    assert result.grids[0]["skip_reason"][3][0] == "coverage"
+    assert result.counts["skipped_by_reason"] == {"ocean": 0, "ice": 0, "coverage": 1}
+    assert result.counts["tests_run"] == ROWS * COLUMNS - 1
+
+
+def test_a_mask_for_all_variables_is_not_applied_to_earthquakes_but_a_named_one_is():
+    data = {"temperature": make_data()["temperature"], "earthquakes": quake_data()}
+    everywhere_ocean = np.full((ROWS, COLUMNS), "ocean", dtype=object)
+    shared = run(data, mask=everywhere_ocean)
+    by = {v["variable"]: v for v in shared.counts["by_variable"]}
+    assert by["temperature"]["tests_run"] == 0
+    assert by["earthquakes"]["tests_run"] == ROWS * COLUMNS - 1
+    named = run(data, mask={"earthquakes": everywhere_ocean})
+    by = {v["variable"]: v for v in named.counts["by_variable"]}
+    assert by["temperature"]["tests_run"] == ROWS * COLUMNS
+    assert by["earthquakes"]["tests_run"] == 0
+
+
+def test_min_total_can_be_changed():
+    result = run({"earthquakes": quake_data()}, min_total={"earthquakes": 400})
+    assert result.counts["tests_run"] == 1           # only the cell whose rate rises holds 400 or more events
+    assert result.counts["skipped_by_reason"]["coverage"] == ROWS * COLUMNS - 1
+
+
+def test_a_quake_trend_beside_a_climate_trend_gives_no_cross_system_credit():
+    climate = make_data()
+    quakes = quake_data()
+    result = run({"temperature": climate["temperature"], "earthquakes": quakes})
+    by_id = {f["id"]: f for f in result.findings}
+    assert "trend.temperature.r02c003" in by_id and "trend.earthquakes.r01c002" in by_id
+    assert all(f["score"]["cross_system"] == 0.0 for f in result.findings)
+    # Even when they share a cell.
+    quakes[2, 3] = np.random.default_rng(0).poisson(0.5 + 3.5 * np.arange(MONTHS) / MONTHS)
+    shared = run({"temperature": climate["temperature"], "earthquakes": quakes})
+    both = [f for f in shared.findings if f["cell"]["id"] == "r02c003"]
+    assert {f["variables"][0]["id"] for f in both} == {"temperature", "earthquakes"}
+    assert all(f["score"]["cross_system"] == 0.0 for f in both)
+
+
+def test_a_significant_test_with_a_zero_slope_is_not_called_significant(monkeypatch):
+    import dataclasses
+    from vigil.analysis import scan as scan_module
+
+    real = scan_module.trend_test
+    monkeypatch.setattr(scan_module, "trend_test",
+                        lambda *a, **k: dataclasses.replace(real(*a, **k), slope_per_decade=0.0))
+    result = run({"earthquakes": quake_data()})
+    assert result.findings == []
+    assert result.zero_slope_tests >= 1
+    layer = result.grids[0]
+    assert layer["slope_per_decade"][1][2] == 0.0 and layer["p_adjusted"][1][2] == 1.0
+    assert result.counts["tests_significant"] == 0
+
+
+def test_annual_means_use_runs_of_twelve_months_and_leave_out_a_partial_run():
+    from vigil.analysis.scan import _annual_means
+
+    series = np.concatenate([np.full(12, 1.0), np.full(12, 3.0), np.full(5, 99.0)])   # 29 months
+    assert list(_annual_means(series)) == [1.0, 3.0]
+    gap = series.copy()
+    gap[3] = np.nan
+    assert np.isnan(_annual_means(gap)[0]) and _annual_means(gap)[1] == 3.0
+
+
+def test_annual_slope_is_in_events_per_month_per_decade():
+    # The rate climbs from 0.5 to 4.0 a month over 20 years: 3.5 over two decades, 1.75 per decade.
+    result = run({"earthquakes": quake_data()})
+    r = result.findings[0]["result"]
+    assert r["units"] == "events per month per decade"
+    assert r["slope_per_decade"] == pytest.approx(1.75, abs=0.5)
+    assert r["ci_low"] < 1.75 < r["ci_high"]
+    # The same trend, tested month by month, gives the same size of slope.
+    monthly = run({"earthquakes": quake_data()}, annual_variables=())
+    assert monthly.findings[0]["result"]["slope_per_decade"] == pytest.approx(r["slope_per_decade"], abs=0.5)
+
+
+def test_annual_finding_is_labelled_in_years_and_counts_the_months_of_the_years_used():
+    f = run({"earthquakes": quake_data()}).findings[0]
+    parameters = f["method"]["parameters"]
+    assert parameters["aggregation"] == "annual mean of monthly values"
+    assert parameters["max_lag_years"] == 3 and "max_lag_months" not in parameters
+    assert f["preprocessing"] == {"months_present": 240, "months_expected": 240, "coverage": 1.0}
+    climate = run({"temperature": make_data()["temperature"]}).findings[0]
+    assert "max_lag_months" in climate["method"]["parameters"] and "aggregation" not in climate["method"]["parameters"]
+
+
+def test_annual_variables_need_ten_years():
+    counts = np.random.default_rng(0).poisson(3.0, size=(ROWS, COLUMNS, 119)).astype(float)
+    with pytest.raises(ValueError, match="at least 10 years"):
+        run({"earthquakes": counts})
+    # A climate variable of the same length is still fine: it needs only 10 months.
+    run({"temperature": counts})
+
+
+def test_a_year_with_a_missing_month_is_a_missing_year():
+    counts = quake_data()
+    counts[0, 0, 0] = np.nan                      # year 1 of 20 is missing, 95% present
+    counts[0, 1, ::13] = np.nan                   # a month missing in almost every year
+    result = run({"earthquakes": counts})
+    layer = result.grids[0]
+    assert layer["skip_reason"][0][0] is None
+    assert layer["skip_reason"][0][1] == "coverage"
+
+
+# ---- against the real catalogue in the repo
+
+@pytest.fixture(scope="module")
+def catalogue_scan():
+    from quake_grid import CATALOGUE, bin_earthquakes
+
+    if not CATALOGUE.exists():
+        pytest.skip("the earthquake catalogue is not in this checkout")
+    counts = bin_earthquakes()
+    grid = {"cell_degrees": 2.5, "rows": 72, "columns": 144, "lat_min": -90.0, "lon_min": -180.0}
+    result = scan_trends({"earthquakes": counts}, start_month=1, grid=grid, min_coverage=0.9, threshold=0.05,
+                         ci_level=0.95, rank_cap={"top_n": 20, "max_share": 0.25})
+    return counts, result
+
+
+def test_catalogue_binning_keeps_every_event_in_the_window(catalogue_scan):
+    counts, _ = catalogue_scan
+    assert counts.shape == (72, 144, 300)
+    assert counts.sum() == 176590         # M4.5 and above, January 2001 to December 2025
+
+
+def test_catalogue_scan_tests_the_busy_cells_only(catalogue_scan):
+    counts, result = catalogue_scan
+    busy = int((counts.sum(axis=2) >= 100).sum())
+    c = result.counts
+    assert c["tests_run"] == busy > 100
+    assert c["skipped_by_reason"] == {"ocean": 0, "ice": 0, "coverage": 72 * 144 - busy}
+    assert c["tests_run"] + c["tests_skipped"] == c["tests_total"] == 72 * 144
+    assert len(result.findings) == c["tests_significant"]
+
+
+def test_catalogue_findings_are_clean(catalogue_scan):
+    _, result = catalogue_scan
+    json.dumps({"grids": result.grids, "counts": result.counts, "findings": result.findings}, allow_nan=False)
+    assert all(f["id"].startswith("trend.earthquakes.r") for f in result.findings)
+    assert all(f["score"]["cross_system"] == 0.0 for f in result.findings)
+    assert [f["rank"] for f in result.findings] == list(range(1, len(result.findings) + 1))
+    for f in result.findings:
+        r = f["result"]
+        assert r["ci_low"] <= r["slope_per_decade"] <= r["ci_high"]
+        assert r["slope_per_decade"] != 0

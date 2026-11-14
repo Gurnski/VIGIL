@@ -346,3 +346,27 @@ def test_rescored_fixture_passes_the_contract_checker(tmp_path):
     path.write_text(json.dumps(snapshot, allow_nan=False))
     done = subprocess.run([sys.executable, str(REPO / "contract" / "tools" / "check.py"), str(path)], capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
+
+
+def test_earthquakes_neither_give_nor_get_cross_system_credit():
+    warming = trend("temperature", "r09c09", 0.5, 0.1)
+    quakes_same_cell = trend("earthquakes", "r09c09", 0.5, 0.1)
+    quakes_alone = trend("earthquakes", "r01c01", 0.5, 0.1)
+    drying = trend("precipitation", "r09c09", 0.5, 0.1)
+    cross = cross_system_scores([warming, quakes_same_cell, quakes_alone])
+    assert cross[warming["id"]] == 0.0              # a quake next door is not a second system
+    assert cross[quakes_same_cell["id"]] == cross[quakes_alone["id"]] == 0.0
+    # Two real climate variables in the cell still count, quakes or not.
+    cross = cross_system_scores([warming, drying, quakes_same_cell])
+    assert cross[warming["id"]] == cross[drying["id"]] == 0.5
+    assert cross[quakes_same_cell["id"]] == 0.0
+
+
+def test_earthquakes_are_their_own_group_in_the_cap():
+    findings = [trend("temperature", f"r01c{i:02d}", 1.0, 0.1) for i in range(8)]
+    findings += [trend("earthquakes", f"r02c{i:02d}", 0.2, 0.1) for i in range(3)]
+    ranked = rank_findings(findings, evidence_for(findings), top_n=8, max_share=0.25)
+    # Each group may hold 2 of the 8 places (ceil of a quarter). With only two groups the
+    # window cannot fill, so the rest follow in order. The first four places are 2 and 2.
+    first_four = [f["variables"][0]["id"] for f in ranked[:4]]
+    assert first_four.count("temperature") == 2 and first_four.count("earthquakes") == 2
