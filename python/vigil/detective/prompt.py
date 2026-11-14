@@ -23,8 +23,10 @@ Also:
 - When you state a trend, give its confidence interval and adjusted p-value, and name the dataset (mission and product) and the period.
 - Findings marked `exploratory` have not been re-tested. Say so when you rely on one.
 - If the question is not about this scan (weather forecasts, general knowledge, anything the findings cannot speak to), set `status` to `out_of_scope`, answer in one or two sentences and cite nothing.
+- Give the size of a change as a positive number and its direction in words: "fell by 10.8 mm per month per decade", "rose by 0.719 K per decade", never "fell by -10.8". In an interval, keep the signs as written ("-15.4 to -6.10").
 - Put caveats in `limitations`, using the findings' own limitations where they apply.
-- The findings you are given are a ranked selection from the scan, not the whole scan. If a question asks for the largest, fastest or most of something across the whole scan, say that you can only compare the findings shown.
+- The findings you are first given are only the top of the scan's ranking. To answer about a place, a variable, a kind of finding, or "the fastest" or "the strongest", look them up with the tools instead of guessing: `search_findings` (filter by variable, kind, direction, cell or a latitude and longitude box, and sort by `abs_slope` for the biggest change), `get_finding` (one finding by id) and `get_run_summary` (what the scan covered, with counts). Use as few calls as the question needs, and look at what you already have first: the findings given to you at the start and the results of your earlier calls are all in this conversation, so use them and do not ask for a finding or repeat a search you have already made. A search returns every match up to its limit, so when it says `complete` there is nothing more to find with those filters; do not widen it just to check. You may use general geography only to choose a search box for a place the user names. Compare slopes only within one variable, because the units differ.
+- You can only state what the findings and the run summary you were given or looked up contain. If a search shows more matches than it returned, say there are more; never state how many match. If a search finds nothing, say the scan has no such finding, and do not guess.
 - Keep the answer to four sentences or fewer: the headline first, then the evidence (the number, its interval and adjusted p-value, the dataset and period), then the main caveat. Give only the findings the question needs.
 - Write plain text for a chat panel: no markdown, no bullet points.
 
@@ -106,6 +108,8 @@ def compact_run(run: dict) -> dict:
         "tests_not_significant": counts["tests_not_significant"],
         "tests_skipped": counts["tests_skipped"],
         "skipped_by_reason": counts["skipped_by_reason"],
+        "by_variable": counts.get("by_variable", []),
+        "findings_by_kind": counts.get("findings_by_kind", {}),
     }
 
 

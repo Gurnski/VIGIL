@@ -206,7 +206,10 @@ def test_an_ungrounded_answer_is_replaced_not_shown(snapshot, examples):
 
 def test_an_inconclusive_answer_is_passed_on_when_it_is_grounded(snapshot, examples):
     request = examples[2]["request"]
-    response = ask(request["question"], snapshot["findings"], snapshot["run"], client=FakeClient(reply_from(examples[2])))
+    # Without tools the top 30 are shown, which includes this non-significant finding. With tools the
+    # model has to look it up first: see test_ask_tools.py.
+    response = ask(request["question"], snapshot["findings"], snapshot["run"],
+                   client=FakeClient(reply_from(examples[2])), use_tools=False)
     assert response["status"] == "inconclusive"
     assert "0.160" in response["answer"]
 

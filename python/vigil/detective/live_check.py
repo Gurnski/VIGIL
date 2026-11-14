@@ -8,7 +8,12 @@ Run from the ``python/`` folder, with the key set in this terminal only:
     $env:ANTHROPIC_API_KEY = "..."            (PowerShell)
     python -m vigil.detective.live_check
 
+The model can look findings up with tools (see ``tools.py``). The questions below the
+four examples are the ones that need that: a variable, a place, a kind of finding,
+the run's counts. Each tool call it makes is printed as a TOOL line.
+
 Options:
+    --no-tools        the old single call with the top 30 findings pasted in, and no tools
     --no-fallbacks    send a plain request, without the refusal fallback
     --model NAME      use a different model (default: claude-sonnet-5-5)
     --question TEXT   ask one question of your own instead of the four examples
@@ -32,9 +37,18 @@ from vigil.detective.prompt import build_context
 
 FIXTURE = Path(__file__).resolve().parents[3] / "contract" / "fixture"
 
+# Questions the first ten findings cannot answer, so the model has to use the tools.
+TOOL_QUESTIONS = [
+    "Where is precipitation falling?",
+    "What can you tell me about cell r41c074?",
+    "Which cascades did the scan find?",
+    "How many tests did the scan run, and how many were significant?",
+]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--no-tools", action="store_true")
     parser.add_argument("--no-fallbacks", action="store_true")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--question")
@@ -51,10 +65,11 @@ def main() -> int:
         requests = [{"question": args.question, "history": []}]
     else:
         examples = json.loads((FIXTURE / "ask.json").read_text(encoding="utf-8"))["examples"]
-        requests = [e["request"] for e in examples]
+        requests = [e["request"] for e in examples] + [{"question": q, "history": []} for q in TOOL_QUESTIONS]
 
     # Show the grounding problems instead of hiding them in a log.
     logging.basicConfig(level=logging.WARNING, format="  LOG: %(message)s")
+    logging.getLogger("vigil.detective.ask").setLevel(logging.INFO)
 
     size = len(build_context(select_findings(findings), run))
     print(f"Model {args.model}. Context sent: {size:,} characters (about {size // 4:,} tokens).\n")
@@ -70,6 +85,7 @@ def main() -> int:
             finding_id=request.get("finding_id"),
             model=args.model,
             use_fallbacks=not args.no_fallbacks,
+            use_tools=not args.no_tools,
         )
         print(f"Status: {response['status']}")
         print(f"Answer: {response['answer']}")
@@ -80,7 +96,9 @@ def main() -> int:
 
         # Re-run the check here so a replaced answer is obvious.
         replaced = response["answer"].startswith(("I could not back", "The assistant", "The answer was cut"))
-        grounded = check_answer(response, select_findings(findings, request.get("finding_id")), run)
+        # With tools the model may cite any finding it looked up, so check against all of them.
+        candidates = select_findings(findings, request.get("finding_id")) if args.no_tools else findings
+        grounded = check_answer(response, candidates, run)
         if replaced:
             failures += 1
             print("RESULT: the answer was replaced (see the LOG line above for why)\n")
