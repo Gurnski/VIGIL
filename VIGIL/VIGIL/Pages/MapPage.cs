@@ -20,7 +20,7 @@ namespace VIGIL.Pages
         private readonly ToggleSwitch graticuleToggle = new() { Text = "Grid lines" };
         private readonly ToggleSwitch rotateToggle = new() { Text = "Rotate", Checked = true };
         private readonly ToggleSwitch overlayToggle = new() { Text = "Overlay", Checked = true };
-        private readonly Badge status = new() { Text = "Demo data", Tone = BadgeTone.Warning };
+        private readonly Badge status = new() { Text = "", Tone = BadgeTone.Warning };
         private readonly ColourScaleLegend legend = new();
 
         private static readonly string[] PresetNames = { "Amazon", "Greenland", "Sahel", "Antarctica" };
@@ -139,7 +139,7 @@ namespace VIGIL.Pages
             var place = Places.Find(search.Text);
             if (search.Text.Trim().Length == 0)
             {
-                SetStatus("Demo data");
+                SetStatus("");
             }
             else if (place != null)
             {
