@@ -30,7 +30,7 @@ namespace VIGIL.Controls
             Font = Theme.Body;
         }
 
-        protected override Size DefaultSize => new(240, 32);
+        protected override Size DefaultSize => Theme.Scaled(240, 32);
 
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IReadOnlyList<string> Items => items;
@@ -113,6 +113,23 @@ namespace VIGIL.Controls
         }
 
         protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); FitToItems(); }
+        protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); FitToItems(); }
+
+        /// <summary>
+        ///  Never shorter than its labels, nor narrower than they need with a little padding,
+        ///  so a label is not cut off whatever size a page gives the control.
+        /// </summary>
+        protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
+        {
+            int minHeight = Font.Height + Px(Theme.Space2) + Inset * 2;
+            int minWidth = 0;
+            if (items.Length > 0)
+            {
+                int widest = items.Max(item => TextRenderer.MeasureText(item, Font, Size.Empty, TextFormatFlags.NoPadding).Width);
+                minWidth = Inset * 2 + items.Length * (widest + Px(Theme.Space2) * 2);
+            }
+            base.SetBoundsCore(x, y, Math.Max(width, minWidth), Math.Max(height, minHeight), specified);
+        }
         protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
         protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
         protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }

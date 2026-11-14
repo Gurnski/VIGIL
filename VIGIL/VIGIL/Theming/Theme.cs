@@ -70,6 +70,22 @@ namespace VIGIL.Theming
         public const int RailWidth = 240;
         public const int RailCollapsedWidth = 64;
 
+        /// <summary>
+        ///  The display scale the app started at: 1 at 100%, 1.5 at 150%. Controls use it for
+        ///  their starting size, which is asked for before they know their own DPI.
+        /// </summary>
+        public static readonly float SystemScale = ReadSystemScale();
+
+        /// <summary>A size written at 100% scale, scaled to the display. For DefaultSize overrides.</summary>
+        public static Size Scaled(int width, int height) =>
+            new((int)Math.Round(width * SystemScale), (int)Math.Round(height * SystemScale));
+
+        private static float ReadSystemScale()
+        {
+            using var g = Graphics.FromHwnd(IntPtr.Zero);
+            return g.DpiX / 96f;
+        }
+
         private static readonly string UiFamily = FirstInstalled("Segoe UI Variable Text", "Segoe UI");
         private static readonly string UiStrongFamily = FirstInstalled("Segoe UI Variable Text Semibold", "Segoe UI Semibold", "Segoe UI");
         private static readonly string SmallFamily = FirstInstalled("Segoe UI Variable Small", "Segoe UI Variable Text", "Segoe UI");

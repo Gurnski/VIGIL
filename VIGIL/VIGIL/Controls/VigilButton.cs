@@ -34,7 +34,7 @@ namespace VIGIL.Controls
             Font = Theme.BodyStrong;
         }
 
-        protected override Size DefaultSize => new(120, Theme.ControlHeight);
+        protected override Size DefaultSize => Theme.Scaled(120, Theme.ControlHeight);
 
         [DefaultValue(ButtonVariant.Primary)]
         public ButtonVariant Variant
