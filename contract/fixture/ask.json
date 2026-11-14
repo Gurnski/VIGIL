@@ -1,0 +1,95 @@
+{
+  "contract_version": "0.1",
+  "synthetic": true,
+  "examples": [
+    {
+      "request": {
+        "question": "Where is it warming fastest?",
+        "history": []
+      },
+      "response": {
+        "contract_version": "0.1",
+        "run_id": "fixture-0001",
+        "status": "answered",
+        "answer": "The strongest warming in the scan is in cell r60c112, where air temperature at 2 m rose by 0.72 K per decade between 2001 and 2025 (95% interval 0.48 to 0.97, adjusted p = 5.4e-06). The source is MERRA-2, product M2TMNXSLV.",
+        "citations": [
+          {
+            "finding_id": "trend.temperature.r60c112",
+            "supports": "The rate of warming, its interval and its adjusted p-value"
+          }
+        ],
+        "limitations": ["MERRA-2 is a reanalysis, not a direct satellite measurement.", "The finding is exploratory and has not been re-tested on held-out years."],
+        "model": "fixture"
+      }
+    },
+    {
+      "request": {
+        "question": "Is the drop in rainfall causing the vegetation loss in cell r32c051?",
+        "history": [
+          {
+            "role": "user",
+            "text": "Where is it warming fastest?"
+          },
+          {
+            "role": "assistant",
+            "text": "The strongest warming in the scan is in cell r60c112, where air temperature at 2 m rose by 0.72 K per decade between 2001 and 2025 (95% interval 0.48 to 0.97, adjusted p = 5.4e-06). The source is MERRA-2, product M2TMNXSLV."
+          }
+        ],
+        "finding_id": "cascade.soil_moisture-vegetation.r32c051"
+      },
+      "response": {
+        "contract_version": "0.1",
+        "run_id": "fixture-0001",
+        "status": "inconclusive",
+        "answer": "The results cannot settle that. In cell r32c051, soil moisture follows rainfall by 1 month (correlation 0.84), and vegetation follows soil moisture by 2 months (correlation 0.86). The timing fits rainfall, then soil, then vegetation, but these are associations in time. The scan has no test that separates cause from three series sharing a long-term trend.",
+        "citations": [
+          {
+            "finding_id": "cascade.precipitation-soil_moisture.r32c051",
+            "supports": "Soil moisture following rainfall"
+          },
+          {
+            "finding_id": "cascade.soil_moisture-vegetation.r32c051",
+            "supports": "Vegetation following soil moisture"
+          }
+        ],
+        "limitations": ["Lagged correlation shows timing, not cause.", "All three series carry a long-term trend, which raises the correlations."],
+        "model": "fixture"
+      }
+    },
+    {
+      "request": {
+        "question": "Is cell r51c032 cooling?",
+        "history": []
+      },
+      "response": {
+        "contract_version": "0.1",
+        "run_id": "fixture-0001",
+        "status": "inconclusive",
+        "answer": "There is no significant temperature trend in cell r51c032. The raw p-value is 0.039, which is below 0.05, but after correcting for the number of tests in the scan it is 0.160, which is not. The slope of -0.22 K per decade could be chance.",
+        "citations": [
+          {
+            "finding_id": "trend.temperature.r51c032",
+            "supports": "The raw and adjusted p-values"
+          }
+        ],
+        "limitations": [],
+        "model": "fixture"
+      }
+    },
+    {
+      "request": {
+        "question": "What will the weather be like in Plymouth tomorrow?",
+        "history": []
+      },
+      "response": {
+        "contract_version": "0.1",
+        "run_id": "fixture-0001",
+        "status": "out_of_scope",
+        "answer": "I can only answer from the findings of the VIGIL scan, which cover monthly changes from 2001 to 2025. It holds no forecasts.",
+        "citations": [],
+        "limitations": [],
+        "model": "fixture"
+      }
+    }
+  ]
+}

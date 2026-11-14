@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Gurnski/VIGIL/contract/schema.json",
+  "title": "VIGIL result contract, version 0.1",
+  "description": "A results document. Every API call that returns results sends one of these, holding only the parts that call is for. contract/README.md explains each field. The Detective's answer is in $defs/ask_response.",
+  "$ref": "#/$defs/results",
+  "$defs": {
+    "date": {
+      "description": "A calendar date, YYYY-MM-DD. A month is written as its first day.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+    },
+    "timestamp": {
+      "description": "A UTC instant, YYYY-MM-DDTHH:MM:SSZ.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "probability": { "type": "number", "minimum": 0, "maximum": 1 },
+    "variable_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "kind": { "enum": ["trend", "change_point", "cascade", "contradiction"] },
+    "skip_reason": { "enum": ["ocean", "ice", "coverage"] },
+
+    "results": {
+      "type": "object",
+      "required": ["contract_version"],
+      "properties": {
+        "contract_version": { "type": "string" },
+        "synthetic": { "type": "boolean" },
+        "run": { "$ref": "#/$defs/run" },
+        "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
+        "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+        "series": { "type": "array", "items": { "$ref": "#/$defs/series" } },
+        "grids": { "type": "array", "items": { "$ref": "#/$defs/grid" } }
+      }
+    },
+
+    "period": {
+      "type": "object",
+      "required": ["start", "end", "step"],
+      "properties": {
+        "start": { "$ref": "#/$defs/date" },
+        "end": { "$ref": "#/$defs/date" },
+        "step": { "enum": ["monthly"] }
+      }
+    },
+
+    "cell": {
+      "type": "object",
+      "required": ["id", "row", "column", "lat_min", "lat_max", "lon_min", "lon_max"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^r[0-9]+c[0-9]+$" },
+        "row": { "type": "integer", "minimum": 0 },
+        "column": { "type": "integer", "minimum": 0 },
+        "lat_min": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lat_max": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon_min": { "type": "number", "minimum": -180, "maximum": 180 },
+        "lon_max": { "type": "number", "minimum": -180, "maximum": 180 }
+      }
+    },
+
+    "variable": {
+      "type": "object",
+      "required": ["id", "name", "units", "mission", "product", "source_url"],
+      "properties": {
+        "id": { "$ref": "#/$defs/variable_id" },
+        "name": { "type": "string" },
+        "units": { "type": "string" },
+        "mission": { "type": "string" },
+        "product": { "type": "string" },
+        "field": { "type": "string" },
+        "source_url": { "type": "string" },
+        "native_resolution": { "type": "string" }
+      }
+    },
+
+    "method": {
+      "type": "object",
+      "required": ["test", "parameters"],
+      "properties": {
+        "test": { "type": "string" },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+        }
+      }
+    },
+
+    "preprocessing": {
+      "type": "object",
+      "required": ["regridding", "aggregation", "anomaly", "missing_data_rule", "months_present", "months_expected", "coverage"],
+      "properties": {
+        "regridding": { "type": "string" },
+        "aggregation": { "type": "string" },
+        "anomaly": { "type": "string" },
+        "missing_data_rule": { "type": "string" },
+        "months_present": { "type": "integer", "minimum": 0 },
+        "months_expected": { "type": "integer", "minimum": 1 },
+        "coverage": { "$ref": "#/$defs/probability" }
+      }
+    },
+
+    "result": {
+      "type": "object",
+      "required": ["direction", "slope_per_decade", "units", "ci_low", "ci_high", "ci_level", "p_value", "p_adjusted"],
+      "properties": {
+        "direction": { "enum": ["increasing", "decreasing", "none"] },
+        "slope_per_decade": { "type": "number" },
+        "units": { "type": "string" },
+        "ci_low": { "type": "number" },
+        "ci_high": { "type": "number" },
+        "ci_level": { "$ref": "#/$defs/probability" },
+        "p_value": { "$ref": "#/$defs/probability" },
+        "p_adjusted": { "$ref": "#/$defs/probability" }
+      }
+    },
+
+    "change_point": {
+      "type": "object",
+      "required": ["date", "date_low", "date_high", "level_before", "level_after", "shift", "units"],
+      "properties": {
+        "date": { "$ref": "#/$defs/date" },
+        "date_low": { "$ref": "#/$defs/date" },
+        "date_high": { "$ref": "#/$defs/date" },
+        "level_before": { "type": "number" },
+        "level_after": { "type": "number" },
+        "shift": { "type": "number" },
+        "units": { "type": "string" }
+      }
+    },
+
+    "cascade": {
+      "type": "object",
+      "required": ["leading_variable", "following_variable", "lag_months", "correlation", "p_value", "p_adjusted"],
+      "properties": {
+        "leading_variable": { "$ref": "#/$defs/variable_id" },
+        "following_variable": { "$ref": "#/$defs/variable_id" },
+        "lag_months": { "type": "integer", "minimum": 0 },
+        "correlation": { "type": "number", "minimum": -1, "maximum": 1 },
+        "correlations_by_lag": { "type": "array", "items": { "type": "number", "minimum": -1, "maximum": 1 } },
+        "p_value": { "$ref": "#/$defs/probability" },
+        "p_adjusted": { "$ref": "#/$defs/probability" }
+      }
+    },
+
+    "contradiction": {
+      "type": "object",
+      "required": ["variable", "paired_cell", "slope_per_decade", "paired_slope_per_decade", "units", "confounders"],
+      "properties": {
+        "variable": { "$ref": "#/$defs/variable_id" },
+        "paired_cell": { "$ref": "#/$defs/cell" },
+        "slope_per_decade": { "type": "number" },
+        "paired_slope_per_decade": { "type": "number" },
+        "units": { "type": "string" },
+        "distance_km": { "type": "number", "minimum": 0 },
+        "confounders": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "link": {
+      "type": "object",
+      "required": ["finding_id", "kind"],
+      "properties": {
+        "finding_id": { "type": "string" },
+        "kind": { "$ref": "#/$defs/kind" },
+        "lag_months": { "type": "integer" },
+        "correlation": { "type": "number", "minimum": -1, "maximum": 1 },
+        "cell_id": { "type": "string" }
+      }
+    },
+
+    "score": {
+      "type": "object",
+      "required": ["total", "effect_size", "certainty", "coverage", "robustness", "cross_system"],
+      "properties": {
+        "total": { "$ref": "#/$defs/probability" },
+        "effect_size": { "$ref": "#/$defs/probability" },
+        "certainty": { "$ref": "#/$defs/probability" },
+        "coverage": { "$ref": "#/$defs/probability" },
+        "robustness": { "$ref": "#/$defs/probability" },
+        "cross_system": { "$ref": "#/$defs/probability" }
+      }
+    },
+
+    "standing": {
+      "type": "object",
+      "required": ["status", "limitations"],
+      "properties": {
+        "status": { "enum": ["exploratory", "retested"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "finding": {
+      "type": "object",
+      "required": ["id", "kind", "rank", "summary", "significant", "cell", "period", "variables", "preprocessing", "method", "links", "score", "standing"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
+        "kind": { "$ref": "#/$defs/kind" },
+        "rank": { "type": "integer", "minimum": 1 },
+        "summary": { "type": "string" },
+        "significant": { "type": "boolean" },
+        "cell": { "$ref": "#/$defs/cell" },
+        "period": { "$ref": "#/$defs/period" },
+        "variables": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/variable" } },
+        "preprocessing": { "$ref": "#/$defs/preprocessing" },
+        "method": { "$ref": "#/$defs/method" },
+        "result": { "$ref": "#/$defs/result" },
+        "change_point": { "$ref": "#/$defs/change_point" },
+        "cascade": { "$ref": "#/$defs/cascade" },
+        "contradiction": { "$ref": "#/$defs/contradiction" },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/link" } },
+        "score": { "$ref": "#/$defs/score" },
+        "standing": { "$ref": "#/$defs/standing" }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "trend" } } }, "then": { "required": ["result"] } },
+        { "if": { "properties": { "kind": { "const": "change_point" } } }, "then": { "required": ["change_point"] } },
+        { "if": { "properties": { "kind": { "const": "cascade" } } }, "then": { "required": ["cascade"], "properties": { "variables": { "minItems": 2, "maxItems": 2 } } } },
+        { "if": { "properties": { "kind": { "const": "contradiction" } } }, "then": { "required": ["contradiction"] } }
+      ]
+    },
+
+    "series": {
+      "type": "object",
+      "required": ["cell_id", "variable", "units", "dates", "raw", "anomaly"],
+      "properties": {
+        "cell_id": { "type": "string" },
+        "variable": { "$ref": "#/$defs/variable_id" },
+        "units": { "type": "string" },
+        "dates": { "type": "array", "items": { "$ref": "#/$defs/date" } },
+        "raw": { "type": "array", "items": { "type": ["number", "null"] } },
+        "anomaly": { "type": "array", "items": { "type": ["number", "null"] } }
+      }
+    },
+
+    "grid": {
+      "type": "object",
+      "required": ["variable", "units", "rows", "columns", "lat_min", "lat_max", "lon_min", "lon_max", "slope_per_decade", "p_adjusted", "skip_reason"],
+      "properties": {
+        "variable": { "$ref": "#/$defs/variable_id" },
+        "units": { "type": "string" },
+        "rows": { "type": "integer", "minimum": 1 },
+        "columns": { "type": "integer", "minimum": 1 },
+        "lat_min": { "type": "number" },
+        "lat_max": { "type": "number" },
+        "lon_min": { "type": "number" },
+        "lon_max": { "type": "number" },
+        "slope_per_decade": { "type": "array", "items": { "type": "array", "items": { "type": ["number", "null"] } } },
+        "p_adjusted": { "type": "array", "items": { "type": "array", "items": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/probability" }] } } },
+        "skip_reason": { "type": "array", "items": { "type": "array", "items": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/skip_reason" }] } } }
+      }
+    },
+
+    "run": {
+      "type": "object",
+      "required": ["id", "started", "finished", "duration_seconds", "code_version", "settings", "counts"],
+      "properties": {
+        "id": { "type": "string" },
+        "started": { "$ref": "#/$defs/timestamp" },
+        "finished": { "$ref": "#/$defs/timestamp" },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "code_version": { "type": "string" },
+        "settings": {
+          "type": "object",
+          "required": ["grid", "period", "variables", "min_coverage", "threshold", "multiple_testing", "ci_level", "score_weights"],
+          "properties": {
+            "grid": {
+              "type": "object",
+              "required": ["cell_degrees", "rows", "columns", "lat_min", "lon_min"],
+              "properties": {
+                "cell_degrees": { "type": "number", "exclusiveMinimum": 0 },
+                "rows": { "type": "integer", "minimum": 1 },
+                "columns": { "type": "integer", "minimum": 1 },
+                "lat_min": { "type": "number" },
+                "lon_min": { "type": "number" }
+              }
+            },
+            "period": { "$ref": "#/$defs/period" },
+            "variables": { "type": "array", "items": { "$ref": "#/$defs/variable_id" } },
+            "min_coverage": { "$ref": "#/$defs/probability" },
+            "threshold": { "$ref": "#/$defs/probability" },
+            "multiple_testing": { "type": "string" },
+            "ci_level": { "$ref": "#/$defs/probability" },
+            "max_lag_months": { "type": "integer", "minimum": 0 },
+            "score_weights": { "type": "object", "additionalProperties": { "type": "number" } }
+          }
+        },
+        "counts": {
+          "type": "object",
+          "required": ["cells_total", "cells_scanned", "tests_total", "tests_run", "tests_significant", "tests_not_significant", "tests_skipped", "skipped_by_reason", "by_variable", "findings_total", "findings_by_kind"],
+          "properties": {
+            "cells_total": { "type": "integer", "minimum": 0 },
+            "cells_scanned": { "type": "integer", "minimum": 0 },
+            "tests_total": { "type": "integer", "minimum": 0 },
+            "tests_run": { "type": "integer", "minimum": 0 },
+            "tests_significant": { "type": "integer", "minimum": 0 },
+            "tests_not_significant": { "type": "integer", "minimum": 0 },
+            "tests_skipped": { "type": "integer", "minimum": 0 },
+            "skipped_by_reason": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+            "by_variable": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["variable", "tests_run", "tests_significant", "tests_not_significant", "tests_skipped"],
+                "properties": {
+                  "variable": { "$ref": "#/$defs/variable_id" },
+                  "tests_run": { "type": "integer", "minimum": 0 },
+                  "tests_significant": { "type": "integer", "minimum": 0 },
+                  "tests_not_significant": { "type": "integer", "minimum": 0 },
+                  "tests_skipped": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "findings_total": { "type": "integer", "minimum": 0 },
+            "findings_by_kind": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+          }
+        }
+      }
+    },
+
+    "ask_request": {
+      "type": "object",
+      "required": ["question"],
+      "properties": {
+        "question": { "type": "string", "minLength": 1 },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "text"],
+            "properties": {
+              "role": { "enum": ["user", "assistant"] },
+              "text": { "type": "string" }
+            }
+          }
+        },
+        "finding_id": { "type": "string" }
+      }
+    },
+
+    "ask_response": {
+      "type": "object",
+      "required": ["contract_version", "status", "answer", "citations", "limitations"],
+      "properties": {
+        "contract_version": { "type": "string" },
+        "run_id": { "type": "string" },
+        "status": { "enum": ["answered", "inconclusive", "out_of_scope"] },
+        "answer": { "type": "string" },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["finding_id"],
+            "properties": {
+              "finding_id": { "type": "string" },
+              "supports": { "type": "string" }
+            }
+          }
+        },
+        "limitations": { "type": "array", "items": { "type": "string" } },
+        "model": { "type": "string" }
+      }
+    }
+  }
+}
