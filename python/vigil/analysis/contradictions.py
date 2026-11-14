@@ -65,6 +65,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from vigil.analysis.scan import check_cell_offset
 from vigil.analysis.score import NOT_CROSS_SYSTEM, Evidence, rank_findings, trend_certainty
 
 METHOD = "opposite_significant_trends"
@@ -159,6 +160,7 @@ def add_contradictions(
     weights: dict | None = None,
     include_diagonals: bool = False,
     exclude_variables=NOT_CROSS_SYSTEM,
+    cell_offset: tuple[int, int] = (0, 0),
 ) -> ContradictionResult:
     """Find the contradictions among the significant trend findings and rank everything together.
 
@@ -167,7 +169,12 @@ def add_contradictions(
     ``run.settings.grid`` and must hold ``cell_degrees``, ``rows`` and ``columns``.
     ``threshold`` is the scan's, written into ``method.parameters``. ``rank_cap`` and
     ``weights`` are the ones used for the scan. Inputs are not changed.
+
+    ``cell_offset`` is the one the scan was given for a region (its cells' ids are the full grid's).
+    Neighbours are found from those ids, so it only matters for the wrap round the dateline,
+    which needs the region to span all 360 degrees.
     """
+    cell_offset = check_cell_offset(cell_offset)
     for key in ("cell_degrees", "rows", "columns"):
         if key not in grid:
             raise ValueError(f"grid is missing {key!r}")
@@ -187,7 +194,7 @@ def add_contradictions(
         for d_row, d_column in _forward_offsets(include_diagonals):
             n_column = column + d_column
             if wraps:
-                n_column %= int(grid["columns"])
+                n_column = (n_column - cell_offset[1]) % int(grid["columns"]) + cell_offset[1]
             b = where.get((variable, row + d_row, n_column))
             if b is None or a["result"]["slope_per_decade"] * b["result"]["slope_per_decade"] >= 0:
                 continue

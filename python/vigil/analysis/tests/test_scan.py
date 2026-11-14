@@ -455,3 +455,60 @@ def test_catalogue_findings_are_clean(catalogue_scan):
         r = f["result"]
         assert r["ci_low"] <= r["slope_per_decade"] <= r["ci_high"]
         assert r["slope_per_decade"] != 0
+
+
+# ------------------------------------------------------------------ findings for tests that did not pass
+
+def test_by_default_only_significant_tests_become_findings():
+    result = run(make_data())
+    assert all(f["significant"] for f in result.findings)
+    assert len(result.findings) == result.counts["tests_significant"]
+
+
+def test_not_significant_tests_can_be_asked_for_as_findings():
+    data = make_data()
+    plain = run(data)
+    full = run(data, include_not_significant=True)
+    assert full.counts == plain.counts                         # the counts of tests do not change
+    assert len(full.findings) > len(plain.findings) == full.counts["tests_significant"]
+    assert {f["id"] for f in full.findings if f["significant"]} == {f["id"] for f in plain.findings}
+
+    flags = [f["significant"] for f in full.findings]
+    assert flags == sorted(flags, reverse=True)                # significant findings come first
+    assert [f["rank"] for f in full.findings] == list(range(1, len(full.findings) + 1))
+    for f in full.findings:
+        r = f["result"]
+        assert f["significant"] == (r["p_adjusted"] < 0.05)
+        assert r["ci_low"] <= r["slope_per_decade"] <= r["ci_high"]
+        assert r["p_adjusted"] >= r["p_value"] - 1e-12
+        assert (r["direction"] == "none") == (not f["significant"])
+        assert f["score"]["cross_system"] == 0.0 or f["significant"]
+    json.dumps(full.findings, allow_nan=False)
+
+
+def test_a_finding_for_every_tested_cell_that_has_a_trend_to_report():
+    data = make_data()
+    data["precipitation"][2, 2, :] = 0.0                       # flat: nothing to report
+    full = run(data, include_not_significant=True)
+    ids = {f["id"] for f in full.findings}
+    assert "trend.precipitation.r02c002" not in ids
+    assert "trend.temperature.r02c002" in ids
+    assert full.flat_tests >= 1
+
+
+def test_later_steps_ignore_the_findings_that_did_not_pass():
+    from vigil.analysis.cascades import add_cascades
+    from vigil.analysis.change_points import add_change_points
+    from vigil.analysis.contradictions import add_contradictions
+
+    data = make_data()
+    grid = {**GRID, "rows": ROWS, "columns": COLUMNS}
+    plain, full = run(data), run(data, include_not_significant=True)
+    settings = dict(start_month=1, grid=grid, min_coverage=0.9, threshold=0.05, ci_level=0.95)
+    for step in (plain, full):
+        step.contradictions = add_contradictions(step.findings, step.evidence, grid=grid, threshold=0.05)
+        step.cascades = add_cascades(data, step.contradictions.findings, step.contradictions.evidence, max_lag_months=6, **settings)
+        step.points = add_change_points(data, step.cascades.findings, step.cascades.evidence, period_start="2001-01-01", **settings)
+    for kind in ("contradiction", "cascade", "change_point"):
+        assert {f["id"] for f in plain.points.findings if f["kind"] == kind} == {f["id"] for f in full.points.findings if f["kind"] == kind}
+    assert {f["id"] for f in full.points.findings if f["kind"] == "trend" and f["significant"]} == {f["id"] for f in plain.findings}

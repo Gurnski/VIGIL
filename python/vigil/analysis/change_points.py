@@ -156,6 +156,7 @@ from vigil.analysis.scan import (
     _mask_for,
     _plain,
     cell_object,
+    check_cell_offset,
 )
 from vigil.analysis.score import (
     NOT_CROSS_SYSTEM,
@@ -470,6 +471,7 @@ def add_change_points(
     min_bic_gain: float = DEFAULT_MIN_BIC_GAIN,
     link_within_months: int = DEFAULT_LINK_WITHIN,
     exclude_variables=NOT_CROSS_SYSTEM,
+    cell_offset: tuple[int, int] = (0, 0),
 ) -> ChangePointResult:
     """Find the change points and rank them together with the findings so far.
 
@@ -486,6 +488,8 @@ def add_change_points(
     ``min_bic_gain``         how much better a step must fit than a straight line to be a candidate.
     ``link_within_months``   two change points in one cell link when their dates are this close.
     ``ci_level``             also the level of the date range.
+    ``cell_offset``          the one the scan was given for a region: the data's first cell sits at this
+                             ``(row, column)`` of the full grid, and the cell ids are the full grid's.
 
     Raises ``ValueError`` for bad input, or if the list already holds change points.
     """
@@ -493,6 +497,7 @@ def add_change_points(
     arrays = {v: np.asarray(a, dtype=float) for v, a in data.items()}
     all_units = {**DEFAULT_UNITS, **(units or {})}
     rows, columns, months = _check_inputs(arrays, start_month, grid, min_coverage, threshold, ci_level, all_units)
+    cell_offset = check_cell_offset(cell_offset)
     try:
         first = date.fromisoformat(period_start)
     except (TypeError, ValueError) as error:
@@ -536,7 +541,7 @@ def add_change_points(
         for i, p_adjusted in zip(candidates, adjusted):
             if not p_adjusted < threshold:
                 continue
-            cell = cell_object(int(where_rows[i]), int(where_columns[i]), grid)
+            cell = cell_object(int(where_rows[i]), int(where_columns[i]), grid, cell_offset)
             label = f"change_point.{variable}.{cell['id']}"
             split = int(tests.split[i])
             try:
