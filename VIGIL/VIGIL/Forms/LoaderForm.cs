@@ -1,3 +1,5 @@
+using VIGIL.Data;
+using VIGIL.Models;
 using VIGIL.Theming;
 
 namespace VIGIL.Forms
@@ -23,6 +25,11 @@ namespace VIGIL.Forms
         private int taglineIndex;
         private float fadeProgress = 1f;
         private bool fadingOut;
+
+        /// <summary>The results loaded during startup, for Program to hand to the main window. Null until the loader closes with OK.</summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public ResultsDocument? Results { get; private set; }
 
         public LoaderForm()
         {
@@ -93,7 +100,7 @@ namespace VIGIL.Forms
             try
             {
                 var minimumDisplay = Task.Delay(MinimumDisplayTime);
-                await InitialiseAppAsync();
+                Results = await InitialiseAppAsync();
                 await minimumDisplay;
                 DialogResult = DialogResult.OK;
             }
@@ -108,13 +115,12 @@ namespace VIGIL.Forms
 
         /// <summary>
         ///  Startup work goes here (config, data catalogue, API checks, caches).
-        ///  Runs off the UI thread so the spinner keeps turning.
+        ///  Runs off the UI thread so the spinner keeps turning. For now it reads the results
+        ///  snapshot built into the app; a failure here stops the app with the reason shown.
         /// </summary>
-        private static Task InitialiseAppAsync()
+        private static Task<ResultsDocument> InitialiseAppAsync()
         {
-            return Task.Run(() =>
-            {
-            });
+            return Task.Run(() => ResultsReader.ReadSnapshot());
         }
 
         private void TaglineTimer_Tick(object? sender, EventArgs e)

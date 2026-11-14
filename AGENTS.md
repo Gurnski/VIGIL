@@ -29,10 +29,10 @@ Example from `LoaderForm.cs`: the field is `taglineColour` even though its type 
 
 1. `Program.Main` creates `LoaderForm` and calls `ShowDialog()`.
 2. `LoaderForm.OnShown` starts the tagline rotation and awaits `InitialiseAppAsync()`, plus a minimum display time (`MinimumDisplayTime`, currently 6 seconds).
-3. On success the loader sets `DialogResult.OK` and closes. `Program` then runs `MainForm`, which is the app shell: a nav rail on the left and the selected page on the right.
+3. On success the loader sets `DialogResult.OK` and closes. `Program` takes the loaded results from `LoaderForm.Results` and runs `MainForm` with them. `MainForm` is the app shell: a nav rail on the left and the selected page on the right.
 4. If `InitialiseAppAsync()` throws, the loader shows an error box and returns `DialogResult.Abort`, and the app exits.
 
-Anything the app needs before the main window opens (config, dataset catalogue, API checks, caches) goes in `InitialiseAppAsync()`. It runs on a background thread through `Task.Run`, so it must not touch controls directly. Hand results to `MainForm` through its constructor or a shared service rather than through static state.
+Anything the app needs before the main window opens (config, dataset catalogue, API checks, caches) goes in `InitialiseAppAsync()`. It runs on a background thread through `Task.Run`, so it must not touch controls directly. Hand results to `MainForm` through its constructor or a shared service rather than through static state. So far it loads one thing: the results snapshot, `contract/fixture/snapshot.json`, which is embedded in the exe and read by `Data/ResultsReader.cs`.
 
 ## Where code goes
 
@@ -44,8 +44,8 @@ Everything lives under `VIGIL/VIGIL/`, in folders with matching namespaces (`VIG
 | `Controls/` | Reusable custom-drawn controls (buttons, cards, chart, nav rail and so on) |
 | `Forms/` | Windows (`Form` subclasses) and their `.Designer.cs` and `.resx` files |
 | `Pages/` | Screens shown inside `MainForm`, one `UserControl` per nav item |
-| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. (not created yet) |
-| `Models/` | Plain data types that mirror the result contract: findings, regions, time series (not created yet) |
+| `Data/` | The client for the Python service: calls the API and turns its JSON into `Models/` types. No dataset parsing and no statistics. So far it holds `ResultsReader`, which reads a results document and the embedded snapshot. The HTTP calls are still to come. |
+| `Models/` | Plain data types that mirror the result contract: the results document, findings, series, globe layers and the run record. Property names follow the contract through `JsonNamingPolicy.SnakeCaseLower`, so `p_adjusted` is `PAdjusted`. |
 
 There is no C# `Analysis/` folder. Trends, significance, change points and every other statistic are computed by the Python service, and the app only displays what the service returns.
 
@@ -88,6 +88,7 @@ The look is flat and dark: neutral graphite surfaces, an off-white accent (`Them
 | `Divider` | Hairline separator. With `Label` it's a section heading inside a card. |
 | `SearchBox` | Text search with an icon and placeholder |
 | `SpinnerControl` | Loading wheel |
+| `FindingsList` | The ranked list of findings. `SetFindings`, `SelectedFinding`, `SelectFinding`. Rows are as tall as their text, and only the rows in view are drawn. |
 | `GlobeControl` | The 3D globe on the Map page. See "The globe" below. |
 
 `VigilControl` is the base class for custom-drawn controls. Inherit from it for new ones.
@@ -112,7 +113,7 @@ Adding data:
 
 `ColourScaleLegend.Follow(globe)` keeps a legend in step with the overlay.
 
-Performance: one timer drives all animation. Frames render at reduced resolution while moving and at full resolution when idle. Slow movement (auto-rotation, satellites, the pulsing sunlight dot) only redraws once something on screen has moved a quarter of a pixel, so nothing renders that would look the same. Each row of a frame only shades the span the globe and its halo cover, and copies the star field for the rest. It holds about 250 MB of memory once both textures and their mipmaps are loaded: the day texture keeps its water mask in the alpha byte rather than a separate array. Above roughly 4x zoom the 8K texture starts to soften. Set the environment variable `VIGIL_GLOBE_STATS=1` to show frame timings. Everything on the Map page is demo data until real datasets are wired in.
+Performance: one timer drives all animation. Frames render at reduced resolution while moving and at full resolution when idle. Slow movement (auto-rotation, satellites, the pulsing sunlight dot) only redraws once something on screen has moved a quarter of a pixel, so nothing renders that would look the same. Each row of a frame only shades the span the globe and its halo cover, and copies the star field for the rest. It holds about 250 MB of memory once both textures and their mipmaps are loaded: the day texture keeps its water mask in the alpha byte rather than a separate array. Above roughly 4x zoom the 8K texture starts to soften. Set the environment variable `VIGIL_GLOBE_STATS=1` to show frame timings. The Map page shows the results document it is given: a layer per variable from `grids`, and a marker per cell that has a finding. Until the service is wired in, that document is the synthetic fixture, and the page says so. The satellite is decoration.
 
 ### Adding a page
 

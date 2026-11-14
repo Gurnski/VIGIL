@@ -1,3 +1,4 @@
+using VIGIL.Models;
 using VIGIL.Pages;
 using VIGIL.Theming;
 
@@ -12,7 +13,8 @@ namespace VIGIL.Forms
         private readonly Dictionary<string, Func<Control>> pageFactories = new();
         private readonly Dictionary<string, Control> openedPages = new();
 
-        public MainForm()
+        /// <param name="results">The results loaded at startup, shared by the pages that show them.</param>
+        public MainForm(ResultsDocument results)
         {
             InitializeComponent();
 
@@ -22,7 +24,7 @@ namespace VIGIL.Forms
                 () => new PlaceholderPage(Icons.List, "Variables", "Browse and pick Earth science variables to investigate."));
             AddPage("trends", Icons.Chart, "Trends",
                 () => new PlaceholderPage(Icons.Chart, "Trends", "Time series, trend lines and significance tests for the chosen variables."));
-            AddPage("map", Icons.Globe, "Map", () => new MapPage());
+            AddPage("map", Icons.Globe, "Map", () => new MapPage(results));
             AddPage("components", Icons.Library, "Components", () => new GalleryPage());
 
             navRail.SelectedChanged += NavRail_SelectedChanged;

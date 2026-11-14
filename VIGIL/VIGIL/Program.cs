@@ -1,4 +1,5 @@
 using VIGIL.Forms;
+using VIGIL.Models;
 
 namespace VIGIL
 {
@@ -14,15 +15,17 @@ namespace VIGIL
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
 
+            ResultsDocument results;
             using (var loader = new LoaderForm())
             {
-                if (loader.ShowDialog() != DialogResult.OK)
+                if (loader.ShowDialog() != DialogResult.OK || loader.Results == null)
                 {
                     return;
                 }
+                results = loader.Results;
             }
 
-            Application.Run(new MainForm());
+            Application.Run(new MainForm(results));
         }
     }
 }

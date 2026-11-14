@@ -21,6 +21,8 @@ venv/
 # cloud bucket or a local disk, never in the repository.
 data/
 python/data/
+# The app's Data folder holds code. Without this line, data/ above hides it on Windows, where matching ignores case.
+!VIGIL/VIGIL/Data/
 *.nc
 *.nc4
 *.hdf

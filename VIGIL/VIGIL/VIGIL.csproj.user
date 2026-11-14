@@ -10,6 +10,9 @@
     <Compile Update="Controls\Divider.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="Controls\FindingsList.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Update="Controls\Globe\ColourScaleLegend.cs">
       <SubType>Component</SubType>
     </Compile>
