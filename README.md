@@ -1,7 +1,5 @@
 # VIGIL
 
-https://trello.com/invite/b/6af8322ace62a1284e925a91/ATTI788040b3c90ca429d46ab4b6fffb54a19B00707A/nasa-hackathon
-
 VIGIL (Visualising & Identifying Global Indicators of Long-term change) is the University of Plymouth Hackathon Team's entry for the 2026 NASA Space Apps Challenge, under the challenge [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/).
 
 ## The challenge
