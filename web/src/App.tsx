@@ -404,6 +404,26 @@ export function App() {
 
       <div className="toolbar">
         {grids.length > 0 && (
+          // On a wide screen the layer is chosen from a menu: a scan can have eight, and a row of them crowds
+          // out the switches beside it. On a phone the row below is used, where it has a line to itself.
+          <select
+            className="layer-picker wide-only"
+            aria-label="Layer variable"
+            title="The variable the layer shows"
+            value={layerVariable ?? ''}
+            onChange={(event) => {
+              setYearsNote(null);
+              setLayerVariable(event.target.value);
+            }}
+          >
+            {grids.map((grid) => (
+              <option key={grid.variable} value={grid.variable}>
+                {labelText(grid.variable)}
+              </option>
+            ))}
+          </select>
+        )}
+        {grids.length > 0 && (
           <div className="segmented" role="radiogroup" aria-label="Layer" ref={layerBar}>
             {grids.map((grid) => (
               <button

@@ -54,6 +54,27 @@
   gap: var(--space-3) var(--space-5);
 }
 
+/* The layer's variable on a wide screen: one choice from as many as the scan has, which is
+   eight in the real one. A menu, so it takes one place in the toolbar however many there are. */
+.layer-picker {
+  height: 30px;
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-caption);
+  /* The list the browser opens is its own to draw. This asks for its dark one. */
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.layer-picker:hover {
+  background: var(--surface-hover);
+}
+
 /* One choice from a short row, as the app's SegmentedControl. A scan can have eight layers: on
    a phone the row scrolls sideways, so it stays one line, and from 900px it wraps. */
 .segmented {
@@ -284,6 +305,11 @@
   .segmented {
     flex-wrap: wrap;
     overflow-x: visible;
+  }
+
+  /* The toolbar's row of layers gives way to the menu. On a phone the row stays and the menu is not shown. */
+  .toolbar > .segmented {
+    display: none;
   }
 }
 
