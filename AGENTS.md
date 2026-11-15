@@ -90,7 +90,7 @@ The look is flat and dark: neutral graphite surfaces, an off-white accent (`Them
 | `Divider` | Hairline separator. With `Label` it's a section heading inside a card. |
 | `SearchBox` | Text search with an icon and placeholder |
 | `SpinnerControl` | Loading wheel |
-| `FindingsList` | The ranked list of findings. `SetFindings`, `SelectedFinding`, `SelectFinding`. Rows are as tall as their text, and only the rows in view are drawn. |
+| `FindingsList` | The ranked list of findings. `SetFindings`, `SelectedFinding`, `SelectFinding`. Rows are as tall as their text. Only the rows near the view are measured and drawn, because a real scan has thousands: measuring every row up front froze the window for half a minute. Keep it that way. |
 | `GlobeControl` | The 3D globe on the Map page. See "The globe" below. |
 | `SatelliteCard` | The panel about a clicked satellite, in `Controls/Globe/`: picture, name, facts and a note. `SetContent(...)`, and it sets its own height. |
 | `ChatView` | A whole chat with the Detective: scrolling messages above an input. Set `Conversation`, and call `AskAbout(finding)` to attach a finding to the next question. See "The Detective" below. |
@@ -110,7 +110,7 @@ The look is flat and dark: neutral graphite surfaces, an off-white accent (`Them
 
 `GlobeControl` lives in `Controls/Globe/` (namespace `VIGIL.Controls.Globe`) and is hosted by `Pages/MapPage.cs`. It's software-rendered with no extra packages: each pixel ray-casts a sphere textured from NASA Blue Marble (day, 8192x4096) and Black Marble (night lights) imagery, embedded from `assets/`, and lit from the real sun position. Both textures are public domain NASA imagery.
 
-Mouse and keyboard: left-drag grabs and flings the Earth, the wheel zooms on the cursor, right-drag (or Ctrl+drag) tilts and turns, double-click flies in, and Shift+drag selects a box and raises `RegionSelected`. Arrow keys pan, `+`/`-` zoom, `N` resets north, `R` or `Home` resets the view, and `Escape` clears the selection. Auto-rotation pauses for 4 seconds after any input.
+Mouse and keyboard: left-drag grabs and flings the Earth, the wheel zooms on the cursor, right-drag (or Ctrl+drag) tilts and turns, double-click flies in, and Shift+drag selects a box and raises `RegionSelected`. Arrow keys pan, `+`/`-` zoom, `N` resets north, `R` or `Home` resets the view, and `Escape` clears the selection. The globe opens on the whole planet centred on Plymouth, and `R` or `Home` returns there. On the Map page it opens still: the "Rotate" switch starts it turning by itself, which keeps a processor core busy for as long as it is on. Auto-rotation pauses for 4 seconds after any input.
 
 Pen mode: while `PenMode` is on, left-drag draws an outline on the surface instead of turning the globe, and the globe does not rotate by itself. Right-drag, the wheel and the keys still move the view. Lifting the pen raises `ZoneDrawn` with the outline, which stays on the globe, dashed, until `ClearStroke()`. `Escape` removes it and switches the pen off.
 
@@ -182,6 +182,22 @@ Two switches on the Map page's toolbar change how the layer is drawn. Neither ch
 - The years are for looking at how a change arrived. No test is run on them, nothing in the findings rests on them, and the app never calls a year's value a finding or attaches it to a question for the Detective.
 - "Significant only" is switched off while the years are on, because a year's anomaly has no significance to filter by. A chosen zone still limits the cells.
 - When the service cannot answer, or holds a different scan, the switch turns itself off and the status badge says why. The trend stays on the globe.
+
+### The service's heartbeat
+
+A badge beside the Present button says whether the analysis service is there. `MainForm` asks `GET /health` every five seconds (`Data/ServiceHealthClient`, `Models/ServiceHealth`), one call at a time, with a three-second limit so a service that has stopped is noticed quickly.
+
+- "Service connected": it answers, holds the scan on screen and has the Detective's key.
+- "Service connected, no Detective": it has no key, so questions will not be answered.
+- "Service has no gridded data": zones, Recompute and the years cannot be worked out.
+- "Service holds another scan": its run is not the one on screen. This is what shows when the app was opened before the service was started.
+- "Service not running": nothing answered.
+
+The badge's tooltip says what to do about each. The badge only reports. Every page still asks the service for itself and says so where it cannot, so nothing may rely on the badge to switch a feature on or off. It is hidden when the window is too narrow for it to sit beside the page's title.
+
+`python\start-service.cmd` starts the service on the scan in `data\scan` and starts it again if it stops. See "Starting it with one command" in `python/vigil/api/README.md`.
+
+The web viewer has no such badge. It asks its own address for the service once and a static site is asked nothing more, which is the rule under "The web viewer" below.
 
 ### Presenting
 

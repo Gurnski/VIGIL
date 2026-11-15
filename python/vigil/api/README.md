@@ -120,6 +120,20 @@ $env:VIGIL_SCAN_DATA = "..\data\scan\scan-data.npz"
 python -m uvicorn vigil.api.app:app --port 8000
 ```
 
+## Starting it with one command
+
+`python\start-service.cmd` starts the service on the scan in `data\scan`, with the gridded data beside it, and starts it again if it stops. Double-click it, or run it from a terminal:
+
+```
+python\start-service.cmd             this machine only
+python\start-service.cmd -Network    every network address, which presenting needs
+python\start-service.cmd -Port 8001  another port
+```
+
+It leaves alone anything already set in the terminal (`VIGIL_SNAPSHOT`, `VIGIL_SCAN_DATA`, `ANTHROPIC_API_KEY`). For the Detective's key it looks in the terminal, then at the value saved for your user (`setx ANTHROPIC_API_KEY "the key"`), then in `python\.env`, which git ignores. It says whether it found one and never shows it. It will not start a second service on a port where one already answers, and it gives up when the service stops three times as soon as it starts.
+
+The desktop app asks `GET /health` every five seconds and shows what it heard in a badge beside its Present button, so a service that has stopped is seen before it is needed.
+
 ## The service as a website
 
 The service hands out the built viewer at `/`, from the repository's root (`index.html` and `viewer/`) or from the folder `VIGIL_SITE` names. The page asks for `snapshot.json` beside itself and gets the scan the service holds, so the page, the Detective, a zone and a recompute are always about the same run. It gets `series/<variable>/<cell_id>.json` the same way, built from the gridded data when the stored scan has no series for that cell.

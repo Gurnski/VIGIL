@@ -150,6 +150,7 @@ The desktop app is the main one and gets new features first. This table is the s
 | A chosen zone limits the findings, the markers and the layer | Yes | Yes | No |
 | A zone's trends, series and limitations | Yes | Yes | Yes (`POST /zone`) |
 | Following a presenter (`GET /present`) | Presents | Follows | Yes |
+| A badge saying whether the service is there, asked every five seconds | Yes | No. The page asks once when it opens, and a static site is asked nothing more. | Yes |
 | A variable year by year, with a year bar | Yes | Yes | No, with the `years/` files beside the page |
 | Fly to a place by name, from the list of 41 | Yes, with four presets as buttons | Yes. The four presets are offered before anything is typed. | No |
 | Grid lines, the rotate switch | Yes | No | No |

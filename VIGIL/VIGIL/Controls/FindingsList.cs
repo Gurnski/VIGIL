@@ -30,9 +30,17 @@ namespace VIGIL.Controls
         private int hovered = -1;
 
         // rowTops[i] is where row i starts, in pixels from the top of the list, and the last entry
-        // is the height of all the rows. Worked out again when the rows or the width change.
+        // is the height of all the rows. A real scan has thousands of rows and measuring wrapped
+        // text is slow, so only the rows near the view are measured. The rest stand at a typical
+        // height until the view reaches them. A height of zero means not measured yet.
         private int[] rowTops = { 0 };
+        private int[] summaryHeights = Array.Empty<int>();
+        private int[] detailHeights = Array.Empty<int>();
+        private int typicalRow;
         private int measuredWidth = -1;
+
+        /// <summary>How many rows, spread through the list, are measured to learn a typical height.</summary>
+        private const int TypicalSample = 16;
         private int scrollOffset;
         private bool draggingThumb;
         private int dragGrip;
@@ -139,7 +147,7 @@ namespace VIGIL.Controls
         {
             get
             {
-                MeasureRows();
+                Prepare();
                 return rowTops[^1];
             }
         }
@@ -148,7 +156,7 @@ namespace VIGIL.Controls
 
         private Rectangle RowBounds(int index)
         {
-            MeasureRows();
+            Prepare();
             return new Rectangle(0, rowTops[index] - scrollOffset, Width - BarSpace, rowTops[index + 1] - rowTops[index]);
         }
 
@@ -162,24 +170,120 @@ namespace VIGIL.Controls
         private int SummaryHeight(Finding finding) => TextHeight(finding.Summary, Theme.Body, SummaryLines);
         private int DetailHeight(Finding finding) => TextHeight(DetailText(finding), Theme.Caption, DetailLines);
 
-        private void MeasureRows()
+        /// <summary>
+        ///  Gets the rows ready for the width the list has now. It measures only a few rows, spread
+        ///  through the list, to learn the height a row not measured yet is given.
+        /// </summary>
+        private void Prepare()
         {
-            if (measuredWidth == Width && rowTops.Length == findings.Count + 1)
+            if (measuredWidth == Width && summaryHeights.Length == findings.Count)
             {
                 return;
             }
             measuredWidth = Width;
-            rowTops = new int[findings.Count + 1];
+            summaryHeights = new int[findings.Count];
+            detailHeights = new int[findings.Count];
+            int sample = Math.Min(findings.Count, TypicalSample);
+            long total = 0;
+            for (int k = 0; k < sample; k++)
+            {
+                int index = (int)((long)k * findings.Count / sample);
+                MeasureRow(index);
+                total += RowHeight(index);
+            }
+            typicalRow = sample == 0 ? 0 : (int)(total / sample);
+            PlaceRows();
+        }
+
+        /// <summary>Measures a row's text, unless that is done. True when it was not.</summary>
+        private bool MeasureRow(int index)
+        {
+            if (summaryHeights[index] != 0)
+            {
+                return false;
+            }
+            summaryHeights[index] = SummaryHeight(findings[index]);
+            detailHeights[index] = DetailHeight(findings[index]);
+            return true;
+        }
+
+        private int RowHeight(int index) =>
+            summaryHeights[index] == 0 ? typicalRow : RowPadding * 2 + summaryHeights[index] + LineGap + detailHeights[index];
+
+        private void PlaceRows()
+        {
+            if (rowTops.Length != findings.Count + 1)
+            {
+                rowTops = new int[findings.Count + 1];
+            }
             for (int i = 0; i < findings.Count; i++)
             {
-                rowTops[i + 1] = rowTops[i] + RowPadding * 2 + SummaryHeight(findings[i]) + LineGap + DetailHeight(findings[i]);
+                rowTops[i + 1] = rowTops[i] + RowHeight(i);
             }
+        }
+
+        /// <summary>
+        ///  Measures a row and the rows within a list's height above it and two below its top: what
+        ///  the view shows with that row at its top, and what the next scroll either way brings in.
+        /// </summary>
+        private void MeasureAround(int index)
+        {
+            Prepare();
+            if (index < 0 || index >= findings.Count)
+            {
+                return;
+            }
+
+            bool changed = MeasureRow(index);
+            int span = 0;
+            for (int i = index - 1; i >= 0 && span < Height; i--)
+            {
+                changed |= MeasureRow(i);
+                span += RowHeight(i);
+            }
+            span = RowHeight(index);
+            for (int i = index + 1; i < findings.Count && span < Height * 2; i++)
+            {
+                changed |= MeasureRow(i);
+                span += RowHeight(i);
+            }
+            if (changed)
+            {
+                PlaceRows();
+            }
+        }
+
+        /// <summary>
+        ///  Measures the rows in and near the view. The row at the top of the view stays where it
+        ///  is on screen, however the rows above it turn out.
+        /// </summary>
+        private void MeasureView()
+        {
+            Prepare();
+            if (findings.Count == 0 || Height <= 0)
+            {
+                return;
+            }
+            int maxScroll = MaxScroll;
+            if (maxScroll > 0 && scrollOffset >= maxScroll)
+            {
+                // Scrolled to the end, as a drag of the bar to the bottom leaves it: stay at the end,
+                // wherever the end turns out to be once the last rows are measured.
+                MeasureAround(findings.Count - 1);
+                scrollOffset = MaxScroll;
+                return;
+            }
+
+            int first = Math.Max(0, RowAt(scrollOffset));
+            int within = scrollOffset - rowTops[first];
+            MeasureAround(first);
+            scrollOffset = Math.Clamp(rowTops[first] + Math.Min(within, RowHeight(first) - 1), 0, MaxScroll);
         }
 
         /// <summary>The row covering a distance from the top of the list, or -1 past the last row.</summary>
         private int RowAt(int y)
         {
-            MeasureRows();
+            Prepare();
             if (y < 0 || y >= rowTops[^1])
             {
                 return -1;
@@ -223,7 +327,8 @@ namespace VIGIL.Controls
 
         private void ScrollIntoView(int index)
         {
-            MeasureRows();
+            // The rows round it are measured first, so the place scrolled to is the place it will be drawn.
+            MeasureAround(index);
             int top = rowTops[index], bottom = rowTops[index + 1];
             // A row taller than the list shows from its top: its first line is what names it.
             if (top < scrollOffset || bottom - top >= Height)
@@ -240,14 +345,30 @@ namespace VIGIL.Controls
         {
             base.OnResize(e);
             bool reflowed = measuredWidth != Width;
-            scrollOffset = Math.Clamp(scrollOffset, 0, MaxScroll);
             // A new width wraps the rows differently, so an offset in pixels no longer means the same
-            // place. The chosen row is the place to hold on to. Without this, a list given its selection
-            // before its size opens scrolled part of the way past it.
+            // place. The chosen row is the place to hold on to, and failing that the row at the top of
+            // the view, found here while the old places still stand. Without this, a list given its
+            // selection before its size opens scrolled part of the way past it.
+            int held = -1;
+            if (reflowed && selected < 0 && scrollOffset > 0 && findings.Count > 0 && rowTops.Length == findings.Count + 1)
+            {
+                int found = Array.BinarySearch(rowTops, scrollOffset);
+                held = Math.Clamp(found >= 0 ? found : ~found - 1, 0, findings.Count - 1);
+            }
+
             if (reflowed && selected >= 0 && Height > 0)
             {
                 scrollOffset = 0;
                 ScrollIntoView(selected);
+            }
+            else if (held >= 0)
+            {
+                MeasureAround(held);
+                scrollOffset = Math.Clamp(rowTops[held], 0, MaxScroll);
+            }
+            else
+            {
+                scrollOffset = Math.Clamp(scrollOffset, 0, MaxScroll);
             }
         }
 
@@ -266,6 +387,7 @@ namespace VIGIL.Controls
                 return;
             }
 
+            MeasureView();
             for (int i = Math.Max(0, RowAt(scrollOffset)); i < findings.Count; i++)
             {
                 var row = RowBounds(i);
@@ -315,14 +437,15 @@ namespace VIGIL.Controls
             }
 
             int lineHeight = Theme.Body.Height;
-            int summaryHeight = SummaryHeight(finding);
+            MeasureRow(index);
+            int summaryHeight = summaryHeights[index];
             int top = row.Y + RowPadding;
 
             // Not significant is said in the quieter text colour, as everywhere else in the app.
             var summaryColour = finding.Significant ? Theme.TextPrimary : Theme.TextSecondary;
             Draw.Text(g, finding.Summary, Theme.Body, new Rectangle(TextLeft, top, textWidth, summaryHeight), summaryColour, WrappedText);
             Draw.Text(g, DetailText(finding), Theme.Caption,
-                new Rectangle(TextLeft, top + summaryHeight + LineGap, textWidth, DetailHeight(finding)), Theme.TextMuted, WrappedText);
+                new Rectangle(TextLeft, top + summaryHeight + LineGap, textWidth, detailHeights[index]), Theme.TextMuted, WrappedText);
 
             var firstLine = new Rectangle(row.X + RowPadding, top, RankWidth, lineHeight);
             Draw.Text(g, finding.Rank.ToString(British), Theme.NumericSmall, firstLine, Theme.TextMuted);

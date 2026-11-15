@@ -4,7 +4,7 @@ The walk-through from section 10 of the brief, matched to the screens as they ar
 
 ## Before you start
 
-1. Start the service from `python/`, with the scan and the gridded data it was made from:
+1. Start the service. The quick way is `python\start-service.cmd -Network`: it finds the scan and the gridded data in `data\scan`, reads the Detective's key from `ANTHROPIC_API_KEY` (save it once with `setx ANTHROPIC_API_KEY "the key"`), says what it found, and starts the service again if it stops. By hand, from `python/`, it is:
 
    ```
    $env:VIGIL_SNAPSHOT = "..\data\scan\snapshot.json"
@@ -14,7 +14,7 @@ The walk-through from section 10 of the brief, matched to the screens as they ar
    ```
 
    `--host 0.0.0.0` lets the audience's phones and laptops reach it. Leave it out and everything still works on this machine, but nobody can follow along. Windows asks once whether to let Python through the firewall: say yes for the network you are on. Without the key everything works except the Detective. Without the service the app opens on the made-up fixture and says so, which is not what you want on stage.
-2. Check the service is up before you trust the app. Open `http://127.0.0.1:8000/health` in a browser: it should say `"scan_data": true`, and `"detective": true` if the key is set. Then start the app, which loads the service's scan and opens on Overview. The absence of a "Synthetic fixture" badge does not prove the service is running: with a `snapshot.json` beside the exe the app shows the real scan even when the service is down, and then zones, Years, Recompute, presenting and the Detective would all fail on stage. Inside the app, the quick test is the Map page's "Years" switch, which stays on only when the service answers.
+2. Check the service is up before you trust the app. Open `http://127.0.0.1:8000/health` in a browser: it should say `"scan_data": true`, and `"detective": true` if the key is set. Then start the app, which loads the service's scan and opens on Overview. The absence of a "Synthetic fixture" badge does not prove the service is running: with a `snapshot.json` beside the exe the app shows the real scan even when the service is down, and then zones, Years, Recompute, presenting and the Detective would all fail on stage. Inside the app, look at the badge beside the Present button. It asks the service every five seconds and should read "Service connected". "Service connected, no Detective" means the key is missing, "Service holds another scan" means the app was opened before the service and needs reopening, and "Service not running" means what it says.
 3. On the Map page, open the Zones tab and delete any zone left from rehearsal.
 4. Ask the Detective one question and wait for the answer, so the first live question is not the first call of the day.
 5. If the audience is to follow along, try it once with your own phone before anyone is watching: press Present, open the address on the card, and choose a finding. A venue's Wi-Fi may stop devices seeing each other. A phone's hotspot, with the laptop joined to it, gets round that.

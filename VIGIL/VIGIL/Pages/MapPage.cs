@@ -40,12 +40,13 @@ namespace VIGIL.Pages
         private readonly ResultsClient service;
         private readonly Dictionary<string, GlobeMarker> markersByFinding = new();
 
-        private readonly GlobeControl globe = new() { Dock = DockStyle.Fill };
+        // The globe opens still. Turning it by itself keeps a processor core busy, so that is for whoever switches it on.
+        private readonly GlobeControl globe = new() { Dock = DockStyle.Fill, AutoRotate = false };
         private readonly SearchBox search = new() { Placeholder = "Fly to a place…" };
         private readonly SegmentedControl layers = new();
         private readonly SegmentedControl presets = new();
         private readonly ToggleSwitch graticuleToggle = new() { Text = "Grid lines" };
-        private readonly ToggleSwitch rotateToggle = new() { Text = "Rotate", Checked = true };
+        private readonly ToggleSwitch rotateToggle = new() { Text = "Rotate", Checked = false };
         private readonly ToggleSwitch overlayToggle = new() { Text = "Layer", Checked = true };
         private readonly ToggleSwitch significantToggle = new() { Text = "Significant only" };
         private readonly ToggleSwitch reliefToggle = new() { Text = "Relief" };

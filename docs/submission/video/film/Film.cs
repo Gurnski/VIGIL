@@ -228,7 +228,7 @@ internal static class Film
         var pages = Field<Dictionary<string, Control>>(main, "openedPages");
         var panel = Field<ChatPanel>(main, "chatPanel");
         var launcher = Field<VigilButton>(main, "chatLauncher");
-        floating = new Control[] { launcher, Field<VigilButton>(main, "presentButton"), panel };
+        floating = new Control[] { launcher, Field<VigilButton>(main, "presentButton"), Field<Badge>(main, "serviceBadge"), panel };
 
         rail.Select("map");
         Pump(0.5);

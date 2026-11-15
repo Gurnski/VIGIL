@@ -30,8 +30,9 @@ namespace VIGIL.Controls.Globe
         private const int MK_CONTROL = 0x0008;
 
         private static readonly CultureInfo British = CultureInfo.GetCultureInfo("en-GB");
-        private const double HomeLatitude = 20;
-        private const double HomeLongitude = 0;
+        // The view the globe opens on and returns to: the whole planet, centred on Plymouth, where the team is.
+        private const double HomeLatitude = 50.4;
+        private const double HomeLongitude = -4.1;
         private const float LatitudeLimit = 85f;
         private const double AutoRotatePauseSeconds = 4;
         private const double FrameBudgetMilliseconds = 17;
@@ -512,7 +513,7 @@ namespace VIGIL.Controls.Globe
 
         public void ZoomOut() => ZoomBy(-0.5f, null);
 
-        /// <summary>Flies back to the starting view of the whole planet, north up and untilted.</summary>
+        /// <summary>Flies back to the starting view: the whole planet, centred on Plymouth, north up and untilted.</summary>
         public void ResetView()
         {
             StartFlight(new ViewState { Latitude = (float)HomeLatitude, Longitude = (float)HomeLongitude }, null);

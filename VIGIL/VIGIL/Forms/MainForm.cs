@@ -35,10 +35,20 @@ namespace VIGIL.Forms
         private bool sendingShow;
         private bool showChanged;
 
+        // The heartbeat: every few seconds the app asks the service whether it is there, and a badge says what it heard.
+        private const int HeartbeatMilliseconds = 5000;
+        private readonly ServiceHealthClient health = new();
+        private readonly Badge serviceBadge = new() { ShowDot = true, Text = "Checking the service" };
+        private readonly ToolTip serviceTip = new() { AutoPopDelay = 20000 };
+        private readonly System.Windows.Forms.Timer heartbeat = new() { Interval = HeartbeatMilliseconds };
+        private readonly string? shownRunId;
+        private bool checkingService;
+
         /// <param name="results">The results loaded at startup, shared by the pages that show them.</param>
         public MainForm(ResultsDocument results)
         {
             InitializeComponent();
+            shownRunId = results.Run?.Id;
 
             AddPage("overview", Icons.Home, "Overview", () =>
             {
@@ -117,6 +127,21 @@ namespace VIGIL.Forms
                 }
             };
 
+            Controls.Add(serviceBadge);
+            serviceBadge.BringToFront();
+            heartbeat.Tick += async (s, e) => await CheckServiceAsync();
+            Shown += async (s, e) =>
+            {
+                heartbeat.Start();
+                await CheckServiceAsync();
+            };
+            FormClosed += (s, e) =>
+            {
+                heartbeat.Stop();
+                heartbeat.Dispose();
+                health.Dispose();
+            };
+
             navRail.SelectedChanged += NavRail_SelectedChanged;
             navRail.SizeChanged += (s, e) => PlaceChat();
             // The app opens on what the scan found. The Components page is still in the rail, for whoever is building.
@@ -139,6 +164,86 @@ namespace VIGIL.Forms
             {
                 chatPanel.BringToFront();
                 chatPanel.FocusInput();
+            }
+        }
+
+        // ----- The service's heartbeat -----
+
+        /// <summary>Asks the service whether it is there. One call at a time: a slow answer is not asked for twice.</summary>
+        private async Task CheckServiceAsync()
+        {
+            if (checkingService)
+            {
+                return;
+            }
+            checkingService = true;
+            try
+            {
+                var heard = await health.HealthAsync();
+                if (!IsDisposed)
+                {
+                    ShowService(heard);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // The window closed while the call was out.
+            }
+            finally
+            {
+                checkingService = false;
+            }
+        }
+
+        /// <summary>
+        ///  Says what the service answered, in the badge beside the Present button. The badge reports
+        ///  and nothing more: each page still asks the service for itself and says so when it cannot.
+        /// </summary>
+        private void ShowService(ServiceHealth? heard)
+        {
+            string at = health.Address;
+            string text, tip;
+            BadgeTone tone;
+            if (heard == null)
+            {
+                text = "Service not running";
+                tone = BadgeTone.Negative;
+                tip = "Nothing is answering at " + at + ".\nThe scan on screen still shows, but a zone's trends, Recompute, the years,\npresenting and the Detective all need the analysis service.\nStart it with python\\start-service.cmd.";
+            }
+            else if (heard.RunId != shownRunId)
+            {
+                text = "Service holds another scan";
+                tone = BadgeTone.Warning;
+                tip = "The analysis service at " + at + " is running, but its scan is not the one on screen.\nClose VIGIL and open it again to load the service's scan.";
+            }
+            else if (!heard.ScanData)
+            {
+                text = "Service has no gridded data";
+                tone = BadgeTone.Warning;
+                tip = "The analysis service at " + at + " holds this scan but not the gridded data it was made from,\nso a zone's trends, Recompute and the years cannot be worked out.\nStart it with python\\start-service.cmd, which gives it both.";
+            }
+            else if (!heard.Detective)
+            {
+                text = "Service connected, no Detective";
+                tone = BadgeTone.Warning;
+                tip = "The analysis service at " + at + " is answering and holds this scan.\nIt has no key for the Detective, so questions will not be answered.\nSet ANTHROPIC_API_KEY and start the service again.";
+            }
+            else
+            {
+                text = "Service connected";
+                tone = BadgeTone.Positive;
+                tip = "The analysis service at " + at + " is answering, holds this scan and has a key for the Detective.";
+            }
+
+            if (serviceBadge.Text != text || serviceBadge.Tone != tone)
+            {
+                serviceBadge.Tone = tone;
+                serviceBadge.Text = text;
+                PlaceChat();
+            }
+            if (serviceTip.GetToolTip(serviceBadge) != tip)
+            {
+                serviceTip.SetToolTip(serviceBadge, tip);
             }
         }
 
@@ -360,6 +465,9 @@ namespace VIGIL.Forms
             }
             int presentWidth = compact ? Px(Theme.ControlHeight) : Px(presenting ? 132 : 108);
             presentButton.Bounds = new Rectangle(chatLauncher.Left - Px(Theme.Space2) - presentWidth, top, presentWidth, launcher.Height);
+            // The service's badge sits to the left of both, while there is room for it beside the page's title.
+            serviceBadge.Visible = ClientSize.Width >= Px(RailFoldWidth);
+            serviceBadge.Location = new Point(presentButton.Left - Px(Theme.Space3) - serviceBadge.Width, top + (launcher.Height - serviceBadge.Height) / 2);
             int cardWidth = Math.Min(Px(440), right - left);
             if (presentPanel.Width != cardWidth)
             {

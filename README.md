@@ -60,9 +60,11 @@ $env:VIGIL_SCAN_DATA = "..\data\scan\scan-data.npz"
 .venv\Scripts\python -m uvicorn vigil.api.app:app --port 8000
 ```
 
+Once the environment exists, `python\start-service.cmd` does the last three lines in one go. It finds the scan in `data\scan`, reads the Detective's key, and starts the service again if it stops. Add `-Network` where the line above would take `--host 0.0.0.0`.
+
 The service also serves the web viewer, at `http://127.0.0.1:8000/`, showing the scan it holds. Add `--host 0.0.0.0` to let other devices on the network open it, which is what the desktop app's Present button needs.
 
-`VIGIL_SNAPSHOT` is the stored scan and `VIGIL_SCAN_DATA` the gridded data it was made from. Neither is in the repository: `python/vigil/pipeline/README.md` says how to make them. With neither set, the service serves the contract's fixture, which is made up and says so. The Detective also needs `ANTHROPIC_API_KEY` in that terminal. `python/vigil/api/README.md` lists every setting and call.
+`VIGIL_SNAPSHOT` is the stored scan and `VIGIL_SCAN_DATA` the gridded data it was made from. Neither is in the repository: `python/vigil/pipeline/README.md` says how to make them. With neither set, the service serves the contract's fixture, which is made up and says so. The Detective also needs `ANTHROPIC_API_KEY` in that terminal. A key set with `$env:` is gone when the terminal closes: `setx ANTHROPIC_API_KEY "the key"` saves it for your user, and `start-service.cmd` reads it from there. `python/vigil/api/README.md` lists every setting and call.
 
 **The desktop app.** Start it after the service:
 
