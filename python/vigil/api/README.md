@@ -184,9 +184,11 @@ A bucket cannot run code, so the public site's service is a Lambda of its own: `
 https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws
 ```
 
-The deploy workflow builds the viewer with that address as `VITE_VIGIL_API_URL`, so keepvigil.earth asks it. It reads the scan from the site's bucket when a copy of the function starts (`VIGIL_SNAPSHOT=s3://keepvigil.earth/snapshot.json`), so it needs no redeploy for a new scan. A copy that is already running keeps the scan it started with, so after uploading one, save any change to the function's settings to start fresh copies. The desktop app uses it when `VIGIL_API_URL` is set to the address.
+The deploy workflow builds the viewer with that address as `VITE_VIGIL_API_URL`, so keepvigil.earth asks it. When a copy of the function starts it reads the scan from the site's bucket (`VIGIL_SNAPSHOT=s3://keepvigil.earth/snapshot.json`) and the gridded data from the private one (`VIGIL_SCAN_DATA=s3://vigil-deploy-630809268406/scan-data.npz`), once, and keeps them for every request after. So a new scan needs no redeploy: upload both files, then save any change to the function's settings, which starts fresh copies. A copy that is already running keeps what it started with, and a snapshot whose grid or period differs from the data stops the function starting. The desktop app uses it when `VIGIL_API_URL` is set to the address.
 
-What it does: the findings, the stored series, the globe layers and the Detective. What it does not: zones, Recompute and `GET /years`, which need the gridded data, and it has none. The site's charts and years still come from the files on the bucket. Nobody can present from it, because `POST /present` is taken from the service's own machine only.
+It answers every call but one: nobody can present from it, because `POST /present` is taken from the service's own machine only. The site's charts and years still come from the files on the bucket first, and from here when a file is missing.
+
+A fresh copy takes about 8 seconds to start, most of it unpacking the gridded data, and Lambda allows 10 before it starts again more slowly. A copy stays for some minutes after its last request, and an open page asks every two seconds whether someone is presenting, so in practice one is waiting. The account runs at most 10 copies at once, shared with `nasa-data-fetcher`, and a question to the Detective holds one for up to 75 seconds.
 
 The Detective's key is the function's `ANTHROPIC_API_KEY` setting, and nowhere else. Set it in the AWS console: Lambda, `vigil-api`, Configuration, Environment variables. Anyone can reach the address, and the limit on questions (`VIGIL_ASK_PER_MINUTE`) is kept by each running copy of the function separately, so put a spend limit on the key itself.
 
@@ -200,7 +202,7 @@ aws s3 cp ..\data\lambda\vigil-api.zip s3://vigil-deploy-630809268406/vigil-api.
 aws lambda update-function-code --function-name vigil-api --s3-bucket vigil-deploy-630809268406 --s3-key vigil-api.zip
 ```
 
-Keep the versions in step with `requirements.txt`. The zip is 71 MB, over the 50 MB Lambda takes directly, so it goes through `vigil-deploy-630809268406`, a private bucket that holds nothing else. `lambda_pack` leaves the packages' own test suites out: with them the code is over the 250 MB Lambda allows unpacked. The function runs Python 3.12 with 2048 MB and a 90 second limit, which is above the Detective's 75 second deadline.
+Keep the versions in step with `requirements.txt`. The zip is 71 MB, over the 50 MB Lambda takes directly, so it goes through `vigil-deploy-630809268406`, a private bucket that holds only this zip and the gridded data. `lambda_pack` leaves the packages' own test suites out: with them the code is over the 250 MB Lambda allows unpacked. The function runs Python 3.12 with 2048 MB and a 90 second limit, which is above the Detective's 75 second deadline.
 
 Then check it:
 
@@ -208,7 +210,7 @@ Then check it:
 curl.exe -s https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws/health
 ```
 
-`run_id` should be the scan on the site, and `detective` is `true` once the key is set.
+`run_id` should be the scan on the site, `scan_data` is `true` when the gridded data loaded, and `detective` is `true` once the key is set.
 
 ## Tests
 
