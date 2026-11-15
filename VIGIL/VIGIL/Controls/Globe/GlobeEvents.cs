@@ -44,6 +44,31 @@ namespace VIGIL.Controls.Globe
         public GlobeRegion Region { get; }
     }
 
+    /// <summary>
+    ///  Raised when the pen is lifted in pen mode. <see cref="Outline"/> is the drawn path,
+    ///  thinned, with continuous longitudes; it closes from its last point to its first.
+    /// </summary>
+    public sealed class ZoneDrawnEventArgs : EventArgs
+    {
+        public ZoneDrawnEventArgs(IReadOnlyList<(double Latitude, double Longitude)> outline)
+        {
+            Outline = outline;
+        }
+
+        public IReadOnlyList<(double Latitude, double Longitude)> Outline { get; }
+    }
+
+    /// <summary>Raised when the surface inside a zone is clicked.</summary>
+    public sealed class ZoneEventArgs : EventArgs
+    {
+        public ZoneEventArgs(GlobeZone zone)
+        {
+            Zone = zone;
+        }
+
+        public GlobeZone Zone { get; }
+    }
+
     /// <summary>Raised when a <see cref="GlobeControl.FlyTo(double, double, double?, TimeSpan?)"/> flight lands.</summary>
     public sealed class FlightEventArgs : EventArgs
     {

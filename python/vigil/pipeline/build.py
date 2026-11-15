@@ -23,8 +23,13 @@ from vigil.pipeline import regrid
 from vigil.pipeline.earthquakes import bin_earthquakes
 from vigil.pipeline.grid import GRID, MONTHS, PERIOD_START, SCAN_FOLDER, land_mask
 
-#: The four variables that come from downloads, in the order the apps list them.
-DOWNLOADED = ["temperature", "precipitation", "soil_moisture", "vegetation"]
+#: The variables that come from downloads, in the order the apps list them.
+DOWNLOADED = ["temperature", "precipitation", "soil_moisture", "vegetation", "snow_cover",
+              "sea_surface_temperature", "chlorophyll"]
+
+#: Measured over the sea. They take no land mask: a land cell holds no data for them, so the
+#: scan skips it for coverage, which is the contract's word for "not enough data to test".
+OCEAN = frozenset({"sea_surface_temperature", "chlorophyll"})
 
 # Values outside these mean a fill value or a wrong unit is still in the data.
 PLAUSIBLE = {
@@ -32,18 +37,24 @@ PLAUSIBLE = {
     "precipitation": (0.0, 3000.0),       # mm per month
     "soil_moisture": (0.0, 150.0),        # kg per m2 in the top 10 cm; GLDAS reaches 100
     "vegetation": (-0.3, 1.0),            # NDVI
+    "snow_cover": (0.0, 100.0),           # percent of the cell under snow
+    "sea_surface_temperature": (-3.0, 45.0),    # degrees Celsius; sea water freezes near -1.9
+    "chlorophyll": (0.0, 100.0),          # mg per m3, the product's own valid range
     "earthquakes": (0.0, 1e5),            # events per month
 }
 
 
-def check(variable: str, array: np.ndarray) -> None:
-    """Stops on a wrong shape, an infinity or a value no real measurement could have."""
+def check(variable: str, array: np.ndarray, limits: tuple[float, float] | None = None) -> None:
+    """Stops on a wrong shape, an infinity or a value no real measurement could have.
+
+    ``limits`` is the range to hold the values to. Left out, it is the scan variable's own.
+    """
     expected = (GRID["rows"], GRID["columns"], MONTHS)
     if array.shape != expected:
         raise ValueError(f"{variable}: shape is {array.shape}, not {expected}")
     if np.isinf(array).any():
         raise ValueError(f"{variable}: holds infinity. A missing value must be NaN.")
-    low, high = PLAUSIBLE[variable]
+    low, high = limits or PLAUSIBLE[variable]
     finite = array[np.isfinite(array)]
     if finite.size and (finite.min() < low or finite.max() > high):
         raise ValueError(f"{variable}: values run from {finite.min():.4g} to {finite.max():.4g}, outside {low} to {high}. "
@@ -65,9 +76,10 @@ def build(variables: list[str] | None = None) -> ScanData:
         check(variable, array)
         data[variable] = array
 
-    climate = [v for v in data if v != "earthquakes"]
-    # The land mask goes on the climate variables only. Earthquakes happen at sea, so they get none.
-    mask = {variable: land_mask() for variable in climate} or None
+    # The land mask goes on the variables measured over land. Earthquakes happen at sea as well,
+    # and the ocean variables are measured only there, so neither gets one.
+    on_land = [v for v in data if v != "earthquakes" and v not in OCEAN]
+    mask = {variable: land_mask() for variable in on_land} or None
     return ScanData(data=data, grid=dict(GRID), period_start=PERIOD_START, mask=mask,
                     regridding=regrid.RULE, synthetic=False)
 

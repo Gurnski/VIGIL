@@ -25,5 +25,11 @@ namespace VIGIL.Controls.Globe
 
         /// <summary>Anything the app wants to carry with the marker, handed back on click.</summary>
         public object? Tag { get; set; }
+
+        /// <summary>
+        ///  Whether the label is drawn beside the marker all the time. Off, it shows only while
+        ///  the marker is under the mouse or selected, which keeps a crowded globe readable.
+        /// </summary>
+        public bool ShowLabel { get; set; } = true;
     }
 }

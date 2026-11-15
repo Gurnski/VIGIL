@@ -21,10 +21,13 @@ export function signed(value: number, significant = 3): string {
   return (value > 0 ? '+' : '') + figures(value, significant);
 }
 
-/** A p-value: two significant figures, in exponent form when it is very small. */
+/**
+ * A p-value: two significant figures, in exponent form when it is very small. One stored as
+ * exactly 0 was too small for the arithmetic, not zero, and is written as the desktop app writes it.
+ */
 export function pValue(value: number): string {
   if (value === 0) {
-    return '0';
+    return 'below 1e-16';
   }
   return value < 0.001 ? value.toExponential(1).replace('-', minus) : figures(value, 2);
 }
@@ -34,9 +37,4 @@ export function percent(value: number): string {
   return `${figures(value * 100, 3).replace(/\.0+$/, '')}%`;
 }
 
-/** "2010-06-01" as "June 2010": a month in the contract is written as its first day. */
-export function monthText(date: string): string {
-  const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const [year, month] = date.split('-').map(Number);
-  return `${names[(month ?? 1) - 1] ?? ''} ${year}`;
-}
+export { monthText } from '../format';

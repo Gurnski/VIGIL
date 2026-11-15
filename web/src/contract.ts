@@ -74,7 +74,47 @@ export interface Finding {
   contradiction?: Contradiction;
   links: FindingLink[];
   score: Score;
-  standing: { status: 'exploratory' | 'retested'; limitations: string[] };
+  standing: {
+    /** "retested" only when a second product confirmed the trend. Otherwise "exploratory", whatever else a re-test found. */
+    status: 'exploratory' | 'retested';
+    limitations: string[];
+    /** Present when a re-test on a second product was tried. */
+    retest?: Retest;
+  };
+}
+
+export type RetestOutcome = 'confirmed' | 'same_direction' | 'opposite' | 'not_possible';
+
+/** The second product a trend was tested on again: another source for the same variable. */
+export interface RetestProduct {
+  mission: string;
+  product: string;
+  field?: string;
+  units: string;
+  source_url: string;
+  native_resolution?: string;
+}
+
+/**
+ * What a re-test on a second product found. Only direction and significance are compared with
+ * the finding, never size: the second record is in its own units, which may not be the finding's.
+ * Everything after `product` is absent when the outcome is "not_possible".
+ */
+export interface Retest {
+  outcome: RetestOutcome;
+  product: RetestProduct;
+  /** The sign of the second record's Sen slope. */
+  direction?: 'increasing' | 'decreasing';
+  slope_per_decade?: number;
+  ci_low?: number;
+  ci_high?: number;
+  ci_level?: number;
+  /** Units of the second record's slope and interval. */
+  units?: string;
+  /** The second record's own p-value. One test per finding, not corrected for many tests. */
+  p_value?: number;
+  months_present?: number;
+  months_expected?: number;
 }
 
 export interface Preprocessing {
@@ -218,6 +258,33 @@ export interface RunRecord {
     findings_total: number;
     findings_by_kind: Record<string, number>;
   };
+  /** Present when the re-test step has run. */
+  retest?: {
+    /** The rule, in words. */
+    rule: string;
+    /** One entry per variable re-tested. */
+    by_variable: RetestTally[];
+  };
+}
+
+/** How one variable's trend findings came out when tested again on its second product. */
+export interface RetestTally {
+  variable: VariableId;
+  product: RetestProduct;
+  /** What the two products share. */
+  in_common: string;
+  /** Trend findings re-tested. The four outcomes add up to this. */
+  findings: number;
+  confirmed: number;
+  same_direction: number;
+  opposite: number;
+  not_possible: number;
+  /** Cells the scan tested and found nothing in. */
+  other_cells: number;
+  /** How many of those the second product could be tested in. */
+  other_cells_tested: number;
+  /** In how many of those it has a significant trend of its own: the rate to hold the confirmations against. */
+  other_cells_significant: number;
 }
 
 // ----- The Detective: POST /ask -----
@@ -243,6 +310,37 @@ export interface AskResponse {
   citations: { finding_id: string; supports?: string }[];
   limitations: string[];
   model?: string;
+  /** What the Detective looked up on the way to the answer, in order. Absent when it looked nothing up. */
+  steps?: AskStep[];
+}
+
+/** The latitude and longitude box a search named. */
+export interface AskStepBox {
+  lat_min: number;
+  lat_max: number;
+  lon_min: number;
+  lon_max: number;
+}
+
+/**
+ * One tool call the Detective made. A finding in a step was read by the Detective: only the
+ * findings in `citations` back what it said.
+ */
+export interface AskStep {
+  /** "search_findings", "get_finding" or "get_run_summary". */
+  tool: string;
+  /** The tool's arguments, as the Detective gave them. */
+  input: Record<string, unknown>;
+  /** One plain line saying what was asked for. */
+  summary: string;
+  /** The findings that call returned. Empty for the run summary. */
+  finding_ids: string[];
+  /** For a search: how many findings matched in all, which can be more than were returned. */
+  matching?: number;
+  /** For a search that named a place. */
+  box?: AskStepBox;
+  /** True when the tool refused the request. */
+  failed?: boolean;
 }
 
 /** The shape of contract/fixture/ask.json: example questions with their canned answers. */
@@ -250,4 +348,103 @@ export interface AskFixture {
   contract_version: string;
   synthetic?: boolean;
   examples: { request: AskRequest; response: AskResponse }[];
+}
+
+// ----- A variable year by year: years/<variable>.json beside the page, or GET /years -----
+
+/**
+ * Each scanned cell's mean anomaly in each calendar year. For looking at how a change arrived:
+ * no test is run on it and no finding rests on it.
+ */
+export interface YearsDocument {
+  contract_version: string;
+  synthetic?: boolean;
+  /** The run the values belong to. A front end shows them only beside that run. */
+  run_id: string;
+  variable: VariableId;
+  /** Units of the values. */
+  units: string;
+  /** The calendar years, in order. */
+  years: number[];
+  /** How many months of data a year needs to be given a value. */
+  min_months?: number;
+  rows: number;
+  columns: number;
+  lat_min: number;
+  lat_max: number;
+  lon_min: number;
+  lon_max: number;
+  /** Where a colour scale centred on zero can end, over every year. For drawing only. */
+  scale_max: number | null;
+  /** values[year][row][column], rows south to north. Null where the cell was skipped or the year has too few months. */
+  values: (number | null)[][][];
+}
+
+// ----- Presenting: GET /present -----
+
+/** A zone a presenter is showing: a name and an outline of [latitude, longitude] points. */
+export interface PresentZone {
+  name: string;
+  polygon: [number, number][];
+}
+
+export interface PresentState {
+  /** Whether anyone is presenting. When false, `show` is null. */
+  presenting: boolean;
+  /** The run the service holds. A viewer follows only when this is the run it has on screen. */
+  run_id: string | null;
+  /** Goes up by one each time what is on show changes. */
+  sequence: number;
+  show: {
+    finding_id: string | null;
+    variable: VariableId | null;
+    zone: PresentZone | null;
+  } | null;
+}
+
+// ----- A zone: POST /zone -----
+
+/** One variable over a zone: the one series that stands for the zone and the trend test on it. */
+export interface ZoneSummary {
+  variable: VariableId;
+  /** Units of the series. */
+  units: string;
+  cells_used: number;
+  cells_skipped: Record<string, number>;
+  /** Whether the trend test ran. */
+  tested: boolean;
+  /** Null when it ran. Otherwise "no_cells" or "coverage". */
+  skip_reason: string | null;
+  /** Below the scan's threshold. Not "significant after correction": one test, on a zone chosen by eye. */
+  significant: boolean;
+  /** Null when the test did not run, or ran on a flat series and has nothing to report. */
+  result: TrendResult | null;
+  preprocessing: Preprocessing | null;
+  method: { test: string; parameters: Record<string, string | number | boolean | null> } | null;
+  summary: string;
+  /** A few words to show beside the number when it should not be taken at face value, or null. */
+  caution: string | null;
+  limitations: string[];
+  /** As "A series", for the zone and with no cell id. Null when no cell was used. */
+  series: { units: string; dates: string[]; raw: (number | null)[]; anomaly: (number | null)[] } | null;
+}
+
+/** The service's answer about a zone. It is not a finding: no cell, id, rank or score. */
+export interface ZoneAnalysis {
+  contract_version: string;
+  synthetic?: boolean;
+  /** The stored scan the figures belong beside, and no other. */
+  run_id: string;
+  zone: {
+    /** The ids of the cells the service took the zone to be. */
+    cells: string[];
+    cell_count: number;
+    area_km2: number;
+    lat_min: number;
+    lat_max: number;
+  };
+  period: Period;
+  variables: Variable[];
+  /** One entry per variable, tested or not. */
+  summaries: ZoneSummary[];
 }

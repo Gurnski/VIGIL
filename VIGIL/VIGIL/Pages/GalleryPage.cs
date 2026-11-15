@@ -1,6 +1,7 @@
 using VIGIL.Controls;
 using VIGIL.Controls.Globe;
 using VIGIL.Controls.Chat;
+using VIGIL.Controls.Zones;
 using VIGIL.Models;
 using VIGIL.Theming;
 
@@ -218,11 +219,41 @@ namespace VIGIL.Pages
             var satelliteCard = new SatelliteCard { Width = Px(300) };
             if (satellite.Tag is MissionInfo mission)
             {
-                satelliteCard.SetContent(satellite.Label, "Its data is in the first scan", Theme.Positive, MissionSatellites.Picture(mission),
+                satelliteCard.SetContent(satellite.Label, mission.Standing, Theme.Positive, MissionSatellites.Picture(mission),
                     new[] { ("For VIGIL", mission.Role), ("Run by", mission.Operator), ("Launched", mission.Launched), ("Orbit", MissionSatellites.OrbitText(satellite)) },
                     MissionSatellites.Caveat);
             }
             Section("Satellite card", satelliteCard);
+
+            // The zone controls: the bar that names a new outline, the saved zones, and one zone's trends.
+            var zoneNameBar = new ZoneNameBar { Width = Px(320) };
+            zoneNameBar.Begin("Zone 1", "42 grid cells");
+            var demoZones = new[] { new Zone { Name = "Southern Amazon" }, new Zone { Name = "Sahel" } };
+            var zoneList = new ZoneList { Width = Px(300) };
+            zoneList.SetItems(new[] { new ZoneListItem(demoZones[0], "42 grid cells"), new ZoneListItem(demoZones[1], "18 grid cells") }, demoZones[0].Id);
+            var zoneSummary = new ZoneSummaryView { Width = Px(320) };
+            zoneSummary.ShowAnalysis("Southern Amazon", DemoZoneAnalysis());
+            zoneSummary.SelectedVariable = "temperature";
+            zoneSummary.VariableClicked += (s, variable) => zoneSummary.SelectedVariable = variable;
+            // The three sit side by side in one holder of a fixed size. Left to the row, they would be measured
+            // stacked, and the card would come out much taller than what it shows.
+            int zoneGap = Px(Theme.Space3);
+            zoneList.Left = zoneNameBar.Width + zoneGap;
+            zoneSummary.Left = zoneList.Right + zoneGap;
+            var zoneHolder = new Panel { Size = new Size(zoneSummary.Right, zoneSummary.Height), BackColor = Theme.Surface };
+            zoneHolder.Controls.AddRange(new Control[] { zoneNameBar, zoneList, zoneSummary });
+            Section("Zones", zoneHolder);
+
+            // The card shown while presenting, with a made-up address.
+            var presentPanel = new PresentPanel { Width = Px(440) };
+            presentPanel.SetAddresses(new[] { "http://192.168.0.20:8000" });
+            Section("Presenting", presentPanel);
+
+            // The bar that steps the map through the years. Press play, drag, or use the arrow keys.
+            var yearBar = new YearBar { Width = Px(520) };
+            yearBar.SetYears(Enumerable.Range(2001, 25).ToArray());
+            yearBar.SelectedIndex = 12;
+            Section("Years", yearBar);
 
             if (lastFlow != null)
             {
@@ -287,6 +318,46 @@ namespace VIGIL.Pages
                 values[i] = -0.2 + perYear * (i / 12.0) + 0.15 * Math.Sin(2 * Math.PI * i / 12) + noise;
             }
             chart.SetData(dates, values);
+        }
+
+        /// <summary>A made-up answer about a zone, marked as made up, for the zone summary's row above.</summary>
+        private ZoneAnalysis DemoZoneAnalysis()
+        {
+            ZoneSummary Tested(string variable, string units, double slope, double low, double high, double p, double drift)
+            {
+                var walk = RandomWalk(120, drift);
+                return new ZoneSummary
+                {
+                    Variable = variable,
+                    Units = units,
+                    CellsUsed = 42,
+                    Tested = true,
+                    Significant = p < 0.05,
+                    Result = new TrendResult { SlopePerDecade = slope, Units = units + " per decade", CiLow = low, CiHigh = high, CiLevel = 0.95, PValue = p, PAdjusted = p },
+                    Preprocessing = new Preprocessing { Aggregation = "Monthly mean, averaged over the 42 scanned grid cells of the zone, weighted by cell area." },
+                    Limitations = { "Made-up figures for the Components page." },
+                    Series = new ZoneSeries
+                    {
+                        Units = units,
+                        Dates = Enumerable.Range(0, walk.Length).Select(i => new DateOnly(2016, 1, 1).AddMonths(i)).ToList(),
+                        Anomaly = walk.Select(value => (double?)(value - walk.Average())).ToList()
+                    }
+                };
+            }
+
+            return new ZoneAnalysis
+            {
+                ContractVersion = "0.1",
+                Synthetic = true,
+                Zone = new ZoneExtent { CellCount = 42, AreaKm2 = 3_180_000 },
+                Summaries =
+                {
+                    Tested("temperature", "K", 0.52, 0.22, 0.83, 0.0009, 0.02),
+                    Tested("precipitation", "mm per month", -8.9, -14.4, -3.5, 0.0013, -0.02),
+                    Tested("vegetation", "NDVI", -0.0008, -0.0039, 0.0021, 0.59, 0),
+                    new ZoneSummary { Variable = "earthquakes", Units = "events per month", CellsUsed = 42, SkipReason = "coverage" }
+                }
+            };
         }
 
         private double[] RandomWalk(int length, double drift)

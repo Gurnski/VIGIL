@@ -2,7 +2,7 @@ import type { AskFixture, ResultsDocument } from './contract';
 
 // Files fetched at run time sit beside index.html, so a real snapshot.json can replace the
 // fixture on the server without rebuilding the viewer.
-const base = import.meta.env.BASE_URL;
+export const base = import.meta.env.BASE_URL;
 
 // Where the fixture is when the page is served from the root of the repository, as it is on
 // the bucket and on the cloud machine. Used when there is no file beside index.html.

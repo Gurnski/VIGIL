@@ -116,8 +116,8 @@ def test_ask_without_a_key_is_503(client, monkeypatch):
 def test_ask_passes_the_full_list_and_returns_the_answer(client, fixture_document, monkeypatch):
     seen = {}
 
-    def fake_ask(question, findings, run, history, finding_id):
-        seen.update(question=question, findings=findings, run=run, history=history, finding_id=finding_id)
+    def fake_ask(question, findings, run, history, finding_id, client=None):
+        seen.update(question=question, findings=findings, run=run, history=history, finding_id=finding_id, client=client)
         return {"contract_version": "0.1", "run_id": run["id"], "status": "answered", "answer": "An answer.",
                 "citations": [{"finding_id": findings[0]["id"]}], "limitations": []}
 
@@ -129,6 +129,8 @@ def test_ask_passes_the_full_list_and_returns_the_answer(client, fixture_documen
     assert len(seen["findings"]) == len(fixture_document["findings"])
     assert seen["history"] == [{"role": "user", "text": "Earlier"}]
     assert seen["finding_id"] == fixture_document["findings"][2]["id"]
+    assert seen["client"] is not None, "the Detective is given the client that notes its tool calls"
+    assert "steps" not in reply.json(), "no tool was called, so there are no steps to report"
     assert client.post("/ask", json={"question": ""}).status_code == 422
 
 

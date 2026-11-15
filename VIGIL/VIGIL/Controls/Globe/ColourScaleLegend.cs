@@ -19,6 +19,7 @@ namespace VIGIL.Controls.Globe
         private string title = "Legend";
         private string units = "";
         private string valueFormat = "0.0";
+        private string note = "";
 
         protected override Size DefaultSize => Theme.Scaled(240, 68);
 
@@ -63,6 +64,14 @@ namespace VIGIL.Controls.Globe
         {
             get => valueFormat;
             set { valueFormat = value ?? "0.0"; Invalidate(); }
+        }
+
+        /// <summary>A line under the scale for what else the layer shows, such as what a column's height means. Give the legend 18px more height for it.</summary>
+        [DefaultValue("")]
+        public string Note
+        {
+            get => note;
+            set { note = value ?? ""; Invalidate(); }
         }
 
         /// <summary>
@@ -132,6 +141,11 @@ namespace VIGIL.Controls.Globe
                 double middle = (minimum + maximum) / 2;
                 Draw.Text(g, middle.ToString(valueFormat, British), Theme.Caption, new Rectangle(Width / 4, labelTop, Width / 2, Px(16)), Theme.TextMuted,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            }
+
+            if (note.Length > 0)
+            {
+                Draw.Text(g, note, Theme.Caption, new Rectangle(edge, labelTop + Px(18), Width - edge * 2, Px(16)), Theme.TextSecondary);
             }
         }
     }

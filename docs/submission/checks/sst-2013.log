@@ -1,0 +1,16 @@
+130 change points in sea surface temperature
+by year: {'2012': 9, '2013': 65, '2014': 16, '2015': 4, '2016': 1, '2017': 3, '2018': 5, '2020': 4, '2021': 17, '2022': 4, '2023': 2}
+56 of them fall between March and September 2013
+
+The step across 36 months either side, median over the 56 cells of mid-2013:
+   at the stored date         scan +0.99 K   second record +0.78 K
+   48 months earlier          scan -0.09 K   second record +0.01 K
+   48 months later            scan -0.07 K   second record -0.07 K
+   cells where the second record's step at the stored date is larger than at either other date: 56 of 56
+   the second record's step as a share of the scan's: median 0.90, lowest 0.40, highest 1.50
+   The second record is smoothed over 1,200 km, so neighbouring cells are not separate pieces of evidence.
+
+Where they are, by patch (the stored date's range is the model's own, from date_low to date_high):
+   Gulf of Alaska and Bering Sea: 24 cells, dates 2013-04 to 2013-08, ranges from 2012-08 to 2014-11, step scan +1.16 K, second record +1.13 K
+   Western North Atlantic: 27 cells, dates 2013-05 to 2013-09, ranges from 2011-03 to 2015-01, step scan +0.82 K, second record +0.72 K
+   Off Baja California and Hawaii: 5 cells, dates 2013-03 to 2013-05, ranges from 2012-04 to 2015-02, step scan +1.34 K, second record +1.50 K

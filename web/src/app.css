@@ -2,10 +2,12 @@
    first; the two-column layout arrives at 900px. Parts with their own folder (findings/,
    globe/, detective/) style themselves. */
 
+/* On a phone the page itself scrolls: the globe comes first, and the findings get most of a
+   screen to themselves below it. From 900px everything fits in the window and nothing scrolls. */
 .app {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   padding: var(--space-4);
   gap: var(--space-3);
 }
@@ -44,13 +46,16 @@
 }
 
 .toolbar {
+  /* The place field's matches hang from the toolbar on a phone. */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-5);
 }
 
-/* One choice from a short row, as the app's SegmentedControl. */
+/* One choice from a short row, as the app's SegmentedControl. A scan can have eight layers: on
+   a phone the row scrolls sideways, so it stays one line, and from 900px it wraps. */
 .segmented {
   display: flex;
   max-width: 100%;
@@ -58,6 +63,12 @@
   overflow-x: auto;
   border-radius: 6px;
   background: var(--surface-raised);
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.segmented button {
+  flex: none;
 }
 
 .segmented button {
@@ -125,17 +136,58 @@
   transform: translateX(16px);
 }
 
+/* A switch that has nothing to act on, as Relief has with the layer hidden. */
+.switch-disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.switch input:disabled + .track::after {
+  background: var(--text-disabled);
+}
+
 .switch input:focus-visible + .track {
   outline: 1px solid var(--text-secondary);
   outline-offset: 2px;
+}
+
+/* A line under the toolbar for something a switch could not do, such as years that could not be had. */
+.toolbar-note {
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--font-caption);
+}
+
+/* A line under the toolbar about a zone a presenter put on the globe, with the button that takes it off. */
+.toolbar-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+}
+
+.toolbar-zone .button {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-caption);
 }
 
 .app-main {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(260px, 45%) minmax(0, 1fr);
+  grid-template-rows: minmax(240px, 38vh) minmax(360px, 80vh);
   gap: var(--space-4);
+}
+
+/* Where the browser has it, the height that leaves out its own bars, so the list is never cut off under them. */
+@supports (height: 1dvh) {
+  .app-main {
+    grid-template-rows: minmax(240px, 38dvh) minmax(360px, 80dvh);
+  }
 }
 
 .globe-area {
@@ -172,6 +224,25 @@
   font-weight: 600;
 }
 
+/* The kinds of finding, above the list. Five choices are wider than the card, so the row scrolls sideways at every width. */
+.segmented.findings-kinds {
+  flex: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin-bottom: var(--space-3);
+  scrollbar-width: none;
+}
+
+.segmented.findings-kinds button {
+  padding: 0 var(--space-2);
+}
+
+/* The two tabs beside the globe: the findings, and the zones. */
+.segmented.side-tabs {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
 .scan-line {
   margin: var(--space-2) 0 var(--space-3);
   color: var(--text-secondary);
@@ -192,8 +263,14 @@
   background: var(--surface);
 }
 
+/* Closed, the panel stays in the page with its conversation and its place in it, out of sight and out of reach. */
+.chat-panel-closed {
+  visibility: hidden;
+}
+
 @media (min-width: 900px) {
   .app {
+    height: 100%;
     padding: var(--space-6) var(--space-8);
     gap: var(--space-4);
   }
@@ -202,5 +279,17 @@
     grid-template-rows: none;
     grid-template-columns: minmax(0, 1fr) 380px;
     gap: var(--space-5);
+  }
+
+  .segmented {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* On a wide screen the page makes room for the Detective, so the globe and the findings stay in view beside it. */
+@media (min-width: 1200px) {
+  .app.app-chat-open {
+    padding-right: calc(420px + var(--space-5));
   }
 }

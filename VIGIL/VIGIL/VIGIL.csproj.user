@@ -7,6 +7,18 @@
     <Compile Update="Controls\Card.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="Controls\Chat\ChatInput.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\Chat\ChatTranscript.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\Chat\ContextChip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\Chat\ConversationList.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Update="Controls\Divider.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -47,6 +59,12 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Update="Controls\VigilControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\YearBar.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\Zones\ZoneList.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Update="Forms\LoaderForm.cs">

@@ -87,6 +87,22 @@ jobs:
         with:
           name: vigil-app
 
+      # The download should open on the real scan with no service running. The app reads a
+      # snapshot.json beside its exe, so when the bucket holds a real one it goes into the zip.
+      # The bucket's copy may be stored compressed. Nothing here may stop the deploy: without
+      # a real snapshot the zip is the exe alone, and the app opens on its made-up fixture.
+      - name: Put the real scan in the download, when there is one
+        continue-on-error: true
+        env:
+          BUCKET: s3://${{ secrets.S3_BUCKET_NAME }}
+        run: |
+          if aws s3 cp "$BUCKET/snapshot.json" snapshot.raw; then
+            if gzip -t snapshot.raw 2>/dev/null; then gunzip -c snapshot.raw > snapshot.json; else mv snapshot.raw snapshot.json; fi
+            if python3 -c "import json,sys; d=json.load(open('snapshot.json', encoding='utf-8')); sys.exit(0 if d.get('contract_version') and not d.get('synthetic') else 1)"; then
+              zip -j VIGIL-win-x64.zip snapshot.json
+            fi
+          fi
+
       # Only the website goes on the bucket, which is public: the viewer, the fixture it falls
       # back on, and the app download. The repository itself is not uploaded, so the source,
       # the brief and the docs are not on the site.

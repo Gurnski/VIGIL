@@ -1,0 +1,284 @@
+/* Zones: the panel beside the globe that draws, names, saves and chooses them, and shows a chosen zone's trends. */
+
+.zones {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.zones p,
+.zones h3,
+.zones h4 {
+  margin: 0;
+}
+
+.zones h3 {
+  font-size: var(--font-title);
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.zones h4 {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+.zones-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.zones-note {
+  margin-top: var(--space-2) !important;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+/* Why something about a zone cannot be done or shown. A caution, so it takes the warning colour. */
+.zones-refusal {
+  margin-top: var(--space-2) !important;
+  color: var(--warning);
+  font-size: var(--font-caption);
+}
+
+/* The bar that names a new outline. */
+.zones-new {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.zones-new h4 {
+  margin-top: 0;
+}
+
+.zones-new .zones-actions {
+  margin-top: var(--space-3);
+}
+
+.zones-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+}
+
+.zones-name input {
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: var(--font-body);
+}
+
+/* The saved zones. */
+.zones-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zones-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-small);
+}
+
+.zones-item + .zones-item {
+  margin-top: 2px;
+}
+
+.zones-item:hover {
+  background: var(--surface-raised);
+}
+
+.zones-item-selected,
+.zones-item-selected:hover {
+  background: var(--surface-hover);
+}
+
+.zones-item-selected::before {
+  content: '';
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+.zones-item-name {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.zones-item-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  margin-right: var(--space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.zones-item-delete:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* The chosen zone and what the service said about it. */
+.zones-chosen-zone {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--divider);
+}
+
+.zones-summary-size {
+  margin-top: var(--space-3) !important;
+  color: var(--text-secondary);
+}
+
+.zones-heading {
+  margin-top: var(--space-4) !important;
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+.zones-rows {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One variable over the zone: its name and trend on the first line, the p-value and the interval under them. */
+.zones-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-top: 1px solid var(--divider);
+  background: transparent;
+  text-align: left;
+}
+
+.zones-rows li:first-child .zones-row {
+  border-top-color: transparent;
+}
+
+.zones-row:hover {
+  background: var(--surface-raised);
+}
+
+.zones-row-selected,
+.zones-row-selected:hover {
+  background: var(--surface-hover);
+}
+
+.zones-row-selected::before {
+  content: '';
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+.zones-row-name {
+  color: var(--text-primary);
+}
+
+.zones-row-trend {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A trend below the threshold is said in the primary colour. Everything else is quieter: not
+   significant, not to be taken at face value, or no trend at all. Direction takes no colour. */
+.zones-tone-trend {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.zones-tone-quiet,
+.zones-tone-caution,
+.zones-tone-none {
+  color: var(--text-secondary);
+}
+
+.zones-row-detail,
+.zones-row-interval {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.zones-row-interval {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The service's caution about a row: the one place on it the warning colour goes. */
+.zones-row-caution {
+  grid-column: 1 / -1;
+  color: var(--warning);
+}
+
+.zones-chosen-summary {
+  color: var(--text-primary);
+}
+
+.zones-limitations {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+}
+
+.zones-limitations li + li {
+  margin-top: var(--space-1);
+}
+
+/* The line in the Findings tab that says the list is limited to a zone. */
+.zones-limit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+}
+
+.zones-limit .button {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-caption);
+}

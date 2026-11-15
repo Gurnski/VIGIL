@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import type { GlobeMethods } from 'react-globe.gl';
 import { BufferAttribute, BufferGeometry, Color, Line, LineBasicMaterial, LineDashedMaterial } from 'three';
-import { missionSatellites, orbitPoint, phaseAt } from './satellite';
+import { orbitPoint, phaseAt } from './satellite';
 import type { Satellite } from './satellite';
 
 // A satellite whose data is in the scan takes the stronger colour, as in the desktop app.
@@ -31,6 +31,7 @@ export function useSatellites(
   ready: boolean,
   shown: boolean,
   elements: MutableRefObject<Map<string, HTMLElement>>,
+  missionSatellites: Satellite[],
 ): void {
   useEffect(() => {
     const globe = globeRef.current;
@@ -138,5 +139,5 @@ export function useSatellites(
         nadir.material.dispose();
       }
     };
-  }, [globeRef, ready, shown, elements]);
+  }, [globeRef, ready, shown, elements, missionSatellites]);
 }

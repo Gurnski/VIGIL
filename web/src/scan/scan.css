@@ -1,0 +1,202 @@
+/* "About this scan": a panel that slides over the right-hand side, full width on a phone. */
+
+.scan-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100vw);
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.scan-panel p,
+.scan-panel h2,
+.scan-panel h3,
+.scan-panel h4 {
+  margin: 0;
+}
+
+.scan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--divider);
+}
+
+.scan-header h2 {
+  font-size: var(--font-title);
+  font-weight: 600;
+}
+
+.scan-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.scan-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.scan-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.scan-synthetic {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4) !important;
+  color: var(--text-secondary);
+}
+
+.scan-section + .scan-section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--divider);
+}
+
+.scan-section h3 {
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+.scan-note {
+  margin-top: var(--space-2) !important;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.scan-section > .scan-note:first-of-type {
+  margin: 0 0 var(--space-2) !important;
+}
+
+.scan-facts {
+  margin: 0;
+}
+
+.scan-facts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.scan-facts dt {
+  color: var(--text-secondary);
+}
+
+.scan-facts dd {
+  margin: 0;
+}
+
+/* A table wider than a phone scrolls inside its own box, never the page. */
+.scan-table-scroll {
+  overflow-x: auto;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.scan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-caption);
+}
+
+.scan-table th,
+.scan-table td {
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--divider);
+  font-weight: 400;
+  text-align: right;
+  vertical-align: top;
+}
+
+.scan-table th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.scan-table thead th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.scan-table tbody th {
+  color: var(--text-primary);
+}
+
+.scan-source + .scan-source {
+  margin-top: var(--space-4);
+}
+
+.scan-source p {
+  color: var(--text-secondary);
+}
+
+.scan-source .scan-source-name {
+  color: var(--text-primary);
+}
+
+.scan-panel a {
+  color: var(--accent);
+}
+
+/* One variable's re-test: its second product, how the findings came out, and the rate to hold that against. */
+.scan-retest {
+  margin-top: var(--space-4);
+}
+
+.scan-retest h4 {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.scan-retest .scan-table {
+  margin-top: var(--space-3);
+}
+
+/* The share confirmed and the base rate sit in one block, so neither is read without the other. */
+.scan-rate {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.scan-rate p + p {
+  margin-top: var(--space-1);
+}
+
+/* The two downloads, side by side. */
+.scan-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}

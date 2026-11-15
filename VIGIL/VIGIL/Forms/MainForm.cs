@@ -21,44 +21,106 @@ namespace VIGIL.Forms
         private readonly ChatPanel chatPanel;
         private readonly VigilButton chatLauncher = new() { Variant = ButtonVariant.Secondary, IconGlyph = Icons.Chat, Text = "Ask the Detective" };
 
+        // The zones drawn on the globe, kept between sessions, and the service that works out their trends.
+        private readonly ZoneService zones = new();
+        private readonly ResultsClient service = new();
+
+        // Presenting: the app tells the service what is on show, and viewers opened from the service follow.
+        private readonly PresenterClient presenter = new();
+        private readonly VigilButton presentButton = new() { Variant = ButtonVariant.Ghost, IconGlyph = Icons.Share, Text = "Present" };
+        private readonly PresentPanel presentPanel = new() { Visible = false };
+        private readonly ToolTip presentTip = new();
+        private (string? FindingId, string? Variable, Zone? Zone) onShow;
+        private bool presenting;
+        private bool sendingShow;
+        private bool showChanged;
+
         /// <param name="results">The results loaded at startup, shared by the pages that show them.</param>
         public MainForm(ResultsDocument results)
         {
             InitializeComponent();
 
-            AddPage("overview", Icons.Home, "Overview",
-                () => new PlaceholderPage(Icons.Home, "Overview", "A summary of the variables you're watching will live here."));
-            AddPage("variables", Icons.List, "Variables",
-                () => new PlaceholderPage(Icons.List, "Variables", "Browse and pick Earth science variables to investigate."));
-            AddPage("trends", Icons.Chart, "Trends",
-                () => new PlaceholderPage(Icons.Chart, "Trends", "Time series, trend lines and significance tests for the chosen variables."));
+            AddPage("overview", Icons.Home, "Overview", () =>
+            {
+                var overview = new OverviewPage(results);
+                overview.FindingChosen += (s, id) => ShowEvidence(id);
+                overview.VariableChosen += (s, variable) => ShowLayer(variable);
+                overview.MapRequested += (s, e) => navRail.Select("map");
+                overview.EvidenceRequested += (s, e) => navRail.Select("evidence");
+                return overview;
+            });
+            AddPage("evidence", Icons.Chart, "Evidence", () =>
+            {
+                var evidence = new EvidencePage(results, service);
+                evidence.ShowOnMapRequested += (s, id) => ShowFinding(id);
+                evidence.AskRequested += (s, finding) => AskAbout(MapPage.Summarise(finding));
+                evidence.FindingShown += (s, finding) => PutOnShow(finding.Id, finding.Variables.FirstOrDefault()?.Id, null);
+                return evidence;
+            });
             AddPage("map", Icons.Globe, "Map", () =>
             {
-                var map = new MapPage(results);
+                var map = new MapPage(results, zones, service);
                 map.FindingClicked += (s, finding) => AskAbout(finding);
+                map.EvidenceRequested += (s, id) => ShowEvidence(id);
+                map.ShowingChanged += (s, e) => PutOnShow(map.ShownFindingId, map.ShownVariable, map.ShownZone);
                 return map;
             });
             AddPage("detective", Icons.Chat, "Detective", () =>
             {
                 var page = new DetectivePage(chats);
                 page.CitationClicked += (s, id) => ShowFinding(id);
+                page.StepClicked += (s, step) => ShowStep(step);
                 return page;
             });
             AddPage("components", Icons.Library, "Components", () => new GalleryPage());
+
+            if (!results.Synthetic)
+            {
+                // A real scan: the fixture's sample answers are about made-up cells, so they stay out of it,
+                // and the questions on offer are ones this scan can speak to. The last shows it declining.
+                chats.AllowSamples = false;
+                chats.Suggestions = new[]
+                {
+                    "Where is it warming fastest?",
+                    "Where is rainfall falling fastest, and how sure is that?",
+                    "What is the top-ranked finding, and how sure is it?",
+                    "What will the weather be like in Plymouth tomorrow?"
+                };
+            }
 
             chatPanel = new ChatPanel(chats) { Visible = false };
             chatPanel.CloseRequested += (s, e) => SetChatOpen(false);
             chatPanel.ExpandRequested += (s, e) => OpenChatInPage();
             chatPanel.CitationClicked += (s, id) => ShowFinding(id);
+            chatPanel.StepClicked += (s, step) => ShowStep(step);
+            chats.Answered += Chats_Answered;
             chatLauncher.Click += (s, e) => SetChatOpen(!chatPanel.Visible);
             Controls.Add(chatLauncher);
             Controls.Add(chatPanel);
             chatLauncher.BringToFront();
             chatPanel.BringToFront();
 
+            presentButton.Click += PresentButton_Click;
+            presentPanel.StopRequested += (s, e) => StopPresenting();
+            presentPanel.CloseRequested += (s, e) => presentPanel.Visible = false;
+            presentTip.SetToolTip(presentButton, "Let other people's screens follow yours. Needs the analysis service.");
+            Controls.Add(presentButton);
+            Controls.Add(presentPanel);
+            presentButton.BringToFront();
+            presentPanel.BringToFront();
+            FormClosing += (s, e) =>
+            {
+                if (presenting)
+                {
+                    // Nobody should be left following a presenter who has gone. One short try, then the window closes anyway.
+                    try { Task.Run(() => presenter.StopAsync()).Wait(TimeSpan.FromSeconds(1)); } catch (AggregateException) { }
+                }
+            };
+
             navRail.SelectedChanged += NavRail_SelectedChanged;
             navRail.SizeChanged += (s, e) => PlaceChat();
-            navRail.Select("components");
+            // The app opens on what the scan found. The Components page is still in the rail, for whoever is building.
+            navRail.Select("overview");
             FitToWidth();
         }
 
@@ -68,11 +130,125 @@ namespace VIGIL.Forms
             bool onDetectivePage = navRail.SelectedKey == "detective";
             chatLauncher.Visible = !onDetectivePage;
             chatPanel.Visible = open && !onDetectivePage;
+            if (chatPanel.Visible)
+            {
+                presentPanel.Visible = false;            // the two cards share the same corner
+            }
             PlaceChat();
             if (chatPanel.Visible)
             {
                 chatPanel.BringToFront();
                 chatPanel.FocusInput();
+            }
+        }
+
+        // ----- Presenting -----
+
+        /// <summary>Notes what is on show. While presenting, the service is told, and the audience's screens follow.</summary>
+        private void PutOnShow(string? findingId, string? variable, Zone? zone)
+        {
+            onShow = (findingId, variable, zone);
+            if (presenting)
+            {
+                _ = SendShowAsync();
+            }
+        }
+
+        /// <summary>
+        ///  Sends what is on show, one call at a time and always ending with the latest: quick
+        ///  clicks down a list must not reach the audience out of order.
+        /// </summary>
+        private async Task SendShowAsync()
+        {
+            showChanged = true;
+            if (sendingShow)
+            {
+                return;
+            }
+            sendingShow = true;
+            try
+            {
+                while (showChanged && presenting)
+                {
+                    showChanged = false;
+                    await presenter.ShowAsync(onShow.FindingId, onShow.Variable, onShow.Zone);
+                }
+            }
+            catch (ServiceUnavailableException error)
+            {
+                StopPresenting(error.Message + " Presenting has stopped.");
+            }
+            finally
+            {
+                sendingShow = false;
+            }
+        }
+
+        private async void PresentButton_Click(object? sender, EventArgs e)
+        {
+            if (presenting)
+            {
+                // Already presenting: the button brings the card with the address back.
+                ShowPresentPanel(!presentPanel.Visible);
+                return;
+            }
+
+            presentButton.Enabled = false;
+            try
+            {
+                var state = await presenter.ShowAsync(onShow.FindingId, onShow.Variable, onShow.Zone);
+                presenting = true;
+                presentButton.Variant = ButtonVariant.Secondary;
+                presentPanel.SetAddresses(PresenterClient.JoinAddresses(presenter.Address), state.OpenToNetwork);
+            }
+            catch (ServiceUnavailableException error)
+            {
+                presentPanel.SetProblem(error.Message + " Presenting goes through the analysis service, so start it and try again.");
+            }
+            finally
+            {
+                presentButton.Enabled = true;
+            }
+            ShowPresentPanel(true);
+        }
+
+        private void ShowPresentPanel(bool show)
+        {
+            presentPanel.Visible = show;
+            if (show)
+            {
+                chatPanel.Visible = false;
+                presentPanel.BringToFront();
+            }
+            PlaceChat();
+        }
+
+        /// <summary>Stops presenting, with a reason to show when it was not the presenter's choice.</summary>
+        private async void StopPresenting(string? reason = null)
+        {
+            bool was = presenting;
+            presenting = false;
+            presentButton.Variant = ButtonVariant.Ghost;
+            if (reason != null)
+            {
+                presentPanel.SetProblem(reason);
+                ShowPresentPanel(true);
+            }
+            else
+            {
+                presentPanel.Visible = false;
+            }
+            PlaceChat();
+            if (was && reason == null)
+            {
+                try
+                {
+                    await presenter.StopAsync();
+                }
+                catch (ServiceUnavailableException)
+                {
+                    // The service has gone, so there is nobody left following.
+                }
             }
         }
 
@@ -105,6 +281,50 @@ namespace VIGIL.Forms
             }
         }
 
+        /// <summary>Shows on the map where one of the Detective's lookups looked, or the findings it returned.</summary>
+        private void ShowStep(AskStep step)
+        {
+            navRail.Select("map");
+            if (openedPages.TryGetValue("map", out var page) && page is MapPage map)
+            {
+                map.ShowStep(step);
+            }
+        }
+
+        /// <summary>
+        ///  An answer has arrived. When the map is the page on screen, the findings it cites are
+        ///  marked there and the globe goes to the first, so the answer and the evidence are seen
+        ///  together. On any other page nothing moves: the citations are there to click.
+        /// </summary>
+        private void Chats_Answered(object? sender, ChatMessage answer)
+        {
+            if (answer.Citations.Count > 0 && navRail.SelectedKey == "map"
+                && openedPages.TryGetValue("map", out var page) && page is MapPage map)
+            {
+                map.ShowCited(answer.Citations.Select(citation => citation.FindingId).ToList());
+            }
+        }
+
+        /// <summary>Opens the map on one variable's layer.</summary>
+        private void ShowLayer(string variable)
+        {
+            navRail.Select("map");
+            if (openedPages.TryGetValue("map", out var page) && page is MapPage map)
+            {
+                map.ShowLayer(variable);
+            }
+        }
+
+        /// <summary>Opens a finding's evidence: its series, figures, method, sources and limits.</summary>
+        private void ShowEvidence(string findingId)
+        {
+            navRail.Select("evidence");
+            if (openedPages.TryGetValue("evidence", out var page) && page is EvidencePage evidence)
+            {
+                evidence.ShowFinding(findingId);
+            }
+        }
+
         /// <summary>
         ///  The launcher sits top-right of the page, level with its title, and the panel hangs
         ///  below it. Both stay inside the window however small it gets.
@@ -131,6 +351,21 @@ namespace VIGIL.Forms
             }
             var launcher = new Size(compact ? Px(Theme.ControlHeight) : Px(172), Px(Theme.ControlHeight));
             chatLauncher.Bounds = new Rectangle(right - launcher.Width, top, launcher.Width, launcher.Height);
+
+            // The Present button sits to the launcher's left, and its card hangs where the chat does.
+            string presentLabel = compact ? "" : presenting ? "Presenting" : "Present";
+            if (presentButton.Text != presentLabel)
+            {
+                presentButton.Text = presentLabel;
+            }
+            int presentWidth = compact ? Px(Theme.ControlHeight) : Px(presenting ? 132 : 108);
+            presentButton.Bounds = new Rectangle(chatLauncher.Left - Px(Theme.Space2) - presentWidth, top, presentWidth, launcher.Height);
+            int cardWidth = Math.Min(Px(440), right - left);
+            if (presentPanel.Width != cardWidth)
+            {
+                presentPanel.Width = Math.Max(0, cardWidth);
+            }
+            presentPanel.Location = new Point(right - presentPanel.Width, chatLauncher.Bottom + Px(Theme.Space2));
 
             int panelTop = chatLauncher.Bottom + Px(Theme.Space2);
             int width = Math.Min(Px(400), right - left);

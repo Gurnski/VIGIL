@@ -26,6 +26,9 @@ namespace VIGIL.Pages
         /// <summary>Raised with the finding id when a cited finding is clicked.</summary>
         public event EventHandler<string>? CitationClicked;
 
+        /// <summary>Raised when one of the Detective's lookups is clicked.</summary>
+        public event EventHandler<AskStep>? StepClicked;
+
         public DetectivePage(ChatService service)
         {
             this.service = service;
@@ -35,6 +38,7 @@ namespace VIGIL.Pages
             header.Height = Px(72);
             view = new ChatView(service) { BackColor = Theme.Surface, Gutter = Theme.Space6 };
             view.CitationClicked += (s, id) => CitationClicked?.Invoke(this, id);
+            view.StepClicked += (s, step) => StepClicked?.Invoke(this, step);
 
             listScroller.Controls.Add(list);
             listScroller.ClientSizeChanged += (s, e) => list.Width = listScroller.ClientSize.Width;

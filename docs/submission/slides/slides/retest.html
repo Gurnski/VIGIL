@@ -1,0 +1,14 @@
+<section id="retest" data-transition="fade">
+<p class="eyebrow">Testing again</p>
+<h2>Each trend is tested on a second record</h2>
+<table>
+<tr class="band"><th style="width:31%">Variable, second product</th><th style="width:10%">Trends</th><th style="width:12%">Confirmed</th><th style="width:17%">Same way, not significant</th><th style="width:11%">Opposite</th><th style="width:19%">Where the scan found nothing</th></tr>
+<tr><td>Air temperature, GISTEMP</td><td>888</td><td>828</td><td>6</td><td>54</td><td>1,092 of 1,448</td></tr>
+<tr class="band"><td>Precipitation, GPCP</td><td>269</td><td>229</td><td>40</td><td>0</td><td>374 of 2,067</td></tr>
+<tr><td>Soil moisture, MERRA-2 land</td><td>784</td><td>227</td><td>272</td><td>284</td><td>504 of 1,508</td></tr>
+<tr class="band"><td>Vegetation, Aqua MODIS</td><td>632</td><td>520</td><td>70</td><td>25</td><td>179 of 706</td></tr>
+<tr><td>Sea surface temperature, GISTEMP</td><td>2,474</td><td>2,222</td><td>247</td><td>5</td><td>619 of 2,460</td></tr>
+</table>
+<p class="small">Read the last column first: it is how often the second product is significant in cells where the scan found no trend. GISTEMP is significant in three quarters of land cells whatever the scan found, so a confirmation there says little. For precipitation, vegetation and the sea it is about a quarter or less, so a confirmation says much more.</p>
+<aside>Confirmed means the same sign and significant on its own, in the same cell, with the same test. Soil moisture: two land models that disagree about direction in 284 of 784 cells, so we call it the variable to trust least. The 54 opposites in air temperature are every cooling trend the scan found: GISTEMP is smoothed over 1,200 km and warming nearly everywhere, so it would contradict almost any local cooling. That is a caution on those findings, not a verdict. 18 trends could not be tested for lack of data: 17 in vegetation and 1 in soil moisture. Snow cover, chlorophyll and earthquakes have no second record and stay exploratory.</aside>
+</section>

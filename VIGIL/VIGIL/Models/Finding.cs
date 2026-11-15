@@ -150,9 +150,43 @@ namespace VIGIL.Models
 
     public sealed class Standing
     {
-        /// <summary>"exploratory" or "retested".</summary>
+        /// <summary>"exploratory" or "retested". Only a re-test that confirmed the trend sets "retested".</summary>
         public string Status { get; set; } = "";
 
         public List<string> Limitations { get; set; } = new();
+
+        /// <summary>What a re-test on a second product found. Null when none was tried.</summary>
+        public Retest? Retest { get; set; }
+    }
+
+    /// <summary>
+    ///  A trend finding tested again on a second product for the same variable. See "standing
+    ///  and re-testing" in the contract. Everything after <see cref="Product"/> is null when
+    ///  the outcome is "not_possible".
+    /// </summary>
+    public sealed class Retest
+    {
+        public const string Confirmed = "confirmed";
+        public const string SameDirection = "same_direction";
+        public const string Opposite = "opposite";
+        public const string NotPossible = "not_possible";
+
+        /// <summary>"confirmed", "same_direction", "opposite" or "not_possible".</summary>
+        public string Outcome { get; set; } = "";
+
+        public Variable Product { get; set; } = new();
+
+        /// <summary>"increasing" or "decreasing": the sign of the second record's slope.</summary>
+        public string? Direction { get; set; }
+
+        /// <summary>The second record's trend, in its own units, which may not be the finding's.</summary>
+        public double? SlopePerDecade { get; set; }
+        public double? CiLow { get; set; }
+        public double? CiHigh { get; set; }
+        public double? CiLevel { get; set; }
+        public string? Units { get; set; }
+        public double? PValue { get; set; }
+        public int? MonthsPresent { get; set; }
+        public int? MonthsExpected { get; set; }
     }
 }

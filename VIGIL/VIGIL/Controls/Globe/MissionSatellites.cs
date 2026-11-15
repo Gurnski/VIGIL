@@ -7,7 +7,16 @@ namespace VIGIL.Controls.Globe
     ///  What the app says about a satellite when it is clicked. Carried in the satellite's
     ///  <see cref="GlobeSatellite.Tag"/>.
     /// </summary>
-    public sealed record MissionInfo(string Operator, string Launched, string Instrument, string Role, bool InScan, string PictureResource);
+    public sealed record MissionInfo(string Operator, string Launched, string Instrument, string Role, bool InScan, string PictureResource)
+    {
+        /// <summary>True when a second product the scan's trends were re-tested on comes from this satellite.</summary>
+        public bool Retests { get; init; }
+
+        /// <summary>Where the satellite stands with the results on screen, in a line.</summary>
+        public string Standing => InScan ? "Its data is in the scan"
+            : Retests ? "Not in the scan: its record re-tests one the scan uses"
+            : "Not in the scan: behind a source kept for cross-checks";
+    }
 
     /// <summary>
     ///  The satellites behind VIGIL's data, for drawing on the globe. The web viewer has the
@@ -30,27 +39,43 @@ namespace VIGIL.Controls.Globe
         private static readonly Dictionary<string, Image?> pictures = new();
 
         /// <summary>
-        ///  A new set of satellites. Those whose data is in the first scan take the stronger
-        ///  colour; those behind sources kept for cross-checks take the quieter one.
+        ///  A new set of satellites for the results on screen. A satellite is in the scan when one
+        ///  of the scan's variables names it as its mission, and it re-tests when a second product
+        ///  does. So the same list is right for the fixture, for a scan of four variables and for
+        ///  one of eight. Those in the scan take the stronger colour and the rest the quieter one.
+        ///  With no results given, each keeps the standing written beside it below.
         /// </summary>
-        public static IReadOnlyList<GlobeSatellite> Create()
+        public static IReadOnlyList<GlobeSatellite> Create(IReadOnlyCollection<string>? scanMissions = null, IReadOnlyCollection<string>? retestMissions = null)
+        {
+            return All().Select(satellite =>
+            {
+                var info = (MissionInfo)satellite.Tag!;
+                bool Named(IReadOnlyCollection<string>? missions) =>
+                    missions != null && missions.Any(mission => mission.Contains(satellite.Label.Split(' ')[0], StringComparison.OrdinalIgnoreCase));
+                var standing = scanMissions == null ? info : info with { InScan = Named(scanMissions), Retests = !Named(scanMissions) && Named(retestMissions) };
+                satellite.Tag = standing;
+                satellite.Colour = standing.InScan ? Theme.Positive : Theme.TextSecondary;
+                return satellite;
+            }).ToList();
+        }
+
+        private static GlobeSatellite[] All()
         {
             return new[]
             {
-                // In the first scan.
                 // Terra crosses the equator southbound at 10:30, so northbound at 22:30.
                 Build("Terra", 98.2, 705, nodeLocalTime: 22.5, info: new MissionInfo(
                     "NASA", "18 December 1999", "MODIS, with ASTER, CERES, MISR and MOPITT",
-                    "Carries MODIS, the source of the vegetation (NDVI) record.", true, "terra.png")),
+                    "Carries MODIS, which VIGIL reads for vegetation (NDVI) and for snow cover.", true, "terra.png")),
                 // Not sun-synchronous: its plane drifts round the Earth, so this starting angle is arbitrary.
                 Build("GPM Core Observatory", 65, 407, nodeDegrees: 40, phase: 120, info: new MissionInfo(
                     "NASA and JAXA", "27 February 2014", "GMI microwave imager and DPR radar",
                     "The reference satellite of GPM IMERG, the source of the precipitation record.", true, "gpm.png")),
 
-                // Behind the sources the brief keeps for cross-checks. Not in the scan.
                 Build("Aqua", 98.2, 705, nodeLocalTime: 13.5, phase: 200, info: new MissionInfo(
                     "NASA", "4 May 2002", "MODIS, with AIRS, AMSU and CERES",
-                    "Carries a second MODIS, for checking a vegetation trend against Terra's.", false, "aqua.png")),
+                    "Carries a second MODIS, which VIGIL reads for sea surface temperature and chlorophyll, and for a second vegetation record to test Terra's against.", false, "aqua.png")),
+                // Behind the sources the brief keeps for cross-checks.
                 Build("Suomi NPP", 98.7, 824, nodeLocalTime: 13.5, phase: 75, info: new MissionInfo(
                     "NASA and NOAA", "28 October 2011", "VIIRS, with CrIS, ATMS, OMPS and CERES",
                     "Carries VIIRS, which continues the MODIS vegetation record.", false, "suomi-npp.jpg")),

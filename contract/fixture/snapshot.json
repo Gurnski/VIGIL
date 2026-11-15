@@ -1131,7 +1131,27 @@
       },
       "standing": {
         "status": "retested",
-        "limitations": ["Synthetic fixture value. Not a real result.", "Re-tested on the years 2014 to 2025 held out from the scan. The sign and the significance held."]
+        "limitations": ["Synthetic fixture value. Not a real result.", "Re-tested on GPCP: the second record has a significant trend in the same direction.", "GPCP and IMERG are both satellite estimates adjusted to rain gauges, and they share gauge data and some satellite inputs. Agreement between them is weaker evidence than agreement with a record made another way."],
+        "retest": {
+          "outcome": "confirmed",
+          "product": {
+            "mission": "GPCP v3.3",
+            "product": "GPCPMON",
+            "field": "sat_gauge_precip",
+            "units": "mm per month",
+            "source_url": "https://search.earthdata.nasa.gov/search?q=GPCPMON",
+            "native_resolution": "0.5 degrees, monthly"
+          },
+          "direction": "increasing",
+          "slope_per_decade": 4.40478,
+          "ci_low": 1.94815,
+          "ci_high": 7.13608,
+          "ci_level": 0.95,
+          "units": "mm per month per decade",
+          "p_value": 0.00281515,
+          "months_present": 300,
+          "months_expected": 300
+        }
       }
     },
     {

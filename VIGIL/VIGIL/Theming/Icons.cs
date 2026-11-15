@@ -47,5 +47,8 @@ namespace VIGIL.Theming
         public const string Chat = "";
         public const string Send = "";
         public const string FullScreen = "";
+        public const string Edit = "\uE70F";
+        public const string Share = "\uE72D";
+        public const string Pause = "\uE769";
     }
 }

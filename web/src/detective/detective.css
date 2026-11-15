@@ -166,8 +166,102 @@
   text-align: left;
 }
 
-.detective-citation:hover {
+.detective-citation:hover:not(:disabled) {
   background: var(--surface-hover);
+}
+
+.detective-citation:disabled {
+  cursor: default;
+}
+
+/* A citation with "Show on globe" under it. */
+.detective-citation-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.detective-show {
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+.detective-show:hover {
+  background: var(--surface-hover);
+}
+
+/* How the Detective looked an answer up: closed until asked for. */
+.detective-steps {
+  margin-top: var(--space-1);
+}
+
+.detective-steps summary {
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detective-steps summary:hover {
+  color: var(--text-primary);
+}
+
+.detective-steps-note {
+  margin-top: var(--space-1) !important;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.detective-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detective-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--font-caption);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.detective-step-button:hover {
+  background: var(--surface-hover);
+}
+
+.detective-step-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--text-secondary);
+}
+
+.detective-step-detail:empty {
+  display: none;
+}
+
+/* What a click on the step does. */
+.detective-step-action {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .detective-citation-name {
@@ -223,6 +317,33 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
   font-size: var(--font-caption);
+}
+
+/* Questions to send about the attached finding: the user picks one, and it is sent as written. */
+.detective-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.detective-followup {
+  min-height: 28px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-caption);
+  text-align: left;
+}
+
+.detective-followup:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.detective-followup:disabled {
+  color: var(--text-disabled);
+  cursor: default;
 }
 
 .detective-chip-label {

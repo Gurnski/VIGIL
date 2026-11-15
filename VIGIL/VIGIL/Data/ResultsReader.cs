@@ -41,6 +41,33 @@ namespace VIGIL.Data
             return document;
         }
 
+        /// <summary>The name of a results file the app looks for in its own folder.</summary>
+        public const string BesideName = "snapshot.json";
+
+        /// <summary>
+        ///  A stored scan sitting beside the app, or null when there is none that can be read. The
+        ///  download carries one, so a person who only has the exe and that file still sees the
+        ///  real findings. It is a results document like any other and says itself whether it is made up.
+        /// </summary>
+        public static ResultsDocument? ReadBeside(string? folder = null)
+        {
+            string path = Path.Combine(folder ?? AppContext.BaseDirectory, BesideName);
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+            try
+            {
+                using var stream = File.OpenRead(path);
+                return Read(stream);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+            {
+                // A file that cannot be read is treated as not there: the app then opens on its own snapshot, which says it is made up.
+                return null;
+            }
+        }
+
         /// <summary>The snapshot the app keeps for running without the service.</summary>
         public static ResultsDocument ReadSnapshot()
         {

@@ -32,8 +32,13 @@ export interface Satellite {
   instrument: string;
   /** A public domain NASA picture of it. Credits are in assets/satellites/README.md. */
   picture: string;
-  /** True when its data is in the first scan, false when it is behind a source kept for cross-checks. */
+  /**
+   * True when its data is in the scan, false when it is not. The value written in the list
+   * below is only a starting point: satellitesFor works it out from the results on screen.
+   */
   inScan: boolean;
+  /** True when a second product the scan's trends were re-tested on comes from this satellite. */
+  retests?: boolean;
   inclinationDegrees: number;
   altitudeKm: number;
   /**
@@ -56,11 +61,10 @@ export const satelliteCaveat = "Each orbit is the mission's real one. Places alo
  * are models, not single spacecraft, so they have no orbit to draw.
  */
 export const missionSatellites: Satellite[] = [
-  // In the first scan.
   {
     id: 'terra',
     label: 'Terra',
-    detail: 'Carries MODIS, the source of the vegetation (NDVI) record.',
+    detail: 'Carries MODIS, which VIGIL reads for vegetation (NDVI) and for snow cover.',
     operator: 'NASA',
     launched: '18 December 1999',
     instrument: 'MODIS, with ASTER, CERES, MISR and MOPITT',
@@ -87,11 +91,11 @@ export const missionSatellites: Satellite[] = [
     phaseAtEpochDegrees: 120,
   },
 
-  // Behind the sources the brief keeps for cross-checks. Not in the scan.
   {
     id: 'aqua',
     label: 'Aqua',
-    detail: "Carries a second MODIS, for checking a vegetation trend against Terra's.",
+    detail:
+      "Carries a second MODIS, which VIGIL reads for sea surface temperature and chlorophyll, and for a second vegetation record to test Terra's against.",
     operator: 'NASA',
     launched: '4 May 2002',
     instrument: 'MODIS, with AIRS, AMSU and CERES',
@@ -102,6 +106,7 @@ export const missionSatellites: Satellite[] = [
     ascendingNodeLocalTime: 13.5,
     phaseAtEpochDegrees: 200,
   },
+  // Behind the sources the brief keeps for cross-checks.
   {
     id: 'suomi-npp',
     label: 'Suomi NPP',
@@ -146,6 +151,32 @@ export const missionSatellites: Satellite[] = [
     phaseAtEpochDegrees: 30,
   },
 ];
+
+/**
+ * The satellites for the results on screen. A satellite is in the scan when one of the scan's
+ * variables names it as its mission, and it re-tests when a second product does. The same
+ * rule as the desktop app's MissionSatellites.Create.
+ */
+export function satellitesFor(scanMissions: string[], retestMissions: string[]): Satellite[] {
+  const named = (satellite: Satellite, missions: string[]) => {
+    const name = satellite.label.split(' ')[0].toLowerCase();
+    return missions.some((mission) => mission.toLowerCase().includes(name));
+  };
+  return missionSatellites.map((satellite) => {
+    const inScan = named(satellite, scanMissions);
+    return { ...satellite, inScan, retests: !inScan && named(satellite, retestMissions) };
+  });
+}
+
+/** Where a satellite stands with the results on screen, in a line. */
+export function standingText(satellite: Satellite): string {
+  if (satellite.inScan) {
+    return 'Its data is in the scan';
+  }
+  return satellite.retests
+    ? 'Not in the scan: its record re-tests one the scan uses'
+    : 'Not in the scan: behind a source kept for cross-checks';
+}
 
 export interface OrbitPoint {
   lat: number;

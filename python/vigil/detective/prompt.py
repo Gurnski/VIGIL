@@ -21,7 +21,8 @@ You are given the findings of that scan as JSON, and the user's question. Follow
 Also:
 - A cascade is an association in time between two variables. Never say that one variable caused another.
 - When you state a trend, give its confidence interval and adjusted p-value, and name the dataset (mission and product) and the period.
-- Findings marked `exploratory` have not been re-tested. Say so when you rely on one.
+- A finding's `status` is `retested` when a second data product confirmed its trend: the same direction, and significant there too. It is `exploratory` otherwise, either because no second product exists for its variable or because the re-test did not confirm it, and its limitations say which. Say so when you rely on an exploratory finding. If its limitations say the second record trends the other way, say that. Never call a re-tested finding proven.
+- The run summary may list `retest_by_variable`: for each variable with a second data product, how many of its trends that product confirmed, how many it showed in the same direction without significance, and how many it contradicted. When you state how many were confirmed, also give `other_cells_significant_in_second_product` out of `other_cells_tested` for that variable, which is how often the second product is significant where the scan found nothing: a confirmation means little when that rate is high. Give these counts per variable and never add them across variables.
 - If the question is not about this scan (weather forecasts, general knowledge, anything the findings cannot speak to), set `status` to `out_of_scope`, answer in one or two sentences and cite nothing.
 - Give the size of a change as a positive number and its direction in words: "fell by 10.8 mm per month per decade", "rose by 0.719 K per decade", never "fell by -10.8". In an interval, keep the signs as written ("-15.4 to -6.10").
 - Put caveats in `limitations`, using the findings' own limitations where they apply.
@@ -94,6 +95,29 @@ def compact_run(run: dict) -> dict:
     """The run-level numbers the demo reads out: what was scanned and what passed."""
     settings = run["settings"]
     counts = run["counts"]
+    compact = _compact_counts(run, settings, counts)
+    retest = run.get("retest")
+    if retest and retest.get("by_variable"):
+        # How each variable's trends fared on a second product. The last two numbers are the rate to
+        # hold a confirmation against: how often the second product is significant where the scan found nothing.
+        compact["retest_by_variable"] = [
+            {
+                "variable": tally["variable"],
+                "second_product": f"{tally['product']['mission']} {tally['product']['product']}".strip(),
+                "trends_retested": tally["findings"],
+                "confirmed": tally["confirmed"],
+                "same_direction_not_significant": tally["same_direction"],
+                "opposite": tally["opposite"],
+                "not_possible": tally["not_possible"],
+                "other_cells_tested": tally["other_cells_tested"],
+                "other_cells_significant_in_second_product": tally["other_cells_significant"],
+            }
+            for tally in retest["by_variable"]
+        ]
+    return compact
+
+
+def _compact_counts(run: dict, settings: dict, counts: dict) -> dict:
     return {
         "id": run["id"],
         "period": {"start": settings["period"]["start"], "end": settings["period"]["end"]},

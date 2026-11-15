@@ -146,6 +146,30 @@ def test_get_finding_for_an_unknown_id_is_an_error_the_model_can_read(store):
     assert run_tool(store, "get_finding", {})[1]
 
 
+def test_run_summary_gives_each_variables_retest_with_its_base_rate():
+    from vigil.detective.prompt import compact_run
+
+    run = {
+        "id": "scan-test",
+        "settings": {"period": {"start": "2001-01-01", "end": "2025-12-01"}, "grid": {"cell_degrees": 2.5}, "threshold": 0.05,
+                     "multiple_testing": "benjamini_hochberg", "ci_level": 0.95},
+        "counts": {"cells_total": 10, "cells_scanned": 8, "tests_run": 8, "tests_significant": 3, "tests_not_significant": 5,
+                   "tests_skipped": 2, "skipped_by_reason": {"ocean": 2}},
+        "retest": {"rule": "the rule", "by_variable": [{
+            "variable": "precipitation", "product": {"mission": "GPCP v3.3", "product": "GPCPMON"}, "in_common": "both use gauges",
+            "findings": 269, "confirmed": 229, "same_direction": 40, "opposite": 0, "not_possible": 0,
+            "other_cells": 2067, "other_cells_tested": 2067, "other_cells_significant": 374}]},
+    }
+    summary = compact_run(run)
+    assert summary["retest_by_variable"] == [{
+        "variable": "precipitation", "second_product": "GPCP v3.3 GPCPMON", "trends_retested": 269, "confirmed": 229,
+        "same_direction_not_significant": 40, "opposite": 0, "not_possible": 0,
+        "other_cells_tested": 2067, "other_cells_significant_in_second_product": 374}]
+    # A scan that was never re-tested has no such list, and nothing else about the summary changes.
+    del run["retest"]
+    assert "retest_by_variable" not in compact_run(run) and compact_run(run)["tests_run"] == 8
+
+
 def test_run_summary_has_the_counts_the_demo_reads_out(store, snapshot):
     result, is_error = run_tool(store, "get_run_summary", {})
     assert not is_error

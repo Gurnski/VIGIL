@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Numerics;
+using VIGIL.Data;
 using VIGIL.Theming;
 
 namespace VIGIL.Controls.Globe
@@ -12,7 +13,8 @@ namespace VIGIL.Controls.Globe
     ///  Interactive 3D globe rendered in software from NASA Blue Marble and Black Marble imagery,
     ///  with Google Earth style handling: grab-and-drag rotation with inertia, wheel zoom anchored
     ///  under the cursor, right-drag (or Ctrl+drag) to tilt and turn, double-click and FlyTo
-    ///  flights along great circles, Shift+drag to select a lat/lon box, and a HUD with a
+    ///  flights along great circles, Shift+drag to select a lat/lon box, a pen mode for drawing
+    ///  a zone of any shape, and a HUD with a
     ///  compass, zoom buttons and a cursor read-out. Overlays show where satellite data is:
     ///  markers with labels and tooltips, regions, a gridded colour layer such as a trend per
     ///  cell, satellites on their orbits and measured ground tracks.
@@ -56,7 +58,7 @@ namespace VIGIL.Controls.Globe
             public float HeadingDelta;
         }
 
-        private enum DragMode { None, Grab, Orbit, Select }
+        private enum DragMode { None, Grab, Orbit, Select, Draw }
         private enum HudButton { None, ZoomIn, ZoomOut, Home, Compass }
 
         private readonly GlobeRenderer renderer = new();
@@ -64,6 +66,12 @@ namespace VIGIL.Controls.Globe
         private readonly Stopwatch clock = Stopwatch.StartNew();
         private readonly List<GlobeMarker> markers = new();
         private readonly List<GlobeRegion> regions = new();
+        private readonly List<GlobeZone> zones = new();
+        // The outline being drawn in pen mode, with continuous longitudes, and whether the pen has been lifted.
+        private readonly List<(double Latitude, double Longitude)> stroke = new();
+        private bool strokeFinished;
+        private Point lastStrokePoint;
+        private bool penMode;
         private readonly List<(GlobeMarker Marker, PointF Screen, float Facing)> markerHits = new();
         private readonly List<RectangleF> labelBoxes = new();
         private readonly Dictionary<HudButton, RectangleF> hudButtons = new();
@@ -82,6 +90,9 @@ namespace VIGIL.Controls.Globe
         private float inertiaLongitude;
 
         private GridOverlay? grid;
+        private readonly GlobeRelief reliefColumns = new();
+        private bool relief;
+        private float reliefHeight = 0.09f;
         private float gridOpacity = 0.75f;
         private GlobeGroundTrack? groundTrack;
         private readonly List<GlobeSatellite> satellites = new();
@@ -147,6 +158,18 @@ namespace VIGIL.Controls.Globe
         public event EventHandler? ViewChanged;
         public event EventHandler? GridOverlayChanged;
         public event EventHandler? SelectedMarkerChanged;
+
+        /// <summary>Raised when the pen is lifted after drawing an outline. The outline stays on the globe until <see cref="ClearStroke"/>.</summary>
+        public event EventHandler<ZoneDrawnEventArgs>? ZoneDrawn;
+
+        /// <summary>Raised when the surface inside a zone is clicked.</summary>
+        public event EventHandler<ZoneEventArgs>? ZoneClicked;
+
+        /// <summary>Raised when <see cref="PenMode"/> changes, including when Escape switches it off.</summary>
+        public event EventHandler? PenModeChanged;
+
+        /// <summary>Raised when a drawn outline is removed, by <see cref="ClearStroke"/> or by Escape.</summary>
+        public event EventHandler? StrokeCleared;
 
         public GlobeControl()
         {
@@ -223,6 +246,26 @@ namespace VIGIL.Controls.Globe
             set { showStars = value; MarkSceneDirty(); }
         }
 
+        /// <summary>
+        ///  Draws the grid overlay as columns standing on the globe, each as tall as its value is
+        ///  large against the colour scale's range. Only another way of drawing the layer: the
+        ///  flat layer stays underneath and nothing new is shown.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool Relief
+        {
+            get => relief;
+            set { relief = value; Invalidate(); }
+        }
+
+        /// <summary>The height of the tallest column, in planet radii.</summary>
+        [DefaultValue(0.09f)]
+        public float ReliefHeight
+        {
+            get => reliefHeight;
+            set { reliefHeight = Math.Clamp(value, 0.01f, 0.3f); Invalidate(); }
+        }
+
         /// <summary>Faint latitude and longitude lines, spaced more finely as you zoom in.</summary>
         [DefaultValue(false)]
         public bool ShowGraticule
@@ -269,6 +312,36 @@ namespace VIGIL.Controls.Globe
         {
             get => flyToMarkerOnClick;
             set => flyToMarkerOnClick = value;
+        }
+
+        /// <summary>
+        ///  While on, dragging with the left button draws an outline on the surface instead of
+        ///  turning the globe, and the globe stops rotating by itself. Right-drag, the wheel and
+        ///  the keys still move the view. Lifting the pen raises <see cref="ZoneDrawn"/>.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool PenMode
+        {
+            get => penMode;
+            set
+            {
+                if (penMode == value)
+                {
+                    return;
+                }
+                penMode = value;
+                if (!value && drag == DragMode.Draw)
+                {
+                    drag = DragMode.None;
+                    Capture = false;
+                    stroke.Clear();
+                }
+                Cursor = value ? Cursors.Cross : Cursors.Default;
+                NoteInteraction();
+                UpdateFrameClock();
+                Invalidate();
+                PenModeChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         /// <summary>Opacity of the gridded overlay, 0 to 1. Changing it doesn't rebuild the grid.</summary>
@@ -318,6 +391,9 @@ namespace VIGIL.Controls.Globe
 
         [Browsable(false)]
         public IReadOnlyList<GlobeRegion> Regions => regions;
+
+        [Browsable(false)]
+        public IReadOnlyList<GlobeZone> Zones => zones;
 
         [Browsable(false)]
         public GlobeMarker? SelectedMarker => selectedMarker;
@@ -453,6 +529,19 @@ namespace VIGIL.Controls.Globe
             UpdateFrameClock();
         }
 
+        /// <summary>
+        ///  Leans the camera over, easing there: 0 looks straight down, and the limit is the same
+        ///  as a right-drag's. Position and heading are kept.
+        /// </summary>
+        public void TiltTo(double degrees)
+        {
+            CancelFlightAndInertia();
+            target.Tilt = (float)Math.Clamp(degrees, 0, GlobeCamera.MaxTilt);
+            easing = true;
+            NoteInteraction();
+            UpdateFrameClock();
+        }
+
         /// <summary>Latitude and longitude under a point in the control, if it's on the planet.</summary>
         public bool TryGetSurfacePoint(Point location, out double latitudeDegrees, out double longitudeDegrees)
         {
@@ -532,6 +621,65 @@ namespace VIGIL.Controls.Globe
         {
             regions.Clear();
             MarkSceneDirty();
+        }
+
+        /// <summary>Draws a hand-drawn zone's outline on the surface.</summary>
+        public GlobeZone AddZone(GlobeZone zone)
+        {
+            zones.Add(zone);
+            Invalidate();
+            return zone;
+        }
+
+        public void RemoveZone(GlobeZone zone)
+        {
+            if (zones.Remove(zone))
+            {
+                Invalidate();
+            }
+        }
+
+        public void ClearZones()
+        {
+            zones.Clear();
+            Invalidate();
+        }
+
+        /// <summary>Removes the outline drawn in pen mode, whether or not the pen has been lifted.</summary>
+        public void ClearStroke()
+        {
+            if (drag == DragMode.Draw)
+            {
+                drag = DragMode.None;
+                Capture = false;
+            }
+            bool had = stroke.Count > 0;
+            stroke.Clear();
+            strokeFinished = false;
+            Invalidate();
+            if (had)
+            {
+                StrokeCleared?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>Flies to the view that fits a zone's outline.</summary>
+        public void FlyTo(GlobeZone zone, TimeSpan? duration = null)
+        {
+            if (zone.Outline.Count == 0)
+            {
+                return;
+            }
+            double south = zone.Outline.Min(point => point.Latitude);
+            double north = zone.Outline.Max(point => point.Latitude);
+            double west = zone.Outline.Min(point => point.Longitude);
+            double east = zone.Outline.Max(point => point.Longitude);
+            if (east - west >= 359)
+            {
+                FlyToRegion(south, north, -180, 180, duration);
+                return;
+            }
+            FlyToRegion(south, north, Wrap((float)west), Wrap((float)east), duration);
         }
 
         /// <summary>
@@ -614,13 +762,16 @@ namespace VIGIL.Controls.Globe
             Invalidate();
         }
 
-        /// <summary>Removes markers, regions, the grid overlay, the ground track, satellites and the selection.</summary>
+        /// <summary>Removes markers, regions, zones, the grid overlay, the ground track, satellites and the selection.</summary>
         public void ClearOverlays()
         {
             markers.Clear();
             hoverMarker = null;
             SelectMarker(null);
             regions.Clear();
+            zones.Clear();
+            stroke.Clear();
+            strokeFinished = false;
             grid = null;
             groundTrack = null;
             satellites.Clear();
@@ -824,6 +975,8 @@ namespace VIGIL.Controls.Globe
 
         private bool AutoRotating =>
             autoRotate && frameClock.Enabled && drag == DragMode.None && flight == null && !easing && !inertia
+            // A turning globe would carry the surface away from under the pen, and from under an outline waiting to be named.
+            && !penMode && stroke.Count == 0
             && Now - lastInteractionSeconds > AutoRotatePauseSeconds;
 
         private bool InMotion =>
@@ -1087,8 +1240,15 @@ namespace VIGIL.Controls.Globe
             {
                 DrawGraticule(g, camera);
             }
+            if (relief && grid != null && gridOpacity > 0f)
+            {
+                reliefColumns.Draw(g, camera, grid, reliefHeight, ClientRectangle);
+                Draw.Smooth(g);
+            }
             DrawRegions(g, camera);
+            DrawZones(g, camera);
             DrawSelection(g, camera);
+            DrawStroke(g, camera);
             DrawGroundTrack(g, camera);
             DrawSatellites(g, camera, e.ClipRectangle.Contains(ClientRectangle));
             DrawMarkers(g, camera);
@@ -1208,6 +1368,79 @@ namespace VIGIL.Controls.Globe
 
             using var pen = new Pen(Draw.WithAlpha(Theme.Accent, 230), Px(1.5f)) { DashStyle = DashStyle.Dash, LineJoin = LineJoin.Round };
             DrawPolyline(g, camera, outline, pen);
+        }
+
+        private void DrawZones(Graphics g, GlobeCamera camera)
+        {
+            foreach (var zone in zones)
+            {
+                if (zone.Outline.Count < 2)
+                {
+                    continue;
+                }
+
+                if (zone.Emphasised && zone.CellEdges.Count > 0)
+                {
+                    using var cellPen = new Pen(Draw.WithAlpha(zone.Colour, 110), Px(1f));
+                    foreach (var (from, to) in zone.CellEdges)
+                    {
+                        DrawPolyline(g, camera, new[] { from, to }, cellPen);
+                    }
+                }
+
+                using var pen = new Pen(Draw.WithAlpha(zone.Colour, zone.Emphasised ? 240 : 170), Px(zone.Emphasised ? 2f : 1.25f)) { LineJoin = LineJoin.Round };
+                DrawPolyline(g, camera, ClosedOutline(zone.Outline), pen);
+
+                // The label sits beside the outline's northernmost point.
+                if (zone.Label.Length > 0)
+                {
+                    var top = zone.Outline[0];
+                    foreach (var point in zone.Outline)
+                    {
+                        if (point.Latitude > top.Latitude)
+                        {
+                            top = point;
+                        }
+                    }
+                    if (camera.Project(GlobeCamera.ToUnit(top.Latitude, top.Longitude), out var screen, out float facing) && facing > 0.05f)
+                    {
+                        DrawLabel(g, zone.Label, new PointF(screen.X - Px(11), screen.Y - Px(12)), zone.Colour, SmoothStep(0.05f, 0.25f, facing));
+                    }
+                }
+            }
+        }
+
+        /// <summary>The outline being drawn: dashed, and closed once the pen is lifted.</summary>
+        private void DrawStroke(Graphics g, GlobeCamera camera)
+        {
+            if (stroke.Count < 2)
+            {
+                return;
+            }
+            using var pen = new Pen(Draw.WithAlpha(Theme.Accent, 240), Px(1.75f)) { DashStyle = DashStyle.Dash, LineJoin = LineJoin.Round };
+            DrawPolyline(g, camera, strokeFinished ? ClosedOutline(stroke) : stroke, pen);
+        }
+
+        /// <summary>
+        ///  An outline with the line back to its first point added. Long edges are split up, so
+        ///  each stays a straight line in latitude and longitude instead of a great-circle chord.
+        /// </summary>
+        private static IEnumerable<(double Latitude, double Longitude)> ClosedOutline(IReadOnlyList<(double Latitude, double Longitude)> outline)
+        {
+            for (int i = 0; i < outline.Count; i++)
+            {
+                var from = outline[i];
+                var to = outline[(i + 1) % outline.Count];
+                yield return from;
+                double length = Math.Max(Math.Abs(to.Latitude - from.Latitude), Math.Abs(to.Longitude - from.Longitude));
+                int steps = (int)Math.Ceiling(length / 2.0);
+                for (int step = 1; step < steps; step++)
+                {
+                    double t = (double)step / steps;
+                    yield return (from.Latitude + (to.Latitude - from.Latitude) * t, from.Longitude + (to.Longitude - from.Longitude) * t);
+                }
+            }
+            yield return outline[0];
         }
 
         private static IEnumerable<(double Latitude, double Longitude)> BoxOutline(double latitudeMin, double latitudeMax, double longitudeMin, double span)
@@ -1465,9 +1698,18 @@ namespace VIGIL.Controls.Globe
         private void DrawMarkers(Graphics g, GlobeCamera camera)
         {
             markerHits.Clear();
+            // Labels are drawn after every dot, so a neighbour's dot never cuts through one. The chosen
+            // marker and the one under the pointer get their labels first, since a label gives way to one already placed.
+            var labels = new List<(string Text, PointF Anchor, Color Colour, float Alpha, bool First)>();
             foreach (var marker in markers)
             {
-                if (!camera.Project(GlobeCamera.ToUnit(marker.Latitude, marker.Longitude), out var screen, out float facing))
+                var place = GlobeCamera.ToUnit(marker.Latitude, marker.Longitude);
+                if (relief && grid != null && gridOpacity > 0f)
+                {
+                    // A marker stands on its cell's column, so the column does not hide it.
+                    place *= 1f + GlobeRelief.HeightAt(grid, marker.Latitude, marker.Longitude, reliefHeight);
+                }
+                if (!camera.Project(place, out var screen, out float facing))
                 {
                     continue;
                 }
@@ -1493,10 +1735,14 @@ namespace VIGIL.Controls.Globe
                 }
 
                 markerHits.Add((marker, screen, facing));
-                if (marker.Label.Length > 0 && alpha > 0.4f)
+                if (marker.Label.Length > 0 && alpha > 0.4f && (marker.ShowLabel || selected || marker == hoverMarker))
                 {
-                    DrawLabel(g, marker.Label, screen, colour, alpha);
+                    labels.Add((marker.Label, screen, colour, alpha, selected || marker == hoverMarker));
                 }
+            }
+            foreach (var label in labels.Where(label => label.First).Concat(labels.Where(label => !label.First)))
+            {
+                DrawLabel(g, label.Text, label.Anchor, label.Colour, label.Alpha);
             }
 
             if (hoverMarker != null)
@@ -1845,7 +2091,19 @@ namespace VIGIL.Controls.Globe
             }
 
             var camera = CurrentCamera();
-            if (left && shiftHeld)
+            if (left && penMode && !shiftHeld && !controlHeld)
+            {
+                if (!camera.Unproject(e.X, e.Y, out double lat, out double lon))
+                {
+                    return;
+                }
+                drag = DragMode.Draw;
+                stroke.Clear();
+                strokeFinished = false;
+                stroke.Add((lat, lon));
+                lastStrokePoint = e.Location;
+            }
+            else if (left && shiftHeld)
             {
                 if (!camera.Unproject(e.X, e.Y, out double lat, out double lon))
                 {
@@ -1921,6 +2179,20 @@ namespace VIGIL.Controls.Globe
                         Invalidate();
                     }
                     break;
+                case DragMode.Draw:
+                {
+                    // Off the edge of the planet there is no surface to draw on: the outline waits
+                    // and carries on from where the pen comes back. Points closer than a few pixels add nothing.
+                    int dx = e.X - lastStrokePoint.X, dy = e.Y - lastStrokePoint.Y;
+                    if (onSurface && stroke.Count > 0 && dx * dx + dy * dy >= Px(3) * Px(3))
+                    {
+                        var previous = stroke[^1];
+                        stroke.Add((lat, previous.Longitude + ZoneGeometry.ShortWay(lon - previous.Longitude)));
+                        lastStrokePoint = e.Location;
+                        Invalidate();
+                    }
+                    break;
+                }
                 default:
                 {
                     var marker = HitMarker(e.Location);
@@ -1931,7 +2203,7 @@ namespace VIGIL.Controls.Globe
                         hoverMarker = marker;
                         hudHover = hud;
                         hoverSatellite = overSatellite;
-                        Cursor = marker != null || overSatellite || hud != HudButton.None ? Cursors.Hand : Cursors.Default;
+                        Cursor = marker != null || overSatellite || hud != HudButton.None ? Cursors.Hand : penMode ? Cursors.Cross : Cursors.Default;
                         Invalidate();
                     }
                     else if (showHud)
@@ -1981,6 +2253,13 @@ namespace VIGIL.Controls.Globe
                     else if (CurrentCamera().Unproject(e.X, e.Y, out double lat, out double lon))
                     {
                         SurfaceClicked?.Invoke(this, new SurfaceClickEventArgs(lat, lon));
+                        // The emphasised zone first, so a click where two overlap keeps the one in use.
+                        var zone = zones.Where(candidate => ZoneGeometry.Contains(candidate.Outline, lat, lon))
+                            .OrderByDescending(candidate => candidate.Emphasised).FirstOrDefault();
+                        if (zone != null)
+                        {
+                            ZoneClicked?.Invoke(this, new ZoneEventArgs(zone));
+                        }
                     }
                     break;
                 }
@@ -2006,6 +2285,17 @@ namespace VIGIL.Controls.Globe
                     }
                     selectionPreview = null;
                     break;
+                case DragMode.Draw:
+                    if (stroke.Count >= 3)
+                    {
+                        strokeFinished = true;
+                        ZoneDrawn?.Invoke(this, new ZoneDrawnEventArgs(ZoneGeometry.Simplify(stroke)));
+                    }
+                    else
+                    {
+                        stroke.Clear();
+                    }
+                    break;
             }
 
             NoteInteraction();
@@ -2021,7 +2311,7 @@ namespace VIGIL.Controls.Globe
             {
                 hoverMarker = null;
                 hudHover = HudButton.None;
-                Cursor = Cursors.Default;
+                Cursor = penMode ? Cursors.Cross : Cursors.Default;
             }
             Invalidate();
         }
@@ -2065,7 +2355,7 @@ namespace VIGIL.Controls.Globe
                 case Keys.Subtract or Keys.OemMinus: ZoomOut(); break;
                 case Keys.N: ResetNorth(); break;
                 case Keys.R or Keys.Home: ResetView(); break;
-                case Keys.Escape: ClearSelection(); SelectMarker(null); break;
+                case Keys.Escape: ClearSelection(); SelectMarker(null); ClearStroke(); PenMode = false; break;
                 default: return;
             }
             e.Handled = true;

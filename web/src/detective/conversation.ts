@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import type { AskResponse, AskTurn, Finding } from '../contract';
+import type { AskResponse, AskStep, AskTurn, Finding } from '../contract';
 import { labelText, placeText } from '../format';
-import { DetectiveUnavailableError, ask, sampleAnswerTo, serviceAddress } from './client';
+import { DetectiveUnavailableError, ask, sampleAnswerTo } from './client';
+import { service } from '../service';
 
 /** Where an answer came from. A sample is a canned fixture answer and must always be marked. */
 export type AnswerSource = 'service' | 'sample' | 'not_connected';
@@ -20,6 +21,10 @@ export interface AssistantMessage {
   status?: AskResponse['status'];
   citations: AskResponse['citations'];
   limitations: string[];
+  /** The run the answer was drawn from, when the service named it. */
+  runId?: string;
+  /** What the Detective looked up on the way, as the service recorded it. Never on a sample answer. */
+  steps?: AskStep[];
 }
 
 export type ChatMessage = UserMessage | AssistantMessage;
@@ -55,6 +60,9 @@ function fromResponse(response: AskResponse, source: AnswerSource): AssistantMes
     status: response.status,
     citations: response.citations ?? [],
     limitations: response.limitations ?? [],
+    runId: response.run_id,
+    // A sample answer is canned text: nothing was looked up to write it.
+    steps: source === 'service' ? response.steps : undefined,
   };
 }
 
@@ -62,7 +70,7 @@ function fromResponse(response: AskResponse, source: AnswerSource): AssistantMes
  * One conversation with the Detective. All of its state is here, so it can be lifted out
  * of the panel later without touching the view.
  */
-export function useConversation() {
+export function useConversation(allowSamples: boolean) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [waiting, setWaiting] = useState(false);
   // Refs as well as state, so two sends in one tick can't both get through.
@@ -96,13 +104,15 @@ export function useConversation() {
       } catch (error) {
         const reason =
           error instanceof DetectiveUnavailableError ? error.message : 'Something went wrong asking the service.';
-        const sample = await sampleAnswerTo(question).catch(() => null);
+        // The canned answers are about the fixture's made-up cells, so a real scan never gets one.
+        const sample = allowSamples ? await sampleAnswerTo(question).catch(() => null) : null;
+        const { address: serviceAddress } = await service();
         answer = sample
           ? fromResponse(sample, 'sample')
           : {
               role: 'assistant',
               source: 'not_connected',
-              text: `${reason} The Detective answers from the analysis service at ${serviceAddress}, so there is no answer to show. The example questions still work, with sample answers.`,
+              text: `${reason} The Detective answers from the analysis service at ${serviceAddress}, so there is no answer to show.${allowSamples ? ' The example questions still work, with sample answers.' : ''}`,
               citations: [],
               limitations: [],
             };
@@ -112,7 +122,7 @@ export function useConversation() {
       setWaiting(false);
     })();
     return true;
-  }, []);
+  }, [allowSamples]);
 
   return { messages, waiting, send };
 }

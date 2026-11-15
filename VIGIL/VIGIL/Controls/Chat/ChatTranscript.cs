@@ -9,7 +9,8 @@ namespace VIGIL.Controls.Chat
     ///  introduction and example questions to click.
     ///
     ///  A question sits on the right in a raised box. An answer runs the full width with no
-    ///  box, followed by the findings it rests on (each one clickable) and its caveats.
+    ///  box, followed by what the Detective looked up to reach it (each lookup clickable, to see
+    ///  on the globe where it looked), the findings it rests on (each one clickable) and its caveats.
     /// </summary>
     public class ChatTranscript : VigilControl
     {
@@ -17,7 +18,7 @@ namespace VIGIL.Controls.Chat
             TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.TextBoxControl;
 
         private readonly List<Piece> pieces = new();
-        private readonly List<(Rectangle Bounds, string Value, bool IsCitation)> links = new();
+        private readonly List<(Rectangle Bounds, string Value, bool IsCitation, AskStep? Step)> links = new();
         private IReadOnlyList<ChatMessage> messages = Array.Empty<ChatMessage>();
         private IReadOnlyList<string> suggestions = Array.Empty<string>();
         private bool waiting;
@@ -29,6 +30,9 @@ namespace VIGIL.Controls.Chat
 
         /// <summary>Raised with the finding id when a cited finding is clicked.</summary>
         public event EventHandler<string>? CitationClicked;
+
+        /// <summary>Raised when one of the Detective's lookups is clicked.</summary>
+        public event EventHandler<AskStep>? StepClicked;
 
         protected override Size DefaultSize => Theme.Scaled(360, 200);
 
@@ -109,7 +113,7 @@ namespace VIGIL.Controls.Chat
                 int pad = Px(Theme.Space3);
                 var size = Measure(question, Theme.Body, width - pad * 2);
                 var box = new Rectangle(0, y, width, size.Height + pad * 2);
-                links.Add((box, question, false));
+                links.Add((box, question, false, null));
                 pieces.Add(new Piece(box, "", null, Color.Empty, Theme.SurfaceRaised, links.Count - 1));
                 pieces.Add(new Piece(new Rectangle(pad, y + pad, width - pad * 2, size.Height), question, Theme.Body, Theme.TextPrimary, null, -1));
                 y = box.Bottom + Px(Theme.Space2);
@@ -153,6 +157,29 @@ namespace VIGIL.Controls.Chat
 
             y = AddText(message.Text, Theme.Body, message.Source == AnswerSource.NotConnected ? Theme.TextSecondary : Theme.TextPrimary, 0, y, width);
 
+            if (message.Steps.Count > 0)
+            {
+                y += Px(Theme.Space3);
+                string heading = message.Steps.Count == 1 ? "It looked one thing up" : "It looked " + message.Steps.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + " things up";
+                y = AddText(heading, Theme.CaptionStrong, Theme.TextSecondary, 0, y, width) + Px(Theme.Space1);
+                foreach (var step in message.Steps)
+                {
+                    string line = step.Summary + StepCount(step);
+                    var size = Measure(line, Theme.Caption, width);
+                    var bounds = new Rectangle(0, y, width, size.Height);
+                    // A lookup that named a place, or returned findings, can be shown on the globe.
+                    bool shows = step.Box != null || step.FindingIds.Count > 0;
+                    if (shows)
+                    {
+                        links.Add((new Rectangle(0, y, Math.Min(size.Width + 1, width), size.Height), "", false, step));
+                    }
+                    pieces.Add(new Piece(bounds, line, Theme.Caption, step.Failed ? Theme.TextMuted : Theme.TextSecondary, null, shows ? links.Count - 1 : -1));
+                    y = bounds.Bottom + Px(2);
+                }
+                // What it read is not what it relied on, and the answer must not be taken to rest on all of it.
+                y = AddText("Only the findings under \"Based on\" back the answer.", Theme.Caption, Theme.TextMuted, 0, y + Px(2), width);
+            }
+
             if (message.Citations.Count > 0)
             {
                 y += Px(Theme.Space3);
@@ -161,7 +188,7 @@ namespace VIGIL.Controls.Chat
                 {
                     var idSize = Measure(citation.FindingId, Theme.NumericSmall, width);
                     var idBounds = new Rectangle(0, y, Math.Min(idSize.Width + 1, width), idSize.Height);
-                    links.Add((idBounds, citation.FindingId, true));
+                    links.Add((idBounds, citation.FindingId, true, null));
                     pieces.Add(new Piece(idBounds, citation.FindingId, Theme.NumericSmall, Theme.Series, null, links.Count - 1));
                     y = idBounds.Bottom;
                     if (!string.IsNullOrEmpty(citation.Supports))
@@ -188,6 +215,26 @@ namespace VIGIL.Controls.Chat
                 y = AddText("Sample answer from made-up results. The Detective service isn't connected.", Theme.Caption, Theme.Warning, 0, y, width);
             }
             return y;
+        }
+
+        /// <summary>How much a lookup returned, for the end of its line.</summary>
+        private static string StepCount(AskStep step)
+        {
+            if (step.Failed)
+            {
+                return ": refused";
+            }
+            if (step.Tool == "get_run_summary")
+            {
+                return "";
+            }
+            int found = step.FindingIds.Count;
+            if (step.Matching is int matching && matching > found)
+            {
+                return ": " + found.ToString(System.Globalization.CultureInfo.InvariantCulture) + " of "
+                    + matching.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("en-GB")) + " shown to it";
+            }
+            return found == 0 ? ": nothing found" : ": " + found.ToString(System.Globalization.CultureInfo.InvariantCulture) + " found";
         }
 
         private int AddText(string text, Font font, Color colour, int x, int y, int width)
@@ -278,7 +325,11 @@ namespace VIGIL.Controls.Chat
             }
 
             var link = links[hit];
-            if (link.IsCitation)
+            if (link.Step != null)
+            {
+                StepClicked?.Invoke(this, link.Step);
+            }
+            else if (link.IsCitation)
             {
                 CitationClicked?.Invoke(this, link.Value);
             }

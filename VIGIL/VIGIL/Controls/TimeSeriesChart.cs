@@ -5,9 +5,14 @@ using VIGIL.Theming;
 namespace VIGIL.Controls
 {
     /// <summary>
-    ///  Line chart for one time series: a soft area fill, a least-squares guide line, a hover
-    ///  read-out, and a left-to-right reveal whenever new data arrives.
-    ///  The guide line is only a visual aid. Real trend and significance tests belong in Analysis/.
+    ///  Line chart for one time series: a dashed guide line, a hover read-out, and a
+    ///  left-to-right reveal whenever new data arrives.
+    ///
+    ///  The dashed line is only a guide for the eye. Left alone it is a least-squares fit made
+    ///  here. Give the chart the slope the analysis service reported
+    ///  (<see cref="ReportedSlopePerDecade"/>) and it draws that slope instead, placed through
+    ///  the middle of the series. Either way the figures an app quotes must be the service's.
+    ///  A change point can be marked too, with the level either side of it.
     /// </summary>
     public class TimeSeriesChart : VigilControl
     {
@@ -26,6 +31,8 @@ namespace VIGIL.Controls
         private bool showTrendLine = true;
         private string units = "";
         private string valueFormat = "0.00";
+        private double? reportedSlopePerDecade;
+        private (DateTime Date, DateTime? Low, DateTime? High, double? Before, double? After)? changePoint;
 
         public TimeSeriesChart()
         {
@@ -58,6 +65,34 @@ namespace VIGIL.Controls
         {
             get => valueFormat;
             set { valueFormat = value ?? "0.00"; Invalidate(); }
+        }
+
+        /// <summary>
+        ///  The trend the analysis service reported, in the series' units per decade. When set,
+        ///  the dashed line has this slope and is labelled as the reported trend. Null goes back
+        ///  to the least-squares guide.
+        /// </summary>
+        [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public double? ReportedSlopePerDecade
+        {
+            get => reportedSlopePerDecade;
+            set { reportedSlopePerDecade = value; Invalidate(); }
+        }
+
+        /// <summary>
+        ///  Marks a change point: a line at its date, fainter lines at the ends of the range the
+        ///  date may lie in, and the level of the series before and after it.
+        /// </summary>
+        public void SetChangePoint(DateTime date, DateTime? rangeLow = null, DateTime? rangeHigh = null, double? levelBefore = null, double? levelAfter = null)
+        {
+            changePoint = (date, rangeLow, rangeHigh, levelBefore, levelAfter);
+            Invalidate();
+        }
+
+        public void ClearChangePoint()
+        {
+            changePoint = null;
+            Invalidate();
         }
 
         /// <summary>
@@ -112,7 +147,11 @@ namespace VIGIL.Controls
             int revealed = (int)Math.Ceiling(plot.Width * reveal.Value);
             g.SetClip(new Rectangle(plot.Left - Px(4), 0, revealed + Px(8), Height));
             Draw.AreaLine(g, points, plot.Bottom, Theme.Series, Px(1.5f), 0);
-            if (showTrendLine && values.Length > 1)
+            if (changePoint != null)
+            {
+                DrawChangePoint(g, plot, low, high);
+            }
+            else if (showTrendLine && values.Length > 1)
             {
                 DrawTrendLine(g, plot, low, high);
             }
@@ -224,6 +263,12 @@ namespace VIGIL.Controls
                 variance += (years[i] - meanX) * (years[i] - meanX);
             }
             double slope = variance > 0 ? covariance / variance : 0;
+            if (reportedSlopePerDecade is double reported)
+            {
+                // The service's slope, through the middle of the series. Only its tilt is the service's:
+                // where the line sits is chosen here so that it lies on the data.
+                slope = reported / 10.0;
+            }
             double intercept = meanY - slope * meanX;
 
             using var pen = new Pen(Theme.Warning, Px(1.5f)) { DashPattern = new[] { 3f, 2.5f } };
@@ -232,12 +277,57 @@ namespace VIGIL.Controls
                 points[^1].X, ToY(plot, intercept + slope * years[^1], low, high));
         }
 
+        /// <summary>The x position of a date, which may fall outside the plot.</summary>
+        private float ToX(Rectangle plot, DateTime date)
+        {
+            double span = dates[^1].Ticks - dates[0].Ticks;
+            return span > 0 ? plot.Left + (float)((date.Ticks - dates[0].Ticks) / span) * plot.Width : plot.Left + plot.Width / 2f;
+        }
+
+        private void DrawChangePoint(Graphics g, Rectangle plot, double low, double high)
+        {
+            var (date, rangeLow, rangeHigh, before, after) = changePoint!.Value;
+            float x = Math.Clamp(ToX(plot, date), plot.Left, plot.Right);
+
+            using (var faint = new Pen(Draw.WithAlpha(Theme.TextSecondary, 90), Px(1f)))
+            {
+                foreach (var edge in new[] { rangeLow, rangeHigh })
+                {
+                    if (edge is DateTime when)
+                    {
+                        float edgeX = Math.Clamp(ToX(plot, when), plot.Left, plot.Right);
+                        g.DrawLine(faint, edgeX, plot.Top, edgeX, plot.Bottom);
+                    }
+                }
+            }
+            using (var line = new Pen(Theme.TextSecondary, Px(1f)))
+            {
+                g.DrawLine(line, x, plot.Top, x, plot.Bottom);
+            }
+
+            using var level = new Pen(Theme.Warning, Px(1.5f)) { DashPattern = new[] { 3f, 2.5f } };
+            if (before is double levelBefore && levelBefore >= low && levelBefore <= high)
+            {
+                float y = ToY(plot, levelBefore, low, high);
+                g.DrawLine(level, plot.Left, y, x, y);
+            }
+            if (after is double levelAfter && levelAfter >= low && levelAfter <= high)
+            {
+                float y = ToY(plot, levelAfter, low, high);
+                g.DrawLine(level, x, y, plot.Right, y);
+            }
+        }
+
         private void DrawLegend(Graphics g)
         {
             var entries = new List<(string Label, Color Colour, bool Dashed)> { ("Data", Theme.Series, false) };
-            if (showTrendLine)
+            if (changePoint != null)
             {
-                entries.Add(("Linear trend", Theme.Warning, true));
+                entries.Add(("Level before and after", Theme.Warning, true));
+            }
+            else if (showTrendLine)
+            {
+                entries.Add((reportedSlopePerDecade != null ? "Reported trend" : "Linear trend", Theme.Warning, true));
             }
 
             int x = Width - Px(Theme.Space2);

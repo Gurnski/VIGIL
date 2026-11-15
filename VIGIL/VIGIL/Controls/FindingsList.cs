@@ -58,6 +58,7 @@ namespace VIGIL.Controls
         public void SetFindings(IReadOnlyList<Finding> items)
         {
             findings = items ?? Array.Empty<Finding>();
+            rankDigits = findings.Count == 0 ? 1 : findings.Max(finding => finding.Rank).ToString(British).Length;
             selected = -1;
             hovered = -1;
             scrollOffset = 0;
@@ -120,7 +121,9 @@ namespace VIGIL.Controls
                 Math.Abs(latitude), latitude < 0 ? "S" : "N", Math.Abs(longitude), longitude < 0 ? "W" : "E");
         }
 
-        private int RankWidth => Px(28);
+        // Room for the longest rank in the list: a real scan's ranks run to four digits, which would otherwise touch the text.
+        private int RankWidth => Px(28 + 6 * Math.Max(0, rankDigits - 2));
+        private int rankDigits = 1;
         private int ScoreWidth => Px(36);
         private int RowPadding => Px(Theme.Space3);
         private int LineGap => Px(2);
@@ -221,20 +224,31 @@ namespace VIGIL.Controls
         private void ScrollIntoView(int index)
         {
             MeasureRows();
-            if (rowTops[index] < scrollOffset)
+            int top = rowTops[index], bottom = rowTops[index + 1];
+            // A row taller than the list shows from its top: its first line is what names it.
+            if (top < scrollOffset || bottom - top >= Height)
             {
-                ScrollTo(rowTops[index]);
+                ScrollTo(top);
             }
-            else if (rowTops[index + 1] > scrollOffset + Height)
+            else if (bottom > scrollOffset + Height)
             {
-                ScrollTo(rowTops[index + 1] - Height);
+                ScrollTo(bottom - Height);
             }
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
+            bool reflowed = measuredWidth != Width;
             scrollOffset = Math.Clamp(scrollOffset, 0, MaxScroll);
+            // A new width wraps the rows differently, so an offset in pixels no longer means the same
+            // place. The chosen row is the place to hold on to. Without this, a list given its selection
+            // before its size opens scrolled part of the way past it.
+            if (reflowed && selected >= 0 && Height > 0)
+            {
+                scrollOffset = 0;
+                ScrollIntoView(selected);
+            }
         }
 
         protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }

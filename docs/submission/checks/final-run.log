@@ -1,0 +1,158 @@
+== build
+temperature    100.0% of values present, mean 278.6
+precipitation   99.0% of values present, mean 66.84
+soil_moisture   23.4% of values present, mean 26.94
+vegetation      18.3% of values present, mean 0.4537
+snow_cover      31.4% of values present, mean 46.38
+sea_surface_temperature  51.4% of values present, mean 17.49
+chlorophyll     45.5% of values present, mean 0.3336
+earthquakes    100.0% of values present, mean 0.05677
+Wrote data/scan/scan-data.npz
+== scan
+Scanning 8 variables on 72 x 144 cells, 300 months from 2001-01-01. This takes a few minutes.
+Wrote ../data/scan/work/scan-v2.json: 6122 findings, 52 series. Now run contract/tools/check.py on it.
+== retest
+temperature    on NASA GISS GISTEMP v4     888 findings: 828 confirmed, 6 same direction, 54 opposite, 0 not possible. Elsewhere 1092 of 1448 cells are significant in the second product.
+precipitation  on GPCP v3.3                269 findings: 229 confirmed, 40 same direction, 0 opposite, 0 not possible. Elsewhere 374 of 2067 cells are significant in the second product.
+soil_moisture  on MERRA-2                  784 findings: 227 confirmed, 272 same direction, 284 opposite, 1 not possible. Elsewhere 504 of 1508 cells are significant in the second product.
+sea_surface_temperature on NASA GISS GISTEMP v4 (ERSST v5 over the sea)  2474 findings: 2222 confirmed, 247 same direction, 5 opposite, 0 not possible. Elsewhere 619 of 2460 cells are significant in the second product.
+vegetation     on Aqua MODIS               632 findings: 520 confirmed, 70 same direction, 25 opposite, 17 not possible. Elsewhere 179 of 706 cells are significant in the second product.
+Wrote ../data/scan/work/snapshot-v2.json. Now run contract/tools/check.py on it.
+== check
+Checking ..\data\scan\work\snapshot-v2.json
+OK
+== accept
+temperature              trend.temperature.r31c048                  slope +0.93951  one-cell zone SAME  one-cell rerun SAME
+precipitation            trend.precipitation.r32c046                slope -32.12  one-cell zone SAME  one-cell rerun SAME
+soil_moisture            trend.soil_moisture.r16c043                slope -1.9763  one-cell zone SAME  one-cell rerun SAME
+vegetation               trend.vegetation.r49c114                   slope +0.043936  one-cell zone SAME  one-cell rerun SAME
+snow_cover               trend.snow_cover.r47c093                   slope -0.23516  one-cell zone SAME  one-cell rerun SAME
+sea_surface_temperature  trend.sea_surface_temperature.r34c120      slope +0.26744  one-cell zone SAME  one-cell rerun SAME
+chlorophyll              trend.chlorophyll.r27c089                  slope -0.12381  one-cell zone SAME  one-cell rerun SAME
+earthquakes              trend.earthquakes.r27c044                  slope +0.83333  one-cell zone SAME  one-cell rerun SAME
+ALL SAME
+== sanity
+run scan-20261115T005506Z code db6a689 duration 198s synthetic False size 22.5 MB
+tests total 82944 run 19001 significant 5450 skipped 63943 {'ocean': 34150, 'ice': 6010, 'coverage': 23783}
+findings 6122 {'trend': 5450, 'cascade': 346, 'change_point': 301, 'contradiction': 25} series 52
+
+per variable: run, significant (share), rising / falling, skipped by reason
+  temperature              run  2336  significant   888 (38.0%)  up  834 down   54  skipped {'ice': 1202, 'ocean': 6830}
+  precipitation            run  2336  significant   269 (11.5%)  up  140 down  129  skipped {'ice': 1202, 'ocean': 6830}
+  soil_moisture            run  2294  significant   784 (34.2%)  up  105 down  679  skipped {'ice': 1202, 'ocean': 6830, 'coverage': 42}
+  vegetation               run  1355  significant   632 (46.6%)  up  572 down   60  skipped {'ice': 1202, 'ocean': 6830, 'coverage': 981}
+  snow_cover               run  1989  significant    53 ( 2.7%)  up   14 down   39  skipped {'ice': 1202, 'ocean': 6830, 'coverage': 347}
+  sea_surface_temperature  run  4936  significant  2474 (50.1%)  up 2473 down    1  skipped {'coverage': 5432}
+  chlorophyll              run  3417  significant   336 ( 9.8%)  up   61 down  275  skipped {'coverage': 6951}
+  earthquakes              run   338  significant    14 ( 4.1%)  up   13 down    1  skipped {'coverage': 10030}
+
+change points 301; most in one month: [(('sea_surface_temperature', '2013-07'), 14), (('sea_surface_temperature', '2013-06'), 12), (('sea_surface_temperature', '2013-08'), 9), (('sea_surface_temperature', '2013-04'), 8), (('precipitation', '2020-01'), 7), (('temperature', '2019-06'), 7)]
+cascades by pair: {('precipitation', 'vegetation'): 197, ('soil_moisture', 'vegetation'): 43, ('temperature', 'vegetation'): 41, ('snow_cover', 'vegetation'): 17, ('temperature', 'soil_moisture'): 12, ('precipitation', 'temperature'): 11, ('precipitation', 'snow_cover'): 5, ('vegetation', 'temperature'): 4, ('vegetation', 'precipitation'): 4, ('soil_moisture', 'temperature'): 3, ('snow_cover', 'precipitation'): 3, ('snow_cover', 'soil_moisture'): 2}
+contradictions by variable: {'vegetation': 20, 'temperature': 1, 'soil_moisture': 2, 'chlorophyll': 1, 'precipitation': 1}
+
+top 25
+  #1   trend         lat   33.8 lon   106.2  Vegetation (NDVI): increasing at +0.0439 NDVI per decade
+  #2   trend         lat   38.8 lon   113.8  Vegetation (NDVI): increasing at +0.0337 NDVI per decade
+  #3   trend         lat   36.2 lon   108.8  Vegetation (NDVI): increasing at +0.0442 NDVI per decade
+  #4   trend         lat   28.8 lon   106.2  Vegetation (NDVI): increasing at +0.0507 NDVI per decade
+  #5   trend         lat   38.8 lon   108.8  Vegetation (NDVI): increasing at +0.0261 NDVI per decade
+  #6   trend         lat  -48.8 lon   -71.2  Soil moisture, 0 to 10 cm: decreasing at -1.98 kg per m2 per decade
+  #7   trend         lat   36.2 lon   103.8  Soil moisture, 0 to 10 cm: increasing at +1.4 kg per m2 per decade
+  #8   trend         lat   36.2 lon    98.8  Soil moisture, 0 to 10 cm: increasing at +1.14 kg per m2 per decade
+  #9   trend         lat  -13.8 lon   -71.2  Soil moisture, 0 to 10 cm: decreasing at -1.14 kg per m2 per decade
+  #10  trend         lat   -8.8 lon   -63.8  Precipitation: decreasing at -32.1 mm per month per decade
+  #11  trend         lat  -11.2 lon   -58.8  Air temperature at 2 m: increasing at +0.94 K per decade
+  #12  trend         lat  -16.2 lon   -53.8  Air temperature at 2 m: increasing at +0.924 K per decade
+  #13  cascade       lat    3.8 lon    36.2  Vegetation (NDVI) follows precipitation by 1 month (r = +0.71). An association, not a cause.
+  #14  trend         lat   18.8 lon   -98.8  Air temperature at 2 m: increasing at +0.528 K per decade
+  #15  trend         lat   68.8 lon   143.8  Soil moisture, 0 to 10 cm: decreasing at -3.14 kg per m2 per decade
+  #16  trend         lat   16.2 lon   -96.2  Air temperature at 2 m: increasing at +0.415 K per decade
+  #17  trend         lat   -8.8 lon   -56.2  Air temperature at 2 m: increasing at +0.742 K per decade
+  #18  trend         lat   -8.8 lon   -61.2  Precipitation: decreasing at -29.7 mm per month per decade
+  #19  cascade       lat   26.2 lon    61.2  Vegetation (NDVI) follows soil moisture, 0 to 10 cm by 2 months (r = +0.59). An association, not a c
+  #20  trend         lat  -21.2 lon    43.8  Chlorophyll-a at the sea surface: decreasing at -0.124 mg per m3 per decade
+  #21  trend         lat   41.2 lon   116.2  Vegetation (NDVI): increasing at +0.0315 NDVI per decade
+  #22  trend         lat   31.2 lon   103.8  Vegetation (NDVI): increasing at +0.0275 NDVI per decade
+  #23  trend         lat   -8.8 lon   -63.8  Vegetation (NDVI): decreasing at -0.014 NDVI per decade
+  #24  trend         lat   26.2 lon   103.8  Vegetation (NDVI): increasing at +0.0451 NDVI per decade
+  #25  trend         lat   41.2 lon    81.2  Vegetation (NDVI): increasing at +0.0174 NDVI per decade
+top 100 by variables: {('vegetation',): 67, ('soil_moisture',): 17, ('temperature',): 11, ('precipitation',): 2, ('precipitation', 'vegetation'): 1, ('soil_moisture', 'vegetation'): 1, ('chlorophyll',): 1}
+
+against snapshot-v15-retested.json: 6531 findings there, 6122 here; trend findings in both 5438, with identical result blocks 4820
+   chlorophyll      trends there   336 here   336 in both   336
+   earthquakes      trends there    14 here    14 in both    14
+   precipitation    trends there   269 here   269 in both   269
+   sea_surface_temperature trends there  2474 here  2474 in both  2474
+   snow_cover       trends there    53 here    53 in both    53
+   soil_moisture    trends there   784 here   784 in both   784
+   temperature      trends there   888 here   888 in both   888
+   vegetation       trends there  1025 here   632 in both   620
+== track
+temperature              vs GISTEMP        cells  2336  median r +0.89  below 0.2:  1.1%  above 0.5: 94.1%  | median r by outcome: confirmed +0.90 (n 828)  opposite +0.53 (n 54)  same_direction +0.93 (n 6)
+precipitation            vs GPCP           cells  2336  median r +0.97  below 0.2:  0.0%  above 0.5: 99.6%  | median r by outcome: confirmed +0.95 (n 229)  same_direction +0.87 (n 40)
+soil_moisture            vs MERRA-2 land   cells  2292  median r +0.50  below 0.2: 13.1%  above 0.5: 49.6%  | median r by outcome: confirmed +0.68 (n 227)  opposite +0.30 (n 284)  same_direction +0.54 (n 272)
+sea_surface_temperature  vs GISTEMP        cells  4936  median r +0.77  below 0.2:  0.1%  above 0.5: 95.5%  | median r by outcome: confirmed +0.74 (n 2222)  opposite +0.61 (n 5)  same_direction +0.72 (n 247)
+vegetation               vs Aqua MODIS     cells  1355  median r +0.92  below 0.2:  0.4%  above 0.5: 90.7%  | median r by outcome: confirmed +0.91 (n 520)  not_possible +0.93 (n 17)  opposite +0.28 (n 25)  same_direction +0.73 (n 70)
+== known answers
+
+California (16 cells). Documented: multi-year drought and warming
+   temperature              +0.432 K per decade [+0.17, +0.688], p 0.0013, significant
+   precipitation            +0.669 mm per month per decade [-1.63, +2.93], p 0.56, not significant
+   soil_moisture            +0.248 kg per m2 per decade [-0.452, +0.908], p 0.46, not significant
+   vegetation               -0.00172 NDVI per decade [-0.00858, +0.00481], p 0.6, not significant
+   snow_cover               -0.16 percent per decade [-0.67, +0.175], p 0.4, not significant
+   sea_surface_temperature  +0.262 °C per decade [-0.158, +0.67], p 0.2, not significant
+   chlorophyll              -0.0361 mg per m3 per decade [-0.122, +0.0531], p 0.41, not significant
+   earthquakes              +0.04 events per month per decade [-0.125, +0.238], p 0.51, not significant
+
+Himalaya and Tibetan Plateau (21 cells). Documented: warming faster than the global mean
+   temperature              +0.199 K per decade [+0.0214, +0.368], p 0.028, significant
+   precipitation            +0.507 mm per month per decade [-1.18, +2.17], p 0.56, not significant
+   soil_moisture            +0.376 kg per m2 per decade [+0.0632, +0.681], p 0.019, significant
+   vegetation               +0.00835 NDVI per decade [+0.00677, +0.00993], p 1.6e-15, significant
+   snow_cover               -0.546 percent per decade [-1.33, +0.228], p 0.17, not significant
+   sea_surface_temperature  not tested (no_cells)
+   chlorophyll              not tested (no_cells)
+   earthquakes              +0.623 events per month per decade [+0, +1.3], p 0.05, significant
+
+Sahel (40 cells). Documented: re-greening since the 1980s droughts
+   temperature              -0.216 K per decade [-0.414, -0.0198], p 0.031, significant
+   precipitation            +0.249 mm per month per decade [-0.0103, +0.735], p 0.062, not significant
+   soil_moisture            -0.159 kg per m2 per decade [-0.31, +0.0156], p 0.065, not significant
+   vegetation               +0.00786 NDVI per decade [+0.00438, +0.0122], p 7.9e-06, significant
+   snow_cover               no trend to report
+   sea_surface_temperature  not tested (no_cells)
+   chlorophyll              not tested (no_cells)
+   earthquakes              not tested (coverage)
+
+Southern Amazon (24 cells). Documented: a longer dry season and warming along the arc of deforestation
+   temperature              +0.602 K per decade [+0.289, +0.924], p 0.00024, significant
+   precipitation            -11.8 mm per month per decade [-17.3, -6.37], p 1.9e-05, significant
+   soil_moisture            -0.922 kg per m2 per decade [-1.37, -0.497], p 4.5e-05, significant
+   vegetation               -0.003 NDVI per decade [-0.00695, +0.000637], p 0.11, not significant
+   snow_cover               no trend to report
+   sea_surface_temperature  not tested (no_cells)
+   chlorophyll              not tested (no_cells)
+   earthquakes              not tested (coverage)
+
+Loess Plateau, China (6 cells). Documented: greening after large-scale replanting
+   temperature              +0.399 K per decade [+0.216, +0.571], p 3.5e-05, significant
+   precipitation            +3.71 mm per month per decade [+1.53, +5.94], p 0.00046, significant
+   soil_moisture            +0.771 kg per m2 per decade [+0.347, +1.22], p 0.00056, significant
+   vegetation               +0.0356 NDVI per decade [+0.0313, +0.0403], p 0, significant
+   snow_cover               -0.0246 percent per decade [-0.072, +0.0158], p 0.22, not significant
+   sea_surface_temperature  not tested (no_cells)
+   chlorophyll              not tested (no_cells)
+   earthquakes              not tested (coverage)
+
+Murray-Darling basin (16 cells). Documented: the Millennium drought and its end
+   temperature              +0.164 K per decade [-0.171, +0.503], p 0.33, not significant
+   precipitation            +3.07 mm per month per decade [-1.17, +7.61], p 0.16, not significant
+   soil_moisture            -0.0511 kg per m2 per decade [-1.2, +1.15], p 0.93, not significant
+   vegetation               +0.0221 NDVI per decade [+0.00257, +0.0411], p 0.03, significant
+   snow_cover               +0.00398 percent per decade [+0.00188, +0.00734], p 1.3e-05, significant
+   sea_surface_temperature  not tested (no_cells)
+   chlorophyll              not tested (no_cells)
+   earthquakes              not tested (coverage)
+== done
+exit 0

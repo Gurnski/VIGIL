@@ -44,7 +44,8 @@ TOOLS = [
             "properties": {
                 "variable": {
                     "type": "string",
-                    "description": "A variable id: temperature, precipitation, soil_moisture, vegetation or earthquakes. "
+                    "description": "A variable id, such as temperature, precipitation, soil_moisture, vegetation, snow_cover, "
+                    "sea_surface_temperature, chlorophyll or earthquakes. get_run_summary lists the ones this scan has. "
                     "Matches any finding that involves it, including cascades.",
                 },
                 "kind": {"type": "string", "enum": list(KINDS)},

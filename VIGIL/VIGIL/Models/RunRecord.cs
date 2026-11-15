@@ -13,6 +13,36 @@ namespace VIGIL.Models
 
         public RunSettings Settings { get; set; } = new();
         public RunCounts Counts { get; set; } = new();
+
+        /// <summary>How the re-tests on second products came out. Null when that step has not run.</summary>
+        public RunRetest? Retest { get; set; }
+    }
+
+    /// <summary>The summary of the re-testing step: its rule in words, and the counts for each variable.</summary>
+    public sealed class RunRetest
+    {
+        public string Rule { get; set; } = "";
+        public List<VariableRetest> ByVariable { get; set; } = new();
+    }
+
+    /// <summary>
+    ///  One variable's re-tests. The four outcomes add up to <see cref="Findings"/>. The
+    ///  "other cells" are those the scan tested and found nothing in: how often the second
+    ///  product is significant there is the rate to hold the confirmations against.
+    /// </summary>
+    public sealed class VariableRetest
+    {
+        public string Variable { get; set; } = "";
+        public Variable Product { get; set; } = new();
+        public string InCommon { get; set; } = "";
+        public int Findings { get; set; }
+        public int Confirmed { get; set; }
+        public int SameDirection { get; set; }
+        public int Opposite { get; set; }
+        public int NotPossible { get; set; }
+        public int OtherCells { get; set; }
+        public int OtherCellsTested { get; set; }
+        public int OtherCellsSignificant { get; set; }
     }
 
     /// <summary>Everything fixed before the scan.</summary>

@@ -11,21 +11,32 @@ What it serves is set by environment variables, read once when the service start
 
 ``VIGIL_SNAPSHOT``
     The stored scan: a results document written by ``python -m vigil.api.document``. A file
-    path, an ``s3://bucket/key`` address or an ``https://`` one. Without it the service
-    serves the contract's fixture, which is made up and says so (``"synthetic": true``).
+    path, an ``s3://bucket/key`` address or an ``https://`` one, as text or gzip-compressed.
+    Without it the service serves the contract's fixture, which is made up and says so
+    (``"synthetic": true``).
 ``VIGIL_SCAN_DATA``
     The gridded data the scan was made from, as the ``.npz`` file ``ScanData`` describes.
-    Optional. With it, ``GET /series`` works for any cell and ``POST /analyse`` runs.
-    Without it, series come only from the stored document and ``/analyse`` answers 503.
+    Optional. With it, ``GET /series`` works for any cell and ``POST /analyse`` and
+    ``POST /zone`` run. Without it, series come only from the stored document and those
+    two calls answer 503.
 ``ANTHROPIC_API_KEY``
     The Detective's key. It lives only here, on the server. Without it ``POST /ask``
     answers 503 and the apps fall back to their marked sample answers.
 ``VIGIL_CORS_ORIGINS``
     The web addresses allowed to call the service from a browser, separated by commas.
+``VIGIL_SITE``
+    The folder holding the built viewer (``index.html`` and ``viewer/``), which the service
+    then serves at ``/``. Left out, it is the repository's root when the built copy is there.
+``VIGIL_ASK_PER_MINUTE``, ``VIGIL_ASK_TOTAL_PER_MINUTE``
+    How many questions one other device, and all other devices together, may put to the
+    Detective in a minute. 4 and 20 unless set.
+
+``vigil/api/site.py`` has the page, the files it asks for and what a presenter has on show.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import os
@@ -37,9 +48,11 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from vigil.api.site import AskLimiter, add_site, site_folder
 from vigil.detective.tools import FindingStore
 
 log = logging.getLogger(__name__)
@@ -105,6 +118,11 @@ class Results:
 
 
 def _read(source: str) -> bytes:
+    """The stored scan's bytes, from a file, a bucket or a web address, unpacked when they are compressed."""
+    return _unpacked(_fetch(source))
+
+
+def _fetch(source: str) -> bytes:
     if source.startswith("s3://"):
         import boto3                                       # present on AWS Lambda; not a requirement elsewhere
 
@@ -114,6 +132,13 @@ def _read(source: str) -> bytes:
         with urllib.request.urlopen(source, timeout=30) as reply:
             return reply.read()
     return Path(source).read_bytes()
+
+
+def _unpacked(data: bytes) -> bytes:
+    # The public site keeps snapshot.json compressed under its plain name, so that a browser gets it at a
+    # tenth of the size. Read from the bucket, or through a client that does not unpack it, it arrives still
+    # compressed. The first two bytes say so, whatever the name does.
+    return gzip.decompress(data) if data[:2] == b"\x1f\x8b" else data
 
 
 # ----- Requests -----
@@ -140,6 +165,12 @@ class AnalyseRequest(BaseModel):
     end: str | None = None
 
 
+class ZoneRequest(BaseModel):
+    #: The outline as [latitude, longitude] points, closed from the last back to the first.
+    #: Longitudes are continuous: an outline that crosses the date line runs past 180.
+    polygon: list[tuple[float, float]] = Field(min_length=3)
+
+
 def _json(payload: dict) -> Response:
     # Written by hand, not through FastAPI's encoder: it is quicker on a large document, and
     # allow_nan=False makes a stray NaN fail here instead of reaching an app that cannot read it.
@@ -149,8 +180,11 @@ def _json(payload: dict) -> Response:
 # ----- The app -----
 
 
-def create_app(results: Results | None = None) -> FastAPI:
-    """The service. ``results`` is for tests; left out, it is read from the environment at start-up."""
+def create_app(results: Results | None = None, site: Path | None = None) -> FastAPI:
+    """
+    The service. ``results`` is for tests; left out, it is read from the environment at start-up.
+    ``site`` is the folder of the built viewer; left out, ``site_folder()`` finds it.
+    """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -160,6 +194,10 @@ def create_app(results: Results | None = None) -> FastAPI:
     app = FastAPI(title="VIGIL", version="0.1", lifespan=lifespan)
     origins = [origin.strip() for origin in os.environ.get("VIGIL_CORS_ORIGINS", DEFAULT_ORIGINS).split(",") if origin.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+    # A findings list or a globe layer is megabytes of repetitive text: a phone on a shared network needs it compressed.
+    app.add_middleware(GZipMiddleware, minimum_size=2000)
+    limiter = AskLimiter()
+    year_fields: dict[str, str] = {}
 
     def held(request: Request) -> Results:
         return request.app.state.results
@@ -263,21 +301,69 @@ def create_app(results: Results | None = None) -> FastAPI:
         except RegionError as problem:
             raise HTTPException(422, str(problem)) from problem
 
+    @app.post("/zone")
+    def zone(request: Request, body: ZoneRequest):
+        r = held(request)
+        if r.scan_data is None:
+            raise HTTPException(503, "This service has the stored results but not the gridded data, so it cannot "
+                                     "work out the series for a zone.")
+        from vigil.api.zone import ZoneError, analyse_zone
+
+        try:
+            return _json(analyse_zone(r.scan_data, r.grids, r.run, body.polygon))
+        except ZoneError as problem:
+            raise HTTPException(422, str(problem)) from problem
+
+    def years_text(request: Request, variable: str) -> str:
+        """A variable year by year, as JSON text. Shared by ``GET /years`` and the file the viewer asks for."""
+        r = held(request)
+        if r.scan_data is None:
+            raise HTTPException(503, "This service has the stored results but not the gridded data, so it cannot "
+                                     "show a variable year by year.")
+        if variable not in r.grids:
+            raise HTTPException(404, f"There is no globe layer for a variable called {variable}.")
+        if variable not in year_fields:
+            from vigil.api.years import YearsError, annual_anomalies
+
+            try:
+                made = annual_anomalies(r.scan_data, r.grids[variable], variable, r.run["id"] if r.run else None)
+            except YearsError as problem:
+                raise HTTPException(422, str(problem)) from problem
+            # Kept as text: it is the same for everyone who asks, and takes a second or two to make.
+            year_fields[variable] = json.dumps(made, allow_nan=False, separators=(",", ":"))
+        return year_fields[variable]
+
+    @app.get("/years")
+    def years(request: Request, variable: str):
+        return Response(years_text(request, variable), media_type="application/json")
+
     @app.post("/ask")
     def ask(request: Request, body: AskRequest):
         r = held(request)
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise HTTPException(503, "The Detective is not set up on this server.")
+        if not limiter.allow(request):
+            raise HTTPException(429, "Too many questions in the last minute, from this device or from the room. Wait a little and ask again.")
+        import anthropic
+
+        from vigil.api.trace import TracingClient
         from vigil.detective.ask import ask as ask_detective
 
         try:
+            # The Detective calls the model through this client, which notes each tool call on its way past.
+            tracer = TracingClient(anthropic.Anthropic())
             # The full list and the run record, not a trimmed one: the Detective searches what it is given.
-            answer = ask_detective(body.question, r.findings, r.run, [turn.model_dump() for turn in body.history], body.finding_id)
+            answer = ask_detective(body.question, r.findings, r.run, [turn.model_dump() for turn in body.history],
+                                   body.finding_id, client=tracer)
         except Exception as problem:                       # whatever went wrong, the app gets a clean error
             log.exception("The Detective failed")
             raise HTTPException(502, "The Detective could not answer just now.") from problem
+        if tracer.steps:
+            # What it looked up, in order, for the apps to show beside the answer. See "steps" in the contract.
+            answer = {**answer, "steps": tracer.steps}
         return _json(answer)
 
+    add_site(app, held, site if site is not None else site_folder(), years_text)
     return app
 
 

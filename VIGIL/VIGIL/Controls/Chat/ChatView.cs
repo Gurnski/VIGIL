@@ -26,6 +26,9 @@ namespace VIGIL.Controls.Chat
         /// <summary>Raised with the finding id when a cited finding is clicked.</summary>
         public event EventHandler<string>? CitationClicked;
 
+        /// <summary>Raised when one of the Detective's lookups is clicked.</summary>
+        public event EventHandler<AskStep>? StepClicked;
+
         public ChatView(ChatService service)
         {
             this.service = service;
@@ -33,9 +36,10 @@ namespace VIGIL.Controls.Chat
             DoubleBuffered = true;
             BackColor = Theme.Surface;
 
-            transcript.SetSuggestions(Fixture.Questions);
+            transcript.SetSuggestions(service.Suggestions);
             transcript.SuggestionClicked += (s, question) => Send(question);
             transcript.CitationClicked += (s, id) => CitationClicked?.Invoke(this, id);
+            transcript.StepClicked += (s, step) => StepClicked?.Invoke(this, step);
             scroller.Controls.Add(transcript);
             scroller.ClientSizeChanged += (s, e) => FitTranscript();
             transcript.SizeChanged += (s, e) => RemeasureScroller();

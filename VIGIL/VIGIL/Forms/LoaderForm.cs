@@ -115,12 +115,25 @@ namespace VIGIL.Forms
 
         /// <summary>
         ///  Startup work goes here (config, data catalogue, API checks, caches).
-        ///  Runs off the UI thread so the spinner keeps turning. For now it reads the results
-        ///  snapshot built into the app; a failure here stops the app with the reason shown.
+        ///  Runs off the UI thread so the spinner keeps turning. It loads the results: the scan
+        ///  the analysis service holds when the service is running, then a stored scan beside the
+        ///  exe (<c>snapshot.json</c>, which the download carries), and otherwise the snapshot
+        ///  built into the app, which is made up and says so. A failure to read even that
+        ///  stops the app with the reason shown.
         /// </summary>
         private static Task<ResultsDocument> InitialiseAppAsync()
         {
-            return Task.Run(() => ResultsReader.ReadSnapshot());
+            return Task.Run(async () =>
+            {
+                try
+                {
+                    return await new ResultsClient().SnapshotAsync();
+                }
+                catch (ServiceUnavailableException)
+                {
+                    return ResultsReader.ReadBeside() ?? ResultsReader.ReadSnapshot();
+                }
+            });
         }
 
         private void TaglineTimer_Tick(object? sender, EventArgs e)

@@ -1,0 +1,17 @@
+<section id="data" data-transition="fade">
+<p class="eyebrow">The data</p>
+<h2>Eight variables, five with a second record</h2>
+<table>
+<tr class="band"><th style="width:34%">Variable</th><th style="width:30%">Scanned from</th><th style="width:36%">Tested again on</th></tr>
+<tr><td>Air temperature at 2 m</td><td>NASA MERRA-2</td><td>GISTEMP: stations and ships</td></tr>
+<tr class="band"><td>Precipitation</td><td>NASA GPM IMERG</td><td>GPCP</td></tr>
+<tr><td>Soil moisture, top 10 cm</td><td>NASA GLDAS Noah</td><td>MERRA-2 land model</td></tr>
+<tr class="band"><td>Vegetation (NDVI)</td><td>NASA Terra MODIS</td><td>Aqua MODIS</td></tr>
+<tr><td>Sea surface temperature</td><td>NASA Aqua MODIS</td><td>GISTEMP: ships and buoys</td></tr>
+<tr class="band"><td>Snow cover</td><td>NASA Terra MODIS</td><td>No second record</td></tr>
+<tr><td>Chlorophyll-a at the sea surface</td><td>NASA Aqua MODIS</td><td>No second record</td></tr>
+<tr class="band"><td>Earthquakes, magnitude 4.5 and above</td><td>USGS catalogue</td><td>No second record</td></tr>
+</table>
+<p class="small">All on one 2.5° grid in monthly steps, January 2001 to December 2025. A cell is tested when at least 90% of its months hold a value. About 100 GB of NASA files were read to make it.</p>
+<aside>The first scan on Saturday had the first four plus earthquakes. Snow cover and the two ocean variables were added overnight under the same rules, and we say so: they were not in the scan as first declared. Vegetation was also read again overnight, keeping only the pixels MODIS marks as good or marginal, which cost about a third of its testable cells, mostly where winters are snowy. No second product is fully independent of the first, and each finding says what the two have in common.</aside>
+</section>

@@ -57,6 +57,52 @@ namespace VIGIL.Controls.Globe
         }
 
         public ColourScale Scale { get; }
+        public int Rows => rows;
+        public int Columns => columns;
+        public float LatitudeMin => latitudeMin;
+        public float LatitudeSpan => latitudeSpan;
+        public float LongitudeMin => longitudeMin;
+        public float LongitudeSpan => longitudeSpan;
+
+        /// <summary>The value of one cell, NaN where there is none.</summary>
+        public float ValueAt(int row, int column) => values[row * columns + column];
+
+        /// <summary>Packed ARGB for a value, as the flat layer colours it.</summary>
+        public int ColourOf(float value) => Colour(value);
+
+        /// <summary>
+        ///  How large a value is against the scale's own range, from 0 to 1: its distance from zero
+        ///  for a scale that diverges about zero, and its place between the ends otherwise.
+        /// </summary>
+        public float Share(float value)
+        {
+            if (float.IsNaN(value))
+            {
+                return 0f;
+            }
+            float share = Scale.Diverging
+                ? MathF.Abs(value) / MathF.Max(MathF.Max(MathF.Abs(minimum), MathF.Abs(minimum + range)), 1e-9f)
+                : (value - minimum) / range;
+            return Math.Clamp(share, 0f, 1f);
+        }
+
+        /// <summary>The cell a point falls in, when it is on the grid.</summary>
+        public bool CellAt(float latitude, float longitude, out int row, out int column)
+        {
+            row = column = 0;
+            float fy = (latitude - latitudeMin) / latitudeSpan;
+            float x = longitude - longitudeMin;
+            x -= 360f * MathF.Floor(x / 360f);
+            float fx = x / longitudeSpan;
+            if (fy < 0f || fy > 1f || fx > 1f)
+            {
+                return false;
+            }
+            row = Math.Min((int)(fy * rows), rows - 1);
+            column = Math.Min((int)(fx * columns), columns - 1);
+            return true;
+        }
+
         public double Minimum { get; }
         public double Maximum { get; }
 

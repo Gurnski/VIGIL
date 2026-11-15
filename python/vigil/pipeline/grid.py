@@ -25,6 +25,10 @@ PERIOD_NOTE = "GPM IMERG has no data for October to December 2025."
 #: Where the regridded arrays are kept between the download and the scan. Never committed.
 SCAN_FOLDER = REPO / "data" / "scan"
 
+#: Where the second products are kept, one array per scan variable. They are for re-testing
+#: what the scan found and never enter the scan, so they sit apart from its arrays.
+RETEST_FOLDER = SCAN_FOLDER / "retest"
+
 
 def land_mask() -> np.ndarray:
     """The rough land, ice and ocean map the fixture uses, as the scan's mask.

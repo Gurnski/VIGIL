@@ -84,6 +84,24 @@ VARIABLES = {
         "source_url": "https://search.earthdata.nasa.gov/search?q=MOD13C2",
         "native_resolution": "0.05 degrees, monthly",
     },
+    "snow_cover": {
+        "id": "snow_cover", "name": "Snow cover", "units": "percent",
+        "mission": "Terra MODIS", "product": "MOD10CM", "field": "Snow_Cover_Monthly_CMG",
+        "source_url": "https://search.earthdata.nasa.gov/search?q=MOD10CM",
+        "native_resolution": "0.05 degrees, monthly",
+    },
+    "sea_surface_temperature": {
+        "id": "sea_surface_temperature", "name": "Sea surface temperature", "units": "°C",
+        "mission": "Aqua MODIS", "product": "MODISA_L3m_SST", "field": "sst",
+        "source_url": "https://search.earthdata.nasa.gov/search?q=MODISA_L3m_SST",
+        "native_resolution": "9 km, monthly",
+    },
+    "chlorophyll": {
+        "id": "chlorophyll", "name": "Chlorophyll-a at the sea surface", "units": "mg per m3",
+        "mission": "Aqua MODIS", "product": "MODISA_L3m_CHL", "field": "chlor_a",
+        "source_url": "https://search.earthdata.nasa.gov/search?q=MODISA_L3m_CHL",
+        "native_resolution": "9 km, monthly",
+    },
     "earthquakes": {
         "id": "earthquakes", "name": "Earthquakes, magnitude 4.5 and above", "units": "events per month",
         "mission": "USGS ComCat", "product": "USGS earthquake catalogue", "field": "count",
@@ -98,7 +116,19 @@ SOURCE_NOTES = {
     "precipitation": "GPM IMERG is a satellite-based estimate.",
     "soil_moisture": "GLDAS is land-surface model output.",
     "vegetation": "MODIS NDVI is a satellite index that cloud and sensor changes can affect.",
+    "snow_cover": "MODIS sees snow only in daylight and clear sky. Months of polar night are missing, so cells in the far "
+                  "north and south are mostly left out, and cloud can hide snow that is there. Where snow is rare, a few "
+                  "misread pixels can make a trend out of almost nothing, so read the size of the change before its p-value.",
+    "sea_surface_temperature": "Aqua MODIS measures the temperature of the sea's skin in daytime and clear sky. Its record "
+                               "starts in August 2002, and persistent cloud or sea ice leaves gaps. Aqua's orbit has drifted "
+                               "in recent years, which changes the time of day it measures and may affect the last years of the record.",
+    "chlorophyll": "Chlorophyll is estimated from the colour of the sea, which sediment and dissolved matter also change "
+                   "near coasts. The record starts in July 2002, and there is none in polar winter or under cloud. The sensor "
+                   "has aged over the record, and a slow drift in its calibration would look like a slow change in the sea.",
 }
+
+#: The raw units of every variable, for the analysis, which knows only the first five by itself.
+UNITS = {variable: described["units"] for variable, described in VARIABLES.items()}
 
 EARTHQUAKE_NOTES = [
     "The catalogue grows more complete with time, so a rising count can reflect better detection.",
@@ -387,7 +417,7 @@ def _four_calls(data: dict, mask, grid: dict, start_month: int, period_start: st
                 offset: tuple[int, int] = (0, 0), include_not_significant: bool = False):
     """The analysis, in the order it must run. Returns the scan and the final, ranked findings."""
     shared = dict(start_month=start_month, grid=grid, mask=mask, min_coverage=MIN_COVERAGE,
-                  threshold=THRESHOLD, ci_level=CI_LEVEL, rank_cap=RANK_CAP, cell_offset=offset)
+                  threshold=THRESHOLD, ci_level=CI_LEVEL, rank_cap=RANK_CAP, cell_offset=offset, units=UNITS)
     scan = scan_trends(data, include_not_significant=include_not_significant, **shared)
     step2 = add_contradictions(scan.findings, scan.evidence, grid=grid, threshold=THRESHOLD,
                                rank_cap=RANK_CAP, cell_offset=offset)

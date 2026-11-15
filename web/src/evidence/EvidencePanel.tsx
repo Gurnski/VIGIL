@@ -1,9 +1,18 @@
-import type { ReactNode } from 'react';
-import type { Cell, Finding, ResultsDocument, Series, Variable } from '../contract';
-import { labelText, placeText } from '../format';
+import { useEffect, useState } from 'react';
+import type { Finding, ResultsDocument, Variable } from '../contract';
+import { recompute, recomputeOffered } from './recompute';
+import type { Recomputed } from './recompute';
+import { copyText, evidenceReport } from './report';
+import { labelText, placeText, sourceLinkText } from '../format';
 import { figures, monthText, pValue, percent, signed } from './numbers';
+import { Facts, Section } from './parts';
+import type { Fact } from './parts';
+import { RetestLine, RetestSection, standingText } from './Retest';
 import { SeriesChart } from './SeriesChart';
 import type { ChangePointMark } from './SeriesChart';
+import { seriesNeeded, useSeries } from './series';
+import type { SeriesState } from './series';
+import { worldviewLink } from './worldview';
 import './evidence.css';
 
 export interface EvidencePanelProps {
@@ -15,33 +24,6 @@ export interface EvidencePanelProps {
   onAsk: (finding: Finding) => void;
   /** A related finding was chosen. */
   onOpenFinding: (findingId: string) => void;
-}
-
-interface Fact {
-  term: string;
-  value: ReactNode;
-}
-
-function Facts({ facts }: { facts: Fact[] }) {
-  return (
-    <dl className="evidence-facts">
-      {facts.map((fact) => (
-        <div key={fact.term}>
-          <dt>{fact.term}</dt>
-          <dd className="numeric">{fact.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="evidence-section">
-      <h4>{title}</h4>
-      {children}
-    </section>
-  );
 }
 
 /** The numbers for the finding's own kind, each as the service reported it. */
@@ -130,7 +112,7 @@ function Source({ variable }: { variable: Variable }) {
       {variable.native_resolution && <p>Native resolution: {variable.native_resolution}</p>}
       <p>
         <a href={variable.source_url} target="_blank" rel="noreferrer">
-          Find the product on NASA Earthdata
+          {sourceLinkText(variable.source_url)}
         </a>
       </p>
     </div>
@@ -143,16 +125,15 @@ function Source({ variable }: { variable: Variable }) {
  * from the results document; nothing is worked out here except how to draw it.
  */
 export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }: EvidencePanelProps) {
-  const seriesFor = (cell: Cell, variableId: string): Series | undefined =>
-    results.series?.find((series) => series.cell_id === cell.id && series.variable === variableId);
-
   // One chart per series the finding rests on: each of its variables in its cell, and for a
-  // contradiction the same variable in the paired cell.
-  const charts: { key: string; title: string; series: Series | undefined; slope?: number; step?: ChangePointMark }[] =
-    finding.variables.map((variable) => ({
+  // contradiction the same variable in the paired cell. A series the results document does not
+  // hold is looked for in a file beside the page, then asked of the service.
+  const states = useSeries(results, seriesNeeded(finding));
+  const charts: { key: string; title: string; state: SeriesState; slope?: number; step?: ChangePointMark }[] =
+    finding.variables.map((variable, index) => ({
       key: `${finding.cell.id}.${variable.id}`,
       title: `${variable.name} at ${placeText(finding.cell)}`,
-      series: seriesFor(finding.cell, variable.id),
+      state: states[index],
       slope: finding.result?.slope_per_decade ?? finding.contradiction?.slope_per_decade,
       step: finding.change_point && {
         date: finding.change_point.date,
@@ -168,12 +149,43 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
     charts.push({
       key: `${paired.id}.${finding.contradiction.variable}`,
       title: `${variable?.name ?? labelText(finding.contradiction.variable)} at ${placeText(paired)}`,
-      series: seriesFor(paired, finding.contradiction.variable),
+      state: states[finding.variables.length],
       slope: finding.contradiction.paired_slope_per_decade,
     });
   }
 
-  const hasGuide = charts.some((chart) => chart.series && chart.slope !== undefined);
+  // The id of the finding last copied, or "failed". Cleared after a moment, and when another finding is shown.
+  const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => {
+    if (copied === null) {
+      return;
+    }
+    const timer = setTimeout(() => setCopied(null), 2500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const copy = () => {
+    void copyText(evidenceReport(finding, results.run, results.synthetic === true)).then((done) => setCopied(done ? finding.id : 'failed'));
+  };
+
+  // "Recompute" is offered for a trend when a service answered. Its outcome belongs to one finding and goes when another is shown.
+  const [offered, setOffered] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void recomputeOffered().then((there) => current && setOffered(there));
+    return () => {
+      current = false;
+    };
+  }, []);
+  const [recomputed, setRecomputed] = useState<{ id: string; result: Recomputed | 'asking' } | null>(null);
+  const fresh = recomputed?.id === finding.id ? recomputed.result : null;
+  const runAgain = () => {
+    const id = finding.id;
+    setRecomputed({ id, result: 'asking' });
+    void recompute(finding).then((result) => setRecomputed((now) => (now?.id === id ? { id, result } : now)));
+  };
+
+  const hasChart = charts.some((chart) => chart.state.status === 'ready');
+  const hasGuide = charts.some((chart) => chart.state.status === 'ready' && chart.slope !== undefined);
   const facts = keyFacts(finding);
   const { preprocessing, method, period, standing } = finding;
   const parameters = Object.entries(method.parameters);
@@ -197,24 +209,29 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
           <h3 className={finding.significant ? '' : 'evidence-quiet'}>{finding.summary}</h3>
           <div className="evidence-badges">
             <span className="badge">{finding.significant ? 'Significant after correction' : 'Not significant'}</span>
-            <span className="badge">{labelText(standing.status)}</span>
+            <span className="badge">{standingText(finding)}</span>
             {results.synthetic && <span className="badge warning">Synthetic fixture</span>}
           </div>
+          <RetestLine finding={finding} />
         </header>
 
         {charts.map((chart) => (
           <Section key={chart.key} title={chart.title}>
-            {chart.series ? (
+            {chart.state.status === 'ready' ? (
               <SeriesChart
-                dates={chart.series.dates}
-                values={chart.series.anomaly}
-                units={chart.series.units}
+                dates={chart.state.series.dates}
+                values={chart.state.series.anomaly}
+                units={chart.state.series.units}
                 label={`Monthly anomaly of ${chart.title}, ${monthText(period.start)} to ${monthText(period.end)}`}
                 guideSlopePerDecade={chart.slope}
                 changePoint={chart.step}
               />
+            ) : chart.state.status === 'loading' ? (
+              <p className="evidence-chart-loading" role="status">
+                Loading the series
+              </p>
             ) : (
-              <p className="evidence-note">The series for this cell is not in this snapshot.</p>
+              <p className="evidence-note">The series for this cell is not in these results.</p>
             )}
           </Section>
         ))}
@@ -224,7 +241,7 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
             and is not itself a result.
           </p>
         )}
-        {finding.change_point && (
+        {finding.change_point && hasChart && (
           <p className="evidence-note">
             The vertical line is the reported date of the shift, the band its date range, and the dashed lines the
             mean level before and after.
@@ -240,6 +257,24 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
         {facts.length > 0 && (
           <Section title="The numbers">
             <Facts facts={facts} />
+            {offered && finding.kind === 'trend' && finding.result && (
+              <div className="evidence-recompute">
+                <button
+                  type="button"
+                  className="button"
+                  onClick={runAgain}
+                  disabled={fresh === 'asking'}
+                  title="Asks the analysis service to work this cell out again from the gridded data, and sets the result beside the stored one."
+                >
+                  Recompute
+                </button>
+                {fresh && (
+                  <p className={fresh !== 'asking' && fresh.outcome === 'differ' ? 'evidence-note evidence-retest-caution' : 'evidence-note'} role="status">
+                    {fresh === 'asking' ? 'Asking the analysis service to work this cell out again from the gridded data' : fresh.text}
+                  </p>
+                )}
+              </div>
+            )}
             {finding.cascade && (
               <p className="evidence-note">An association in time between two variables. It does not show that one caused the other.</p>
             )}
@@ -255,6 +290,8 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
             </ul>
           </Section>
         )}
+
+        <RetestSection finding={finding} />
 
         <Section title="Limitations">
           {standing.limitations.length > 0 ? (
@@ -286,6 +323,20 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
           {finding.variables.map((variable) => (
             <Source key={variable.id} variable={variable} />
           ))}
+        </Section>
+
+        <Section title="The place itself">
+          <div className="evidence-source">
+            <p>
+              NASA Worldview shows satellite imagery of this cell for any day. It is for looking at the place, and is no
+              part of the evidence.
+            </p>
+            <p>
+              <a href={worldviewLink(finding)} target="_blank" rel="noreferrer">
+                Open this cell in NASA Worldview
+              </a>
+            </p>
+          </div>
         </Section>
 
         <Section title="What was done to it">
@@ -337,7 +388,16 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
           </Section>
         )}
 
-        <p className="evidence-id numeric">{finding.id}</p>
+        <div className="evidence-foot">
+          <p className="evidence-id numeric">{finding.id}</p>
+          <button type="button" className="button" onClick={copy} title="Copies this finding as plain text, with every figure as the results hold it.">
+            {copied === finding.id ? 'Copied' : copied === 'failed' ? 'Could not copy' : 'Copy as text'}
+          </button>
+          {/* Says the outcome to a screen reader, which does not hear a button's words change. */}
+          <span className="evidence-said" role="status">
+            {copied === finding.id ? 'Copied as text.' : copied === 'failed' ? 'The text could not be copied.' : ''}
+          </span>
+        </div>
       </div>
     </div>
   );

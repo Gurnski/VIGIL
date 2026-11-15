@@ -44,5 +44,8 @@ namespace VIGIL.Models
         public List<string> Limitations { get; set; } = new();
         public string? Model { get; set; }
         public AnswerSource Source { get; set; }
+
+        /// <summary>What the Detective looked up on the way to the answer. Only its citations back what it said.</summary>
+        public List<AskStep> Steps { get; set; } = new();
     }
 }

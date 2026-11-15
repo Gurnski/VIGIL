@@ -109,6 +109,26 @@ def test_numbers_from_an_uncited_finding_do_not_count(snapshot, examples):
     assert not check_answer(reply, snapshot["findings"], snapshot["run"]).ok
 
 
+def test_a_count_written_with_commas_is_one_number():
+    """The scan's counts run to thousands, and a count is naturally written "19,001"."""
+    from vigil.detective.grounding import check_answer
+
+    finding = {"id": "trend.temperature.r1c1", "result": {"slope_per_decade": 0.5}, "summary": "Of 6,122 findings, this is one."}
+    run = {"counts": {"tests_run": 19001, "tests_significant": 5450}}
+
+    def checked(text):
+        return check_answer({"status": "answered", "answer": text, "citations": [{"finding_id": finding["id"]}]}, [finding], run)
+
+    assert checked("The scan ran 19,001 tests and 5,450 passed.").ok
+    assert checked("The scan ran 19001 tests.").ok
+    assert checked("It is one of 6,122 findings.").ok                   # a count inside a source's own text
+    assert not checked("The scan ran 19,002 tests.").ok                 # still exact: a wrong count is caught
+    assert not checked("The scan ran 19 tests.").ok                     # a piece of a count is not the count
+    # Commas that do not group thousands still separate numbers, as before.
+    problems = checked("Slopes of 0.5,0.7 were found.").problems
+    assert problems == ["number not found in the cited findings: 0.7"]
+
+
 def test_rounding_is_accepted_but_whole_numbers_must_match_exactly(snapshot):
     finding = {"id": "trend.x.r01c01", "result": {"slope_per_decade": 0.7213, "lag": 2.4}}
     ok = {"status": "answered", "answer": "The slope is 0.72, or 0.7213.", "citations": [{"finding_id": finding["id"]}]}

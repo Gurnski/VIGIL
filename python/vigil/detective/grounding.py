@@ -12,7 +12,8 @@ the contract's own examples do: 0.72 matches 0.7213, and 5.4e-06 matches
 5.4121e-06. A number that is not in the sources at all does not match, so the
 model cannot slip in a figure it worked out itself. Signs are ignored, so
 "cooling of 0.22" matches a slope of -0.22. A percentage matches the source
-value as a fraction: 95% matches 0.95.
+value as a fraction: 95% matches 0.95. A number written with commas between
+its thousands is read as one number: "19,001 tests" is 19001, not 19 and 1.
 """
 
 from __future__ import annotations
@@ -22,7 +23,10 @@ from dataclasses import dataclass, field
 
 # A number: digits, optional decimals, optional exponent. It must not sit inside
 # a word or an identifier, so the 2 in M2TMNXSLV or GPM_3IMERGM is not a number.
-_NUMBER = re.compile(r"(?<![A-Za-z0-9_.])(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)(%?)")
+# Digits in groups of three with commas between them are one number, as people
+# and models write a count ("19,001"). The scan's counts run to thousands, so
+# without this a correct answer that quotes one would be thrown away.
+_NUMBER = re.compile(r"(?<![A-Za-z0-9_.])((?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?)(%?)")
 _CELL_ID = re.compile(r"\br\d+c\d+\b")
 
 
@@ -51,7 +55,7 @@ def check_answer(response: dict, findings: list[dict], run: dict | None = None) 
 
     text = _strip_ids(response.get("answer", ""), list(by_id))
     for match in _NUMBER.finditer(text):
-        shown, percent = match.group(1), bool(match.group(2))
+        shown, percent = match.group(1).replace(",", ""), bool(match.group(2))
         if not _is_in(shown, percent, allowed):
             problems.append(f"number not found in the cited findings: {shown}{'%' if percent else ''}")
 
@@ -73,7 +77,7 @@ def _numbers_in(node) -> list[float]:
     if isinstance(node, (int, float)):
         found.append(abs(float(node)))
     elif isinstance(node, str):
-        found.extend(float(m.group(1)) for m in _NUMBER.finditer(_CELL_ID.sub(" ", node)))
+        found.extend(float(m.group(1).replace(",", "")) for m in _NUMBER.finditer(_CELL_ID.sub(" ", node)))
     elif isinstance(node, dict):
         for value in node.values():
             found.extend(_numbers_in(value))

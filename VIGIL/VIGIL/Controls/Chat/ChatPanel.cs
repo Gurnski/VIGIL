@@ -28,6 +28,9 @@ namespace VIGIL.Controls.Chat
         /// <summary>Raised with the finding id when a cited finding is clicked.</summary>
         public event EventHandler<string>? CitationClicked;
 
+        /// <summary>Raised when one of the Detective's lookups is clicked.</summary>
+        public event EventHandler<AskStep>? StepClicked;
+
         public ChatPanel(ChatService service)
         {
             this.service = service;
@@ -37,6 +40,7 @@ namespace VIGIL.Controls.Chat
 
             view = new ChatView(service) { BackColor = Theme.Surface };
             view.CitationClicked += (s, id) => CitationClicked?.Invoke(this, id);
+            view.StepClicked += (s, step) => StepClicked?.Invoke(this, step);
             Controls.Add(view);
 
             newChat.Click += (s, e) => view.Conversation = service.Start();

@@ -21,8 +21,7 @@ namespace VIGIL.Data
         public ChatService(DetectiveClient client, string? storePath = null)
         {
             this.client = client;
-            path = storePath ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VIGIL", "chats.json");
+            path = storePath ?? Path.Combine(AppFolder.Path, "chats.json");
             Load();
         }
 
@@ -31,6 +30,22 @@ namespace VIGIL.Data
 
         /// <summary>Raised when a conversation is added or deleted.</summary>
         public event EventHandler? ListChanged;
+
+        /// <summary>Raised with the answer when the service has answered a question. Not raised for a sample answer.</summary>
+        public event EventHandler<ChatMessage>? Answered;
+
+        /// <summary>
+        ///  The example questions the chat offers. They start as the fixture's. When the app is
+        ///  showing a real scan, the shell replaces them with questions that make sense of it.
+        /// </summary>
+        public IReadOnlyList<string> Suggestions { get; set; } = Fixture.Questions;
+
+        /// <summary>
+        ///  Whether a question the service cannot answer may get the fixture's canned answer,
+        ///  marked as a sample. Only right while the app is showing the fixture: beside a real
+        ///  scan, a made-up answer about made-up cells would mislead even with its mark.
+        /// </summary>
+        public bool AllowSamples { get; set; } = true;
 
         /// <summary>Saved conversations, most recently used first.</summary>
         public IReadOnlyList<Conversation> Conversations => conversations.OrderByDescending(c => c.Updated).ToList();
@@ -108,7 +123,7 @@ namespace VIGIL.Data
                 // Whatever went wrong, the conversation must stop waiting, or its send button stays off for good.
                 Connected = false;
                 string reason = error is DetectiveUnavailableException ? error.Message : "Something went wrong asking the service.";
-                var sample = Fixture.AnswerTo(question);
+                var sample = AllowSamples ? Fixture.AnswerTo(question) : null;
                 answer = sample != null
                     ? FromResponse(sample, AnswerSource.Sample)
                     : new ChatMessage
@@ -116,7 +131,9 @@ namespace VIGIL.Data
                         Role = ChatRole.Assistant,
                         Source = AnswerSource.NotConnected,
                         Text = reason + " The Detective answers from the analysis service at " + client.Address
-                            + ", so there is no answer to show. The example questions still work, with sample answers."
+                            + ", so there is no answer to show."
+                            + (AllowSamples ? " The example questions still work, with sample answers."
+                                : " It needs the service to hold a key for the language model.")
                     };
             }
             finally
@@ -132,6 +149,10 @@ namespace VIGIL.Data
                 Save();
             }
             ConversationChanged?.Invoke(this, conversation);
+            if (answer.Source == AnswerSource.Service)
+            {
+                Answered?.Invoke(this, answer);
+            }
         }
 
         private static ChatMessage FromResponse(AskResponse response, AnswerSource source) => new()
@@ -142,6 +163,7 @@ namespace VIGIL.Data
             Citations = response.Citations,
             Limitations = response.Limitations,
             Model = response.Model,
+            Steps = response.Steps,
             Source = source
         };
 

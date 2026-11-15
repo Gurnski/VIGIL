@@ -1,0 +1,21 @@
+{
+  "v": 5,
+  "createdOnFiles": { "v": 1, "at": "2026-11-15T00:13:00Z" },
+  "lists": "css",
+  "format": { "v": 1, "shared": ["project/deck.css"] },
+  "title": "VIGIL: Earth system trend detective",
+  "cover": "cover",
+  "order": ["cover", "question", "film", "approach", "data", "numbers", "found", "evidence", "retest", "known", "see", "zones", "share", "detective", "limits", "built", "close"],
+  "sections": {
+    "why": { "description": "What VIGIL is and the question it answers.", "start": "cover" },
+    "how": { "description": "How the scan works and what data it reads.", "start": "approach" },
+    "results": { "description": "What the scan found, the evidence behind each finding, how each trend was re-tested, and how VIGIL does on places with a known answer.", "start": "numbers" },
+    "product": { "description": "What a person can do with it: see a change in relief and year by year, draw a zone, present to a room, export, ask the Detective.", "start": "see" },
+    "trust": { "description": "What VIGIL does not claim, what was built this weekend and where AI was used.", "start": "limits" }
+  },
+  "faces": {
+    "space-grotesk": { "family": "Space Grotesk", "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@400;600&display=swap" },
+    "inter": { "family": "Inter", "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@400;600&display=swap" }
+  },
+  "designSystems": []
+}

@@ -11,6 +11,8 @@
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  /* The list keeps its own place as rows are measured, so the browser must not also try to. */
+  overflow-anchor: none;
 }
 
 /* With a selection, the focus ring goes on the selected row instead of the whole list. */
@@ -32,9 +34,12 @@
   border-top: 1px solid transparent;
   border-radius: var(--radius-small);
   cursor: pointer;
-  /* Rows out of view are not laid out or painted, which keeps a list of thousands cheap. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 88px;
+}
+
+/* Stands in for the rows that are not on the page: only those in and near the view are drawn. */
+.findings-gap {
+  margin: 0;
+  padding: 0;
 }
 
 .findings-row + .findings-row {

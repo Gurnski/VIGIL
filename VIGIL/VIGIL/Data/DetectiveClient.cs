@@ -33,19 +33,22 @@ namespace VIGIL.Data
 
         public DetectiveClient(string? address = null)
         {
+            Address = ResolveAddress(address);
+            http = new HttpClient { BaseAddress = new Uri(Address + "/"), Timeout = TimeSpan.FromSeconds(90) };
+        }
+
+        /// <summary>
+        ///  The service's address: the one given, or the environment variable <c>VIGIL_API_URL</c>,
+        ///  or the default when neither is a usable web address. No trailing slash.
+        /// </summary>
+        public static string ResolveAddress(string? address = null)
+        {
             address ??= Environment.GetEnvironmentVariable("VIGIL_API_URL");
             address = (address ?? "").Trim().TrimEnd('/');
             // A missing or mistyped address must not stop the app from opening, so it falls back to the default.
             bool usable = Uri.TryCreate(address + "/", UriKind.Absolute, out var uri)
                 && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-            if (!usable)
-            {
-                address = DefaultAddress;
-                uri = new Uri(DefaultAddress + "/");
-            }
-
-            Address = address;
-            http = new HttpClient { BaseAddress = uri, Timeout = TimeSpan.FromSeconds(90) };
+            return usable ? address : DefaultAddress;
         }
 
         public string Address { get; }

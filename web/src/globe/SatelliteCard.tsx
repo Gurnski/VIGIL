@@ -1,4 +1,4 @@
-import { orbitText, satelliteCaveat } from './satellite';
+import { orbitText, satelliteCaveat, standingText } from './satellite';
 import type { Satellite } from './satellite';
 
 export interface SatelliteCardProps {
@@ -22,7 +22,7 @@ export function SatelliteCard({ satellite, onClose }: SatelliteCardProps) {
       <img src={satellite.picture} alt={`${satellite.label} spacecraft`} />
       <h3>{satellite.label}</h3>
       <p className={satellite.inScan ? 'globe-satellite-card-status in-scan' : 'globe-satellite-card-status'}>
-        {satellite.inScan ? 'Its data is in the first scan' : 'Not in the scan: behind a source kept for cross-checks'}
+        {standingText(satellite)}
       </p>
       <dl>
         <div>

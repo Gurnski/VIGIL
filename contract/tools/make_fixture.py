@@ -354,6 +354,13 @@ def preprocessing(present):
     }
 
 
+#: The second product the one re-tested finding names. It is the real one for precipitation.
+SECOND_PRODUCT = {
+    "mission": "GPCP v3.3", "product": "GPCPMON", "field": "sat_gauge_precip", "units": "mm per month",
+    "source_url": "https://search.earthdata.nasa.gov/search?q=GPCPMON", "native_resolution": "0.5 degrees, monthly",
+}
+
+
 def standing(retested=False, extra=()):
     limitations = ["Synthetic fixture value. Not a real result."]
     limitations.extend(extra)
@@ -423,8 +430,26 @@ def build_findings(rng, places, series, p_adjusted):
         }
         finding["standing"] = standing(retested=(place == "wet"))
         if place == "wet":
-            finding["standing"]["limitations"].append(
-                "Re-tested on the years 2014 to 2025 held out from the scan. The sign and the significance held.")
+            # One finding that a second product confirmed, in the shape python/vigil/api/retest.py writes.
+            # The second record's figures are made up like the rest: a little smaller and a little less sure.
+            finding["standing"]["retest"] = {
+                "outcome": "confirmed",
+                "product": dict(SECOND_PRODUCT),
+                "direction": "increasing" if rising else "decreasing",
+                "slope_per_decade": sig(stats["slope"] * 0.86),
+                "ci_low": sig(stats["ci_low"] * 0.78),
+                "ci_high": sig(stats["ci_high"] * 0.94),
+                "ci_level": CI_LEVEL,
+                "units": units,
+                "p_value": sig(min(0.04, stats["p"] * 40)),
+                "months_present": MONTHS,
+                "months_expected": MONTHS,
+            }
+            finding["standing"]["limitations"] += [
+                "Re-tested on GPCP: the second record has a significant trend in the same direction.",
+                "GPCP and IMERG are both satellite estimates adjusted to rain gauges, and they share gauge data and "
+                "some satellite inputs. Agreement between them is weaker evidence than agreement with a record made another way.",
+            ]
         trend_ids[place, variable] = finding["id"]
 
     # Change points: the step was placed by the generator, so the date is known exactly.
