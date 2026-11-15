@@ -136,6 +136,8 @@ The desktop app is the main one and gets new features first. This table is the s
 | A marker per cell with a finding | Every cell | The cells of the top 200 findings | No |
 | Ranked findings list | Yes | Yes, with only the rows near the view in the page | No |
 | Kind filter on the list (All, Trends, Change points, Cascades, Contradictions) | Yes | Yes | No |
+| Variable filter on the list (a finding is listed under each variable it involves, so a cascade under both) | No | Yes | No |
+| Markers on the globe follow the list's kind and variable filters | No | Yes | No |
 | Evidence: figures, score, re-test, method, sources, limitations, related findings | Yes | Yes | No |
 | A link from a finding to its cell in NASA Worldview | Yes | Yes | No |
 | A chart for every finding | Yes, from the service | Yes, from the snapshot, then a file, then the service | No, with the `series/` files beside the page |
