@@ -279,8 +279,6 @@ function RetestBlock({ tally }: { tally: RetestTally }) {
  */
 export function ScanSummary({ results, onClose }: ScanSummaryProps) {
   const closeButton = useRef<HTMLButtonElement>(null);
-  const { run, variables } = results;
-  const findingCount = results.findings?.length ?? 0;
 
   useEffect(() => {
     closeButton.current?.focus();
@@ -305,6 +303,22 @@ export function ScanSummary({ results, onClose }: ScanSummaryProps) {
       </header>
 
       <div className="scan-scroll">
+        <ScanDetails results={results} />
+      </div>
+    </aside>
+  );
+}
+
+/**
+ * What the panel says, without the panel: the Overview page shows the same thing in a card.
+ * `brief` leaves out the files for other tools, which stay in the panel.
+ */
+export function ScanDetails({ results, brief = false }: { results: ResultsDocument; brief?: boolean }) {
+  const { run, variables } = results;
+  const findingCount = brief ? 0 : results.findings?.length ?? 0;
+
+  return (
+    <>
         {results.synthetic && (
           <p className="scan-synthetic">
             <span className="badge warning">Synthetic fixture</span>
@@ -361,7 +375,6 @@ export function ScanSummary({ results, onClose }: ScanSummaryProps) {
             ))}
           </Section>
         )}
-      </div>
-    </aside>
+    </>
   );
 }

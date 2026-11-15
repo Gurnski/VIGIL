@@ -16,6 +16,7 @@ import { ZonesPanel } from './zones/ZonesPanel';
 import type { Shown } from './present';
 import { DetectiveChat } from './detective/DetectiveChat';
 import { EvidencePanel } from './evidence/EvidencePanel';
+import { OverviewPage } from './overview/OverviewPage';
 import { ScanSummary } from './scan/ScanSummary';
 
 /** Says so when some of the findings named are not in the results on screen, and so cannot be ringed. */
@@ -32,14 +33,59 @@ const kindChoices: { kind: FindingKind | null; label: string }[] = [
   { kind: 'contradiction', label: 'Contradictions' },
 ];
 
-/** Below this width the Detective covers the whole screen, so showing something on the globe has to put it away. */
+/** Below this width one part fills the screen at a time, and the pages are chosen from a menu along the bottom. */
 const narrowScreen = '(max-width: 899px)';
 
+/** The pages, as the desktop app has them, in its order. */
+type Page = 'overview' | 'map' | 'evidence' | 'detective';
+const pages: { id: Page; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'map', label: 'Map' },
+  { id: 'evidence', label: 'Evidence' },
+  { id: 'detective', label: 'Detective' },
+];
+
+/** A page's mark in the menus: a house, a globe, a chart and a speech bubble, drawn in the colour of the text beside them. */
+function PageIcon({ page }: { page: Page }) {
+  return (
+    <svg className="page-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {page === 'overview' && <path d="M3 9.5 10 3l7 6.5V17h-4.5v-5h-5v5H3z" />}
+      {page === 'map' && (
+        <>
+          <circle cx="10" cy="10" r="7" />
+          <ellipse cx="10" cy="10" rx="3" ry="7" />
+          <path d="M3 10h14" />
+        </>
+      )}
+      {page === 'evidence' && <path d="M3 3v14h14M6.5 13l3-4 3 2 3.5-5.5" />}
+      {page === 'detective' && <path d="M4 4h12v9H9.5L6 16v-3H4z" />}
+    </svg>
+  );
+}
+
+/** Whether the screen is narrow enough for the phone layout, kept up to date as the window is resized or turned. */
+function useNarrowScreen(): boolean {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(narrowScreen).matches);
+  useEffect(() => {
+    const query = window.matchMedia(narrowScreen);
+    const onChange = () => setNarrow(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
+/** Takes a part that is not on screen out of reach of the keyboard and of screen readers. */
+function away(hidden: boolean): object {
+  return hidden ? { inert: '' } : {};
+}
+
 /**
- * The viewer's one screen: the globe with a variable's trend layer, the ranked findings beside
- * it (underneath on a narrow screen), each opening into its evidence, the Detective in a panel
- * that slides over, and "About this scan" in another. It is a read-only companion to the
- * desktop app and shows the same results document.
+ * The viewer's shell: the desktop app's four pages and the state they share. The Overview, the
+ * Map (the globe with a variable's trend layer and the ranked findings beside it), the Evidence
+ * page and the Detective, which is also a panel that slides over another page, with "About
+ * this scan" in another. It is a read-only companion to the desktop app and shows the same
+ * results document.
  */
 export function App() {
   const [results, setResults] = useState<ResultsDocument | null>(null);
@@ -70,8 +116,21 @@ export function App() {
   const [kind, setKind] = useState<FindingKind | null>(null);
   const [wantedVariable, setWantedVariable] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
-  // On a phone one part fills the screen at a time, chosen from the tabs along the bottom. The Detective is the third tab.
-  const [phoneTab, setPhoneTab] = useState<'globe' | 'findings'>('globe');
+  // The page on show. It opens on the Overview, as the desktop app does.
+  const [page, setPage] = useState<Page>('overview');
+  const pageNow = useRef(page);
+  pageNow.current = page;
+  // The page to go back to when the Detective's own page is closed.
+  const pageBefore = useRef<Page>('overview');
+  const narrow = useNarrowScreen();
+  // The globe is made the first time the Map is opened and kept after that, as the desktop app
+  // makes its pages. A phone that only reads the Overview never has to fetch the Earth.
+  const [mapVisited, setMapVisited] = useState(false);
+  useEffect(() => {
+    if (page === 'map') {
+      setMapVisited(true);
+    }
+  }, [page]);
   // On a phone the globe's switches sit in a panel that this opens, so the globe keeps the screen.
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [attached, setAttached] = useState<Finding | null>(null);
@@ -82,15 +141,32 @@ export function App() {
   const globeArea = useRef<HTMLElement>(null);
   const findingsCard = useRef<HTMLElement>(null);
 
+  /** Goes to a page from one of the menus. */
+  const goTo = useCallback((next: Page) => {
+    if (next !== 'detective') {
+      pageBefore.current = next;
+    }
+    setOptionsOpen(false);
+    setPage(next);
+  }, []);
+
   /**
-   * On a phone only one of the globe and the findings is on screen. This shows the one that
-   * matters when something is put there from elsewhere. On a wide screen both are always in view.
+   * Shows the globe, or the findings, when something is put there from elsewhere. The globe is
+   * on the Map page. The findings are beside it there on a wide screen, so that page stays if
+   * it is the one on show; otherwise, and always on a phone, they are on the Evidence page.
    */
   const bringToScreen = useCallback((part: 'globe' | 'findings') => {
-    if (window.matchMedia(narrowScreen).matches) {
-      setPhoneTab(part);
+    const phone = window.matchMedia(narrowScreen).matches;
+    const from = pageNow.current;
+    const to: Page = part === 'globe' ? 'map' : phone || from !== 'map' ? 'evidence' : 'map';
+    if (phone) {
       setOptionsOpen(false);
+    } else if (from === 'detective') {
+      // Leaving the Detective's page for what it pointed at: the conversation comes along in its panel.
+      setChatOpen(true);
     }
+    pageBefore.current = to;
+    setPage(to);
   }, []);
 
   useEffect(() => {
@@ -181,15 +257,12 @@ export function App() {
     [findings, selectFinding],
   );
 
-  /** A citation in a Detective answer: open that finding's evidence. On a phone the chat is put away so it can be seen. */
+  /** A citation in a Detective answer: open that finding's evidence, which goes to the page that shows it. */
   const showCitation = useCallback(
     (findingId: string) => {
-      if (openFinding(findingId) && window.matchMedia(narrowScreen).matches) {
-        setChatOpen(false);
-        bringToScreen('findings');
-      }
+      openFinding(findingId);
     },
-    [openFinding, bringToScreen],
+    [openFinding],
   );
 
   /** The layer follows what is pointed out, so a ring is read against its own variable's trends. */
@@ -229,10 +302,7 @@ export function App() {
       });
       if (asked) {
         showLayerOf(cited[0]);
-        if (window.matchMedia(narrowScreen).matches) {
-          setChatOpen(false);
-          bringToScreen('globe');
-        }
+        bringToScreen('globe');
       }
     },
     [findings, showLayerOf, bringToScreen],
@@ -263,10 +333,7 @@ export function App() {
         box: step.box,
       });
       showLayerOf(read[0]);
-      if (window.matchMedia(narrowScreen).matches) {
-        setChatOpen(false);
-        bringToScreen('globe');
-      }
+      bringToScreen('globe');
     },
     [findings, showLayerOf, bringToScreen],
   );
@@ -341,7 +408,14 @@ export function App() {
   };
 
   const clearHighlight = useCallback(() => setHighlight(null), []);
-  const openChat = useCallback(() => setChatOpen(true), []);
+  /** Opens the Detective: its own page on a phone, its panel over the page on a wide screen. */
+  const openChat = useCallback(() => {
+    if (window.matchMedia(narrowScreen).matches) {
+      setPage('detective');
+    } else {
+      setChatOpen(true);
+    }
+  }, []);
   const closeScan = useCallback(() => setScanOpen(false), []);
 
   // With many layers the row of them scrolls on a phone: keep the chosen one in sight.
@@ -349,10 +423,13 @@ export function App() {
     layerBar.current?.querySelector('.selected')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [layerVariable]);
 
-  const askAbout = useCallback((finding: Finding) => {
-    setAttached(finding);
-    setChatOpen(true);
-  }, []);
+  const askAbout = useCallback(
+    (finding: Finding) => {
+      setAttached(finding);
+      openChat();
+    },
+    [openChat],
+  );
 
   if (error) {
     return (
@@ -373,14 +450,90 @@ export function App() {
 
   const counts = results.run?.counts;
   const grids = results.grids ?? [];
+  // On a phone the Evidence page is the findings beside the globe, filling the screen. On a wide screen it is a page of its own.
+  const shown: Page = page === 'evidence' && narrow ? 'map' : page;
+  const chatAsPage = page === 'detective' && !narrow;
+  const chatShown = page === 'detective' || (!narrow && chatOpen);
+  const chatBeside = !narrow && chatOpen && page !== 'detective';
+
+  // What stands above a list of findings: how many there are, what narrows them, and what they are narrowed to.
+  const findingsHead = (
+    <>
+    {counts && (
+      <p className="scan-line">
+        {count(counts.tests_significant)} of {count(counts.tests_run)} tests significant after correction,{' '}
+        {count(findings.length)} findings listed.
+      </p>
+    )}
+    <div className="segmented findings-kinds" role="radiogroup" aria-label="Kind of finding">
+      {kindChoices.map((choice) => (
+        <button
+          key={choice.label}
+          role="radio"
+          aria-checked={choice.kind === kind}
+          className={choice.kind === kind ? 'selected' : ''}
+          onClick={() => setKind(choice.kind)}
+        >
+          {choice.label}
+        </button>
+      ))}
+    </div>
+    {variableChoices.length > 1 && (
+      <div className="segmented findings-kinds" role="radiogroup" aria-label="Variable of finding">
+        <button role="radio" aria-checked={variable === null} className={variable === null ? 'selected' : ''} onClick={() => chooseVariable(null)}>
+          All variables
+        </button>
+        {variableChoices.map((id) => (
+          <button
+            key={id}
+            role="radio"
+            aria-checked={id === variable}
+            className={id === variable ? 'selected' : ''}
+            onClick={() => chooseVariable(id)}
+          >
+            {labelText(id)}
+          </button>
+        ))}
+      </div>
+    )}
+    {zones.chosenZone && zones.chosen && !zones.chosen.refusal && (
+      <p className="zones-limit numeric">
+        <span>
+          {zones.chosenZone.name}: {zones.chosen.cells.length === 1 ? '1 grid cell' : `${count(zones.chosen.cells.length)} grid cells`},{' '}
+          {inZone.length === 1 ? '1 finding' : `${count(inZone.length)} findings`}.
+        </span>
+        <button type="button" className="button" onClick={() => zones.choose(null)}>
+          Whole globe
+        </button>
+      </p>
+    )}
+    {(kind !== null || variable !== null) && (
+      <p className="scan-line numeric">
+        {[kind !== null ? kindChoices.find((choice) => choice.kind === kind)?.label : null, variable !== null ? labelText(variable) : null]
+          .filter(Boolean)
+          .join(', ')}
+        , {count(listed.length)} of {count(inZone.length)}
+      </p>
+    )}
+    </>
+  );
 
   return (
-    <div className={`app phone-tab-${phoneTab}${chatOpen ? ' app-chat-open' : ''}`}>
+    <div className={`app page-${page} phone-tab-${page === 'evidence' ? 'findings' : 'globe'}${chatBeside ? ' app-chat-open' : ''}`}>
       <header className="app-header">
         <div className="app-title">
           <h1>VIGIL</h1>
           <p>Earth system trend detective</p>
         </div>
+        {/* On a wide screen the pages are chosen here. On a phone they are in the menu along the bottom. */}
+        <nav className="segmented app-nav wide-only" aria-label="Pages">
+          {pages.map(({ id, label }) => (
+            <button key={id} type="button" aria-current={page === id ? 'page' : undefined} className={page === id ? 'selected' : ''} onClick={() => goTo(id)}>
+              <PageIcon page={id} />
+              {label}
+            </button>
+          ))}
+        </nav>
         <div className="app-actions">
           {results.synthetic && <span className="badge warning">Synthetic fixture</span>}
           {presenter.presenting && (
@@ -396,12 +549,25 @@ export function App() {
           <a className="button wide-only" href="download/VIGIL-win-x64.zip">
             Download for Windows
           </a>
-          <button className="button primary wide-only" onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen}>
+          {/* On the Detective's own page there is nothing for this to open. It keeps its place, so the row of pages does not shift. */}
+          <button
+            className={page === 'detective' ? 'button primary wide-only unseen' : 'button primary wide-only'}
+            onClick={() => setChatOpen((open) => !open)}
+            aria-expanded={chatOpen}
+            disabled={page === 'detective'}
+          >
             Ask the Detective
           </button>
         </div>
       </header>
 
+      {/* The pages. One is on show and the rest stay as they were, out of sight and out of reach, so the globe keeps its place and a list keeps its scroll. */}
+      <div className="app-pages">
+      <div className={shown === 'overview' ? 'page page-overview page-shown' : 'page page-overview'} {...away(shown !== 'overview')}>
+        <OverviewPage results={results} onFinding={selectFinding} onOpenMap={() => goTo('map')} onOpenEvidence={() => goTo('evidence')} />
+      </div>
+
+      <div className={shown === 'map' ? 'page page-map page-shown' : 'page page-map'} {...away(shown !== 'map')}>
       <div className="toolbar">
         {grids.length > 0 && (
           // On a wide screen the layer is chosen from a menu: a scan can have eight, and a row of them crowds
@@ -553,6 +719,7 @@ export function App() {
 
       <main className="app-main">
         <section className="globe-area" aria-label="Globe" ref={globeArea}>
+          {mapVisited && (
           <GlobeView
             results={results}
             layerVariable={layerVariable}
@@ -577,8 +744,9 @@ export function App() {
             onFindingClick={selectFinding}
             highlight={highlight}
             onClearHighlight={clearHighlight}
-            onBackToDetective={chatOpen ? null : openChat}
+            onBackToDetective={chatShown ? null : openChat}
           />
+          )}
         </section>
 
         <section className="card findings-card" aria-label="Findings" ref={findingsCard}>
@@ -611,62 +779,7 @@ export function App() {
                 <ZonesPanel zones={zones} runId={runId} findingsInZone={inZone.length} onDraw={drawZone} />
               ) : (
                 <>
-              {counts && (
-                <p className="scan-line">
-                  {count(counts.tests_significant)} of {count(counts.tests_run)} tests significant after correction,{' '}
-                  {count(findings.length)} findings listed.
-                </p>
-              )}
-              <div className="segmented findings-kinds" role="radiogroup" aria-label="Kind of finding">
-                {kindChoices.map((choice) => (
-                  <button
-                    key={choice.label}
-                    role="radio"
-                    aria-checked={choice.kind === kind}
-                    className={choice.kind === kind ? 'selected' : ''}
-                    onClick={() => setKind(choice.kind)}
-                  >
-                    {choice.label}
-                  </button>
-                ))}
-              </div>
-              {variableChoices.length > 1 && (
-                <div className="segmented findings-kinds" role="radiogroup" aria-label="Variable of finding">
-                  <button role="radio" aria-checked={variable === null} className={variable === null ? 'selected' : ''} onClick={() => chooseVariable(null)}>
-                    All variables
-                  </button>
-                  {variableChoices.map((id) => (
-                    <button
-                      key={id}
-                      role="radio"
-                      aria-checked={id === variable}
-                      className={id === variable ? 'selected' : ''}
-                      onClick={() => chooseVariable(id)}
-                    >
-                      {labelText(id)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {zones.chosenZone && zones.chosen && !zones.chosen.refusal && (
-                <p className="zones-limit numeric">
-                  <span>
-                    {zones.chosenZone.name}: {zones.chosen.cells.length === 1 ? '1 grid cell' : `${count(zones.chosen.cells.length)} grid cells`},{' '}
-                    {inZone.length === 1 ? '1 finding' : `${count(inZone.length)} findings`}.
-                  </span>
-                  <button type="button" className="button" onClick={() => zones.choose(null)}>
-                    Whole globe
-                  </button>
-                </p>
-              )}
-              {(kind !== null || variable !== null) && (
-                <p className="scan-line numeric">
-                  {[kind !== null ? kindChoices.find((choice) => choice.kind === kind)?.label : null, variable !== null ? labelText(variable) : null]
-                    .filter(Boolean)
-                    .join(', ')}
-                  , {count(listed.length)} of {count(inZone.length)}
-                </p>
-              )}
+              {findingsHead}
               <FindingsList findings={listed} selectedId={selectedId} onSelect={selectFinding} />
                 </>
               )}
@@ -675,38 +788,37 @@ export function App() {
         </section>
       </main>
 
-      {/* On a phone: one part on screen at a time. Hidden on a wide screen, where everything is in view at once. */}
-      <nav className="phone-tabs" aria-label="Parts of the viewer">
-        {(['globe', 'findings'] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            aria-current={!chatOpen && phoneTab === tab ? 'page' : undefined}
-            className={!chatOpen && phoneTab === tab ? 'selected' : ''}
-            onClick={() => {
-              setChatOpen(false);
-              setOptionsOpen(false);
-              setPhoneTab(tab);
-            }}
-          >
-            {tab === 'globe' ? 'Globe' : 'Findings'}
-          </button>
-        ))}
-        <button
-          type="button"
-          aria-current={chatOpen ? 'page' : undefined}
-          className={chatOpen ? 'selected' : ''}
-          onClick={() => {
-            setOptionsOpen(false);
-            setChatOpen(true);
-          }}
-        >
-          Detective
-        </button>
-      </nav>
+      </div>
 
-      {/* Kept in the page while closed, so the conversation is still there when it is opened again. */}
-      <aside className={chatOpen ? 'chat-panel' : 'chat-panel chat-panel-closed'} aria-label="The Detective" aria-hidden={!chatOpen}>
+      {/* The Evidence page on a wide screen: the findings on the left and, beside them, everything the results say about the chosen one. */}
+      {!narrow && (
+        <div className={shown === 'evidence' ? 'page page-evidence page-shown' : 'page page-evidence'} {...away(shown !== 'evidence')}>
+          <section className="card evidence-list" aria-label="Findings">
+            <div className="card-title">
+              <h2>Findings</h2>
+            </div>
+            {findingsHead}
+            <FindingsList findings={listed} selectedId={selectedId} onSelect={selectFinding} place="the Evidence page" />
+          </section>
+          <section className="card evidence-view" aria-label="Evidence">
+            {selected ? (
+              <EvidencePanel finding={selected} results={results} onShowOnMap={() => goTo('map')} onAsk={askAbout} onOpenFinding={openFinding} />
+            ) : (
+              <div className="evidence-none">
+                <h2>Evidence</h2>
+                <p>Every finding with its series, its uncertainty, its method, its sources and what it cannot say. Choose one from the list.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* The Detective: a page of its own, or a panel over another page on a wide screen. Kept in the page while it is away, so the conversation is still there when it is opened again. */}
+      <aside
+        className={`chat-panel${chatShown ? '' : ' chat-panel-closed'}${chatAsPage ? ' chat-page' : ''}`}
+        aria-label="The Detective"
+        aria-hidden={!chatShown}
+      >
         <DetectiveChat
           findings={findings}
           runId={results.run?.id ?? null}
@@ -717,9 +829,20 @@ export function App() {
           onAnswerCited={onAnswerCited}
           onShowCitation={onShowCitation}
           onShowStep={showStep}
-          onClose={() => setChatOpen(false)}
+          onClose={() => (page === 'detective' ? goTo(pageBefore.current) : setChatOpen(false))}
         />
       </aside>
+      </div>
+
+      {/* On a phone: the pages, in a menu along the bottom. Hidden on a wide screen, where they are in the header. */}
+      <nav className="phone-tabs" aria-label="Pages">
+        {pages.map(({ id, label }) => (
+          <button key={id} type="button" aria-current={page === id ? 'page' : undefined} className={page === id ? 'selected' : ''} onClick={() => goTo(id)}>
+            <PageIcon page={id} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
 
       {scanOpen && <ScanSummary results={results} onClose={closeScan} />}
     </div>

@@ -1,0 +1,141 @@
+/* The Overview page: four figures, the top of the ranking, and the scan variable by variable.
+   Written for a phone first, where it is one column that scrolls. From 900px the two cards sit
+   side by side and each scrolls by itself, so the figures and the page's name stay in view. */
+
+.overview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-y: auto;
+  /* Room for the bar is kept whether or not it shows, so the cards never shift when it appears. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.overview-header h2 {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 600;
+}
+
+.overview-header p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+}
+
+/* The figures: two by two on a phone, four in a row where there is room. */
+.overview-tiles {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* A headline number, as the app's StatTile. */
+.overview-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.overview-tile-caption,
+.overview-tile-note,
+.overview-tile-value {
+  margin: 0;
+}
+
+.overview-tile-caption {
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+.overview-tile-value {
+  font-size: var(--font-heading);
+  line-height: 1.15;
+}
+
+.overview-tile-note {
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+}
+
+.overview-tile-warning {
+  color: var(--warning);
+}
+
+.overview-columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.overview-ranking,
+.overview-scan {
+  flex: none;
+}
+
+.overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.overview-none {
+  margin: var(--space-3) 0;
+  color: var(--text-secondary);
+}
+
+@media (min-width: 900px) {
+  .overview {
+    overflow: hidden;
+  }
+
+  .overview-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .overview-columns {
+    flex: 1;
+    min-height: 0;
+    flex-direction: row;
+    gap: var(--space-5);
+  }
+
+  .overview-ranking,
+  .overview-scan {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Each card scrolls by itself, so the buttons under the ranking stay in view. */
+  .overview-ranking .findings-preview,
+  .overview-scan-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+@media (max-width: 899px) {
+  .overview {
+    /* Out to the screen's edges, so the bar the page scrolls with sits at the edge and not on the cards. */
+    margin: 0 calc(-1 * var(--space-4));
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .overview-actions .button {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}

@@ -15,6 +15,12 @@
   overflow-anchor: none;
 }
 
+/* A few rows with all of them on the page: the page it is on does the scrolling. */
+.findings-list.findings-preview {
+  flex: none;
+  overflow: visible;
+}
+
 /* With a selection, the focus ring goes on the selected row instead of the whole list. */
 .findings-list.findings-has-selection:focus-visible {
   outline: none;

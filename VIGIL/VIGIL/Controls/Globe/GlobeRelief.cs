@@ -10,7 +10,8 @@ namespace VIGIL.Controls.Globe
     ///  flat layer gives it. Height shows nothing the colour does not. It makes the size of a
     ///  change readable at a glance, and it is only a way of drawing the layer.
     ///  Columns are drawn over the rendered frame, far ones first, on the side of the planet
-    ///  that faces the camera.
+    ///  that faces the camera. When the surface is unrolled they stand on it wherever the fold
+    ///  has put their cells, and on the flat map they stand taller, as everything off its surface does.
     /// </summary>
     internal sealed class GlobeRelief
     {
@@ -20,6 +21,14 @@ namespace VIGIL.Controls.Globe
         private GridOverlay? builtFor;
         private Vector3[] corners = Array.Empty<Vector3>();      // (rows + 1) by (columns + 1) unit vectors
         private Vector3[] centres = Array.Empty<Vector3>();      // rows by columns unit vectors
+
+        // The same places on the surface as it is unrolled, and which way is up from each. Worked out again whenever the fold moves.
+        private Vector3[] placedCorners = Array.Empty<Vector3>();
+        private Vector3[] cornerUps = Array.Empty<Vector3>();
+        private Vector3[] placedCentres = Array.Empty<Vector3>();
+        private Vector3[] centreUps = Array.Empty<Vector3>();
+        private GridOverlay? placedFor;
+        private float placedFold = -1f;
         private readonly List<Column> visible = new();
         private readonly PointF[] quad = new PointF[4];
 
@@ -47,6 +56,15 @@ namespace VIGIL.Controls.Globe
             Prepare(grid);
             int rows = grid.Rows, columns = grid.Columns, stride = columns + 1;
             var eye = camera.Eye;
+            bool unrolled = camera.Fold > 0f;
+            if (unrolled)
+            {
+                Place(grid, camera);
+            }
+            var ground = unrolled ? placedCorners : corners;
+            var middles = unrolled ? placedCentres : centres;
+            // On the flat map a column stands taller, by the same share as a marker over it does.
+            float taller = 1f + (GlobeCamera.FlatHeightScale - 1f) * camera.Fold;
 
             visible.Clear();
             for (int row = 0; row < rows; row++)
@@ -63,14 +81,14 @@ namespace VIGIL.Controls.Globe
                     {
                         continue;
                     }
-                    var centre = centres[row * columns + column];
+                    var centre = middles[row * columns + column];
                     // Only the side of the planet that faces the camera: a column beyond the horizon is left out.
-                    if (Vector3.Dot(eye, centre) - 1f <= 0.004f * (camera.EyeLength - 1f))
+                    if (unrolled ? float.IsNaN(centre.X) || camera.FacingOf(centre) <= 0.004f : Vector3.Dot(eye, centre) - 1f <= 0.004f * (camera.EyeLength - 1f))
                     {
                         continue;
                     }
                     float height = tallest * share;
-                    var top = centre * (1f + height);
+                    var top = unrolled ? centre + centreUps[row * columns + column] * (height * taller) : centre * (1f + height);
                     if (!OnScreen(camera, top, bounds) && !OnScreen(camera, centre, bounds))
                     {
                         continue;
@@ -99,16 +117,27 @@ namespace VIGIL.Controls.Globe
             foreach (var item in visible)
             {
                 int at = item.Row * stride + item.Col;
-                low[0] = corners[at];                    // south-west
-                low[1] = corners[at + 1];                // south-east
-                low[2] = corners[at + stride + 1];       // north-east
-                low[3] = corners[at + stride];           // north-west
-                float lift = 1f + item.Height;
-                for (int i = 0; i < 4; i++)
+                low[0] = ground[at];                     // south-west
+                low[1] = ground[at + 1];                 // south-east
+                low[2] = ground[at + stride + 1];        // north-east
+                low[3] = ground[at + stride];            // north-west
+                if (unrolled)
                 {
-                    high[i] = low[i] * lift;
+                    float rise = item.Height * taller;
+                    high[0] = low[0] + cornerUps[at] * rise;
+                    high[1] = low[1] + cornerUps[at + 1] * rise;
+                    high[2] = low[2] + cornerUps[at + stride + 1] * rise;
+                    high[3] = low[3] + cornerUps[at + stride] * rise;
                 }
-                var middle = centres[item.Row * columns + item.Col];
+                else
+                {
+                    float lift = 1f + item.Height;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        high[i] = low[i] * lift;
+                    }
+                }
+                var middle = middles[item.Row * columns + item.Col];
 
                 for (int side = 0; side < 4; side++)
                 {
@@ -159,6 +188,52 @@ namespace VIGIL.Controls.Globe
                 }
             }
             builtFor = grid;
+        }
+
+        /// <summary>
+        ///  Puts every corner and centre where the fold has it, with the way up from each. A
+        ///  cell that would straddle 180° has one side at each edge of the unrolled surface, so
+        ///  its centre is marked as nowhere and its column is left out.
+        /// </summary>
+        private void Place(GridOverlay grid, GlobeCamera camera)
+        {
+            if (ReferenceEquals(grid, placedFor) && camera.Fold == placedFold)
+            {
+                return;
+            }
+            int rows = grid.Rows, columns = grid.Columns;
+            if (placedCorners.Length != corners.Length || placedCentres.Length != centres.Length)
+            {
+                placedCorners = new Vector3[corners.Length];
+                cornerUps = new Vector3[corners.Length];
+                placedCentres = new Vector3[centres.Length];
+                centreUps = new Vector3[centres.Length];
+            }
+            double latitudeStep = grid.LatitudeSpan / rows, longitudeStep = grid.LongitudeSpan / columns;
+            for (int row = 0; row <= rows; row++)
+            {
+                for (int column = 0; column <= columns; column++)
+                {
+                    double latitude = grid.LatitudeMin + row * latitudeStep, longitude = grid.LongitudeMin + column * longitudeStep;
+                    int corner = row * (columns + 1) + column;
+                    placedCorners[corner] = camera.Place(latitude, longitude);
+                    cornerUps[corner] = camera.UpAt(latitude, longitude);
+                    if (row < rows && column < columns)
+                    {
+                        int cell = row * columns + column;
+                        double east = longitude + longitudeStep;
+                        if (Math.Abs(GlobeCamera.WrapLongitude(longitude) - GlobeCamera.WrapLongitude(east)) > 180)
+                        {
+                            placedCentres[cell] = new Vector3(float.NaN);
+                            continue;
+                        }
+                        placedCentres[cell] = camera.Place(latitude + latitudeStep / 2, longitude + longitudeStep / 2);
+                        centreUps[cell] = camera.UpAt(latitude + latitudeStep / 2, longitude + longitudeStep / 2);
+                    }
+                }
+            }
+            placedFor = grid;
+            placedFold = camera.Fold;
         }
 
         private static bool Project(GlobeCamera camera, Vector3 point, out PointF screen)

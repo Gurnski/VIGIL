@@ -50,6 +50,7 @@ namespace VIGIL.Pages
         private readonly ToggleSwitch overlayToggle = new() { Text = "Layer", Checked = true };
         private readonly ToggleSwitch significantToggle = new() { Text = "Significant only" };
         private readonly ToggleSwitch reliefToggle = new() { Text = "Relief" };
+        private readonly ToggleSwitch flatToggle = new() { Text = "Flat map" };
 
         // The layer year by year: the service's annual anomalies for the chosen variable, kept once fetched.
         private readonly ToggleSwitch yearsToggle = new() { Text = "Years" };
@@ -240,7 +241,7 @@ namespace VIGIL.Pages
                 Margin = Padding.Empty
             };
             int toggleTop = Px((Theme.ControlHeight - Theme.ControlHeightSmall) / 2);
-            foreach (var toggle in new[] { overlayToggle, significantToggle, reliefToggle, yearsToggle, satellitesToggle, graticuleToggle, rotateToggle })
+            foreach (var toggle in new[] { overlayToggle, significantToggle, reliefToggle, flatToggle, yearsToggle, satellitesToggle, graticuleToggle, rotateToggle })
             {
                 // Track (36) plus gap (12) plus the label, so each toggle takes only the room it needs.
                 toggle.Font = Theme.Body;
@@ -256,10 +257,13 @@ namespace VIGIL.Pages
             layers.SelectedChanged += (s, e) => ShowingChanged?.Invoke(this, EventArgs.Empty);
             significantToggle.CheckedChanged += (s, e) => ShowSelectedLayer();
             reliefToggle.CheckedChanged += (s, e) => ShowRelief(reliefToggle.Checked);
+            flatToggle.CheckedChanged += (s, e) => ShowFlat(flatToggle.Checked);
             yearsToggle.CheckedChanged += (s, e) => ShowYears(yearsToggle.Checked);
             yearBar.YearChanged += (s, e) => ShowSelectedLayer();
             satellitesTip.SetToolTip(yearsToggle, "Shows each year against the cell's own normal, in place of the trend. Press play to watch a change arrive. Needs the analysis service.");
             satellitesTip.SetToolTip(reliefToggle, "Raises each cell by the size of its trend. The colour still says which way it goes.");
+            // A switch that is out of use shows no tip, so what the flat map does to "Satellites" and "Rotate" is said here.
+            satellitesTip.SetToolTip(flatToggle, "Unrolls the globe into a flat map. Drag the map to move it, and scroll to zoom.\nThe satellites are not shown on it: their orbits are drawn round the globe. A map does not rotate.");
             satellitesToggle.CheckedChanged += (s, e) => ShowSatellites(satellitesToggle.Checked);
             satellitesTip.SetToolTip(satellitesToggle, MissionSatellites.Caveat);
 
@@ -366,6 +370,23 @@ namespace VIGIL.Pages
             }
             NoteOnLegend();
             PositionOverlays();
+        }
+
+        /// <summary>
+        ///  Unrolls the globe into a flat map, or rolls it back up. The satellites are drawn round
+        ///  the globe only, so their switch is out of use while the map is flat, and a map does not
+        ///  turn, so neither is "Rotate". The "Flat map" switch's own tip says so, because a switch
+        ///  that is out of use shows none.
+        /// </summary>
+        private void ShowFlat(bool on)
+        {
+            globe.Flat = on;
+            satellitesToggle.Enabled = !on;
+            rotateToggle.Enabled = !on;
+            if (on)
+            {
+                satelliteCard.Visible = false;
+            }
         }
 
         /// <summary>

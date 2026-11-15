@@ -18,6 +18,9 @@ namespace VIGIL.Controls.Globe
     ///  compass, zoom buttons and a cursor read-out. Overlays show where satellite data is:
     ///  markers with labels and tooltips, regions, a gridded colour layer such as a trend per
     ///  cell, satellites on their orbits and measured ground tracks.
+    ///  <see cref="Flat"/> unrolls the globe into a flat map and rolls it up again, and
+    ///  everything drawn on the surface goes with it. The satellites do not: an orbit is drawn
+    ///  round a globe, so they are left out while it is unrolled.
     ///  <see cref="GlobeRenderer"/> shades the planet; this class owns the camera animation,
     ///  the input and the crisp GDI+ layer drawn over the frame.
     /// </summary>
@@ -41,6 +44,11 @@ namespace VIGIL.Controls.Globe
         private const float MinimumVisibleShift = 0.25f;   // pixels: smaller moves aren't worth a repaint
         private const double EaseRate = 11;       // per second: wheel zoom, nudges, compass reset
         private const double InertiaDecay = 4;    // per second
+        private const double FoldSeconds = 1.4;   // unrolling into the flat map, or rolling back up: the web viewer's takes as long
+        // The whole flat map is fitted to this share of the view's width and height, and the view may pull back a little further.
+        private const float FlatFitWidth = 0.94f;
+        private const float FlatFitHeight = 0.86f;
+        private const float FlatZoomOutRoom = 0.25f;   // in doublings
 
         /// <summary>The camera's five numbers. Longitude may run outside ±180 mid-motion.</summary>
         private struct ViewState
@@ -55,6 +63,8 @@ namespace VIGIL.Controls.Globe
             public Vector3 FromUnit, ToUnit;
             public double Start, Duration;
             public bool EaseIn;
+            // On the flat map the way from one place to another is a straight line across it, not a great circle.
+            public bool Straight;
             public float Hop;
             public float HeadingDelta;
         }
@@ -86,6 +96,18 @@ namespace VIGIL.Controls.Globe
         private ViewState target;
         private bool easing;
         private Flight? flight;
+
+        // The fold: 0 for the globe, 1 for the flat map. While it is under way the view goes with it, from one to the other.
+        private bool flat;
+        private float fold;
+        private bool folding;
+        private float foldFrom, foldTo;
+        private ViewState foldFromView, foldToView;
+        // A flight asked for while the surface was folding. It sets off when the fold is over, from where the fold left the view.
+        private (ViewState To, TimeSpan? Duration)? flightAfterFold;
+        // The zoom that fitted the whole flat map when it was last worked out, to tell a view left there from one zoomed by hand.
+        private float wholeMapZoomLog;
+        private double foldStart;
         private bool inertia;
         private float inertiaLatitude;
         private float inertiaLongitude;
@@ -159,6 +181,9 @@ namespace VIGIL.Controls.Globe
         public event EventHandler? ViewChanged;
         public event EventHandler? GridOverlayChanged;
         public event EventHandler? SelectedMarkerChanged;
+
+        /// <summary>Raised when <see cref="Flat"/> changes, as the surface starts to unroll or to roll back up.</summary>
+        public event EventHandler? FlatChanged;
 
         /// <summary>Raised when the pen is lifted after drawing an outline. The outline stays on the globe until <see cref="ClearStroke"/>.</summary>
         public event EventHandler<ZoneDrawnEventArgs>? ZoneDrawn;
@@ -257,6 +282,30 @@ namespace VIGIL.Controls.Globe
         {
             get => relief;
             set { relief = value; Invalidate(); }
+        }
+
+        /// <summary>
+        ///  Unrolls the globe into a flat map, 180° W to 180° E with north up, and rolls it back
+        ///  up. Setting it animates there, and the view goes to the whole map or back over the
+        ///  place it was looking at. The layer, the columns, the markers, the regions and the
+        ///  zones all go with the surface. The satellites are not drawn while it is unrolled.
+        ///  On the flat map a drag moves the map, the wheel zooms about the cursor, a right-drag
+        ///  leans the view over, and north stays at the top. <see cref="Fold"/> is how far it has got.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool Flat
+        {
+            get => flat;
+            set
+            {
+                if (flat == value)
+                {
+                    return;
+                }
+                flat = value;
+                StartFold();
+                FlatChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         /// <summary>The height of the tallest column, in planet radii.</summary>
@@ -377,6 +426,10 @@ namespace VIGIL.Controls.Globe
         [Browsable(false)]
         public double Tilt => view.Tilt;
 
+        /// <summary>How far the surface is unrolled: 0 for the globe, 1 for the flat map, between the two while it folds.</summary>
+        [Browsable(false)]
+        public double Fold => fold;
+
         /// <summary>Height of the eye above the surface in kilometres.</summary>
         [Browsable(false)]
         public double AltitudeKm => CurrentCamera().AltitudeKm;
@@ -446,7 +499,7 @@ namespace VIGIL.Controls.Globe
             to.Longitude = (float)longitudeDegrees;
             if (zoom is double z)
             {
-                to.ZoomLog = ClampZoomLog((float)Math.Log2(z));
+                to.ZoomLog = ClampZoomLog((float)Math.Log2(Math.Max(z, 1e-3)));
             }
             StartFlight(to, duration);
         }
@@ -516,7 +569,10 @@ namespace VIGIL.Controls.Globe
         /// <summary>Flies back to the starting view: the whole planet, centred on Plymouth, north up and untilted.</summary>
         public void ResetView()
         {
-            StartFlight(new ViewState { Latitude = (float)HomeLatitude, Longitude = (float)HomeLongitude }, null);
+            // The flat map's starting view is the whole map, which is further out than the whole planet.
+            StartFlight(flat
+                ? new ViewState { ZoomLog = WholeMapZoomLog() }
+                : new ViewState { Latitude = (float)HomeLatitude, Longitude = (float)HomeLongitude }, null);
         }
 
         /// <summary>Turns the camera back to north up, keeping its position and tilt.</summary>
@@ -536,6 +592,12 @@ namespace VIGIL.Controls.Globe
         /// </summary>
         public void TiltTo(double degrees)
         {
+            if (folding)
+            {
+                // The fold is moving the view. It ends at this tilt instead of the one it set out for.
+                foldToView.Tilt = (float)Math.Clamp(degrees, 0, GlobeCamera.MaxTilt);
+                return;
+            }
             CancelFlightAndInertia();
             target.Tilt = (float)Math.Clamp(degrees, 0, GlobeCamera.MaxTilt);
             easing = true;
@@ -547,6 +609,14 @@ namespace VIGIL.Controls.Globe
         public bool TryGetSurfacePoint(Point location, out double latitudeDegrees, out double longitudeDegrees)
         {
             return CurrentCamera().Unproject(location.X, location.Y, out latitudeDegrees, out longitudeDegrees);
+        }
+
+        /// <summary>Where a place on the surface is in the control, if it is in front of the camera and not round the back of the globe.</summary>
+        public bool TryGetScreenPoint(double latitudeDegrees, double longitudeDegrees, out Point location)
+        {
+            bool shown = CurrentCamera().Project(GlobeCamera.ToUnit(latitudeDegrees, longitudeDegrees), out var screen, out _);
+            location = Point.Round(screen);
+            return shown;
         }
 
         /// <summary>Highlights a marker (null clears it) and optionally flies in to it.</summary>
@@ -810,6 +880,16 @@ namespace VIGIL.Controls.Globe
             sceneDirty = true;
             resizing = true;
             lastResizeSeconds = Now;
+            if (flat && !folding)
+            {
+                // The zoom that fits the whole map depends on the control's shape. A view left on the whole
+                // map stays on it, and any other is kept within how far out the new shape allows.
+                float whole = WholeMapZoomLog();
+                bool onWholeMap = Math.Abs(view.ZoomLog - wholeMapZoomLog) < 0.01f;
+                wholeMapZoomLog = whole;
+                view.ZoomLog = onWholeMap ? whole : Math.Max(view.ZoomLog, MinZoomLog);
+                target.ZoomLog = onWholeMap ? whole : Math.Max(target.ZoomLog, MinZoomLog);
+            }
             UpdateFrameClock();
         }
 
@@ -844,7 +924,7 @@ namespace VIGIL.Controls.Globe
         private double Now => clock.Elapsed.TotalSeconds;
 
         private bool NeedsFrames =>
-            autoRotate || groundTrack?.ShowSatellite == true || satellites.Count > 0 || flight != null || easing || inertia || resizing;
+            autoRotate || groundTrack?.ShowSatellite == true || satellites.Count > 0 || flight != null || easing || inertia || resizing || folding;
 
         private bool LiveSun => useRealSunPosition && sunTimeUtc == null;
 
@@ -878,7 +958,12 @@ namespace VIGIL.Controls.Globe
             bool viewMoved = false;
             bool render = false;
 
-            if (flight != null)
+            if (folding)
+            {
+                // The fold carries the view with it. A flight asked for meanwhile lands as soon as the fold is over.
+                viewMoved |= StepFold(now);
+            }
+            else if (flight != null)
             {
                 viewMoved |= StepFlight(now);
             }
@@ -945,7 +1030,7 @@ namespace VIGIL.Controls.Globe
         /// <summary>True once any satellite has moved far enough on screen to be worth a repaint.</summary>
         private bool SatellitesMovedVisibly()
         {
-            if (satellites.Count == 0)
+            if (satellites.Count == 0 || fold > 0f)
             {
                 return false;
             }
@@ -978,10 +1063,111 @@ namespace VIGIL.Controls.Globe
             autoRotate && frameClock.Enabled && drag == DragMode.None && flight == null && !easing && !inertia
             // A turning globe would carry the surface away from under the pen, and from under an outline waiting to be named.
             && !penMode && stroke.Count == 0
+            // A map does not turn.
+            && !flat && fold <= 0f
             && Now - lastInteractionSeconds > AutoRotatePauseSeconds;
 
         private bool InMotion =>
-            drag is DragMode.Grab or DragMode.Orbit || flight != null || easing || inertia || resizing || AutoRotating;
+            drag is DragMode.Grab or DragMode.Orbit || flight != null || easing || inertia || resizing || folding || AutoRotating;
+
+        /// <summary>
+        ///  Starts unrolling the globe or rolling it back up, from wherever the fold has got to.
+        ///  The view goes with it: to the whole map with north up, or back over the place the
+        ///  map's view was on, no further out than the globe allows.
+        /// </summary>
+        private void StartFold()
+        {
+            // A lean that was still easing in, as Relief's is just after it is switched on, is where the fold ends.
+            float tiltWanted = easing ? target.Tilt : view.Tilt;
+            CancelMotion();
+            flightAfterFold = null;
+            if (drag != DragMode.None && drag != DragMode.Draw)
+            {
+                drag = DragMode.None;
+                Capture = false;
+            }
+            // A box half drawn was measured on the surface as it was.
+            selectionPreview = null;
+            view.Longitude = Wrap(view.Longitude);
+            view.Heading = Wrap(view.Heading);
+            view.Latitude = ClampLatitude(view.Latitude);
+            target = view;
+
+            foldFromView = view;
+            foldToView = view;
+            foldToView.Heading = 0f;
+            foldToView.Tilt = tiltWanted;
+            if (flat)
+            {
+                foldToView.Latitude = 0f;
+                foldToView.Longitude = 0f;
+                foldToView.ZoomLog = WholeMapZoomLog();
+                wholeMapZoomLog = foldToView.ZoomLog;
+            }
+            else
+            {
+                foldToView.ZoomLog = Math.Max(view.ZoomLog, 0f);
+            }
+            foldFrom = fold;
+            foldTo = flat ? 1f : 0f;
+            foldStart = Now;
+            folding = true;
+            NoteInteraction();
+            UpdateFrameClock();
+            MarkSceneDirty();
+        }
+
+        /// <summary>Takes the fold, and the view with it, as far as the clock says they have got. Eased in and out.</summary>
+        private bool StepFold(double now)
+        {
+            double p = Math.Clamp((now - foldStart) / FoldSeconds, 0, 1);
+            float s = (float)(p < 0.5 ? 4 * p * p * p : 1 - Math.Pow(-2 * p + 2, 3) / 2);
+            fold = foldFrom + (foldTo - foldFrom) * s;
+            view.Latitude = foldFromView.Latitude + (foldToView.Latitude - foldFromView.Latitude) * s;
+            view.Longitude = foldFromView.Longitude + (foldToView.Longitude - foldFromView.Longitude) * s;
+            view.ZoomLog = foldFromView.ZoomLog + (foldToView.ZoomLog - foldFromView.ZoomLog) * s;
+            view.Heading = foldFromView.Heading + (foldToView.Heading - foldFromView.Heading) * s;
+            view.Tilt = foldFromView.Tilt + (foldToView.Tilt - foldFromView.Tilt) * s;
+            if (p >= 1)
+            {
+                fold = foldTo;
+                view = foldToView;
+                folding = false;
+            }
+            target = view;
+            if (!folding && flightAfterFold is (var to, var duration))
+            {
+                // It was asked for part-way through, when the heading and the lean were part-way too. It keeps the ones the fold ended on.
+                flightAfterFold = null;
+                to.Heading = view.Heading;
+                to.Tilt = view.Tilt;
+                StartFlight(to, duration);
+            }
+            return true;
+        }
+
+        /// <summary>The zoom, in doublings, at which the whole flat map fits the view with a margin. Below 0: the map is wider than the globe.</summary>
+        private float WholeMapZoomLog()
+        {
+            float width = Width > 0 ? Width : 800;
+            float height = Height > 0 ? Height : 600;
+            var camera = new GlobeCamera(0, 0, 1, 0, 0, width, height);
+            float pixelsPerRadian = camera.Focal / camera.Range;
+            float zoom = MathF.Min(FlatFitWidth * width / (2f * MathF.PI), FlatFitHeight * height / MathF.PI) / pixelsPerRadian;
+            return MathF.Log2(Math.Clamp(zoom, 0.05f, 1f));
+        }
+
+        /// <summary>The furthest out the view goes, in doublings: the whole planet, or a little beyond the whole flat map.</summary>
+        private float MinZoomLog => flat ? WholeMapZoomLog() - FlatZoomOutRoom : 0f;
+
+        /// <summary>True while the surface has edges at 180° W and 180° E, which a view cannot go past and a longitude cannot wrap round.</summary>
+        private bool Unrolled => flat || fold > 0f;
+
+        /// <summary>On the unrolled surface a longitude stays between its two edges.</summary>
+        private float KeepOnMap(float longitude) => Unrolled ? Math.Clamp(longitude, -180f, 180f) : longitude;
+
+        /// <summary>A change in longitude: the shorter way round on the globe, and the plain difference on the unrolled surface.</summary>
+        private float LongitudeDelta(float delta) => Unrolled ? delta : WrapDelta(delta);
 
         private bool StepFlight(double now)
         {
@@ -991,7 +1177,9 @@ namespace VIGIL.Controls.Globe
             p = Math.Clamp(p, 0, 1);
             float s = (float)(f.EaseIn ? p * p * p * (p * (p * 6 - 15) + 10) : 1 - Math.Pow(1 - p, 3));
 
-            var (lat, lon) = GlobeCamera.ToLatLon(Slerp(f.FromUnit, f.ToUnit, s));
+            var (lat, lon) = f.Straight
+                ? (f.From.Latitude + (f.To.Latitude - f.From.Latitude) * (double)s, f.From.Longitude + (f.To.Longitude - f.From.Longitude) * (double)s)
+                : GlobeCamera.ToLatLon(Slerp(f.FromUnit, f.ToUnit, s));
             view.Latitude = ClampLatitude((float)lat);
             view.Longitude = (float)lon;
             view.ZoomLog = f.From.ZoomLog + (f.To.ZoomLog - f.From.ZoomLog) * s - f.Hop * MathF.Sin(MathF.PI * s);
@@ -1016,7 +1204,7 @@ namespace VIGIL.Controls.Globe
         {
             float k = 1f - (float)Math.Exp(-EaseRate * dt);
             view.Latitude += (target.Latitude - view.Latitude) * k;
-            view.Longitude += (target.Longitude - view.Longitude) * k;
+            view.Longitude = KeepOnMap(view.Longitude + (target.Longitude - view.Longitude) * k);
             view.ZoomLog += (target.ZoomLog - view.ZoomLog) * k;
             view.Heading += (target.Heading - view.Heading) * k;
             view.Tilt += (target.Tilt - view.Tilt) * k;
@@ -1036,7 +1224,7 @@ namespace VIGIL.Controls.Globe
 
         private bool StepInertia(double dt)
         {
-            view.Longitude += inertiaLongitude * (float)dt;
+            view.Longitude = KeepOnMap(view.Longitude + inertiaLongitude * (float)dt);
             view.Latitude = ClampLatitude(view.Latitude + inertiaLatitude * (float)dt);
             float decay = (float)Math.Exp(-InertiaDecay * dt);
             inertiaLongitude *= decay;
@@ -1051,6 +1239,12 @@ namespace VIGIL.Controls.Globe
 
         private void StartFlight(ViewState to, TimeSpan? duration)
         {
+            if (folding)
+            {
+                // The view is not its own while the surface folds. The last place asked for is flown to once it has.
+                flightAfterFold = (to, duration);
+                return;
+            }
             bool alreadyMoving = flight != null || inertia || easing;
             CancelMotion();
             view.Longitude = Wrap(view.Longitude);
@@ -1063,8 +1257,16 @@ namespace VIGIL.Controls.Globe
             var fromUnit = GlobeCamera.ToUnit(view.Latitude, view.Longitude);
             var toUnit = GlobeCamera.ToUnit(to.Latitude, to.Longitude);
             double angle = Math.Acos(Math.Clamp(Vector3.Dot(fromUnit, toUnit), -1f, 1f)) * 180 / Math.PI;
+            if (Unrolled)
+            {
+                // On the map a flight goes straight across it, which between two places either side of 180° is the long way.
+                angle = Math.Max(Math.Abs(to.Latitude - view.Latitude), Math.Abs(to.Longitude - view.Longitude));
+                // North stays at the top of a map.
+                to.Heading = 0f;
+            }
             float mid = (view.ZoomLog + to.ZoomLog) / 2f;
-            float hop = mid * (float)Math.Clamp(angle / 70, 0, 1);
+            // The rise mid-way is measured from the widest view there is, which on the flat map is wider than the globe's.
+            float hop = (mid - MinZoomLog) * (float)Math.Clamp(angle / 70, 0, 1);
             double seconds = duration?.TotalSeconds
                 ?? Math.Clamp(0.6 + angle / 180 * 1.4 + Math.Abs(to.ZoomLog - view.ZoomLog) * 0.15, 0.5, 2.5);
 
@@ -1077,6 +1279,7 @@ namespace VIGIL.Controls.Globe
                 Start = Now,
                 Duration = Math.Max(0.05, seconds),
                 EaseIn = !alreadyMoving,
+                Straight = Unrolled,
                 Hop = hop,
                 HeadingDelta = WrapDelta(to.Heading - view.Heading)
             };
@@ -1129,9 +1332,11 @@ namespace VIGIL.Controls.Globe
             float width = Width > 0 ? Width : 800;
             float height = Height > 0 ? Height : 600;
             double halfLat = (latitudeMax - latitudeMin) / 2 * 1.15 + 0.5;
-            double halfLon = longitudeSpan / 2 * Math.Cos(centreLatitude * Math.PI / 180) * 1.15 + 0.5;
+            // A degree of longitude is as wide at every latitude on the flat map. On the globe it narrows towards the poles.
+            double halfLon = longitudeSpan / 2 * (Unrolled ? 1 : Math.Cos(centreLatitude * Math.PI / 180)) * 1.15 + 0.5;
 
-            for (float log = ClampZoomLog(float.MaxValue); log >= 0f; log -= 0.05f)
+            float widest = MinZoomLog;
+            for (float log = ClampZoomLog(float.MaxValue); log >= widest; log -= 0.05f)
             {
                 var camera = new GlobeCamera(centreLatitude, 0, Math.Pow(2, log), 0, 0, width, height);
                 float degreesPerPixel = camera.SurfaceDegreesPerPixel;
@@ -1140,7 +1345,7 @@ namespace VIGIL.Controls.Globe
                     return Math.Pow(2, log);
                 }
             }
-            return 1;
+            return Math.Pow(2, widest);
         }
 
         private void ViewChangedByInput()
@@ -1161,7 +1366,7 @@ namespace VIGIL.Controls.Globe
             lastInteractionSeconds = Now;
         }
 
-        private GlobeCamera CurrentCamera() => new(view.Latitude, view.Longitude, Math.Pow(2, view.ZoomLog), view.Heading, view.Tilt, Width, Height);
+        private GlobeCamera CurrentCamera() => new(view.Latitude, view.Longitude, Math.Pow(2, view.ZoomLog), view.Heading, view.Tilt, Width, Height, fold);
 
         private Vector3 SunDirection()
         {
@@ -1271,6 +1476,7 @@ namespace VIGIL.Controls.Globe
             scene.Zoom = Math.Pow(2, view.ZoomLog);
             scene.Heading = view.Heading;
             scene.Tilt = view.Tilt;
+            scene.Fold = fold;
             scene.SunDirection = SunDirection();
             scene.Textures = textures;
             scene.Grid = grid;
@@ -1349,7 +1555,8 @@ namespace VIGIL.Controls.Globe
 
             var outline = BoxOutline(box.LatitudeMin, box.LatitudeMax, box.LongitudeMin, box.LongitudeSpan).ToList();
             var polygon = new List<PointF>();
-            bool allVisible = true;
+            // A box that runs over 180° is in two pieces on the unrolled surface, which one filled shape cannot be.
+            bool allVisible = !(camera.Fold > 0f && CrossesEdge(box.LongitudeMin, box.LongitudeMin + box.LongitudeSpan));
             foreach (var (lat, lon) in outline)
             {
                 if (camera.Project(GlobeCamera.ToUnit(lat, lon), out var screen, out float facing) && facing > 0.002f)
@@ -1470,7 +1677,8 @@ namespace VIGIL.Controls.Globe
 
         private void DrawGroundTrack(Graphics g, GlobeCamera camera)
         {
-            if (groundTrack == null)
+            // A track belongs with its satellite, which is drawn round the globe only.
+            if (groundTrack == null || camera.Fold > 0f)
             {
                 return;
             }
@@ -1510,7 +1718,8 @@ namespace VIGIL.Controls.Globe
         /// </summary>
         private void DrawSatellites(Graphics g, GlobeCamera camera, bool wholeControl)
         {
-            if (satellites.Count == 0)
+            // An orbit is a ring round a globe. Unrolled, there is nothing for it to go round, so the satellites wait.
+            if (satellites.Count == 0 || camera.Fold > 0f)
             {
                 return;
             }
@@ -1612,12 +1821,26 @@ namespace VIGIL.Controls.Globe
             var run = new List<PointF>();
             var runIndices = new List<int>();
             bool previousVisible = false;
+            bool unrolled = camera.Fold > 0f;
+            float previousLongitude = 0f;
             for (int i = 0; i < points.Count; i++)
             {
                 // Project's return value is about the surface; only its screen position is used here.
                 var point = points[i];
                 bool isVisible = visible(point) && Projects(camera, point);
-                if (i > 0 && isVisible != previousVisible)
+                bool overEdge = false;
+                if (unrolled)
+                {
+                    // The unrolled surface ends at 180°. A line that crosses it stops at one edge and starts again at the other.
+                    float longitude = MathF.Atan2(-point.Z, point.X);
+                    overEdge = i > 0 && MathF.Abs(longitude - previousLongitude) > MathF.PI;
+                    previousLongitude = longitude;
+                    if (overEdge)
+                    {
+                        Flush();
+                    }
+                }
+                if (i > 0 && !overEdge && isVisible != previousVisible)
                 {
                     var edge = Crossing(points[i - 1], point, previousVisible, visible, camera);
                     camera.Project(edge, out var edgeScreen, out _);
@@ -1672,8 +1895,11 @@ namespace VIGIL.Controls.Globe
         }
 
         /// <summary>True if the point is in front of the camera, whatever the planet hides.</summary>
-        private static bool Projects(GlobeCamera camera, Vector3 point) =>
-            Vector3.Dot(point - camera.Eye, camera.Forward) > 1e-4f;
+        private static bool Projects(GlobeCamera camera, Vector3 point) => camera.InFront(point);
+
+        /// <summary>True when two longitudes, in degrees, are on opposite sides of the unrolled surface's edge at 180°.</summary>
+        private static bool CrossesEdge(double from, double to) =>
+            Math.Abs(GlobeCamera.WrapLongitude(from) - GlobeCamera.WrapLongitude(to)) > 180 || Math.Abs(to - from) >= 360;
 
         /// <summary>Bisects between a visible and a hidden point for where the path disappears.</summary>
         private static Vector3 Crossing(Vector3 from, Vector3 to, bool fromVisible, Func<Vector3, bool> visible, GlobeCamera camera)
@@ -1919,7 +2145,7 @@ namespace VIGIL.Controls.Globe
         {
             string coordinates = cursorPosition is (double lat, double lon)
                 ? FormatCoordinates(lat, lon)
-                : "Move over the globe for coordinates";
+                : flat ? "Move over the map for coordinates" : "Move over the globe for coordinates";
             string detail = string.Format(British, "Eye altitude {0:N0} km, zoom {1:0.0}×", camera.AltitudeKm, Zoom);
             if (Math.Abs(Heading) > 0.5 || view.Tilt > 0.5f)
             {
@@ -2076,7 +2302,8 @@ namespace VIGIL.Controls.Globe
 
             bool left = e.Button == MouseButtons.Left;
             bool right = e.Button == MouseButtons.Right;
-            if (!left && !right)
+            // While the surface is folding the view is on its way somewhere, and there is nothing steady to take hold of.
+            if ((!left && !right) || folding)
             {
                 return;
             }
@@ -2151,7 +2378,7 @@ namespace VIGIL.Controls.Globe
                         // Keep the grabbed point under the cursor: shift the centre by however far
                         // the point now under the cursor is from it. Converges within a move or two.
                         dLat = (float)Math.Clamp(grabLat - lat, -30, 30);
-                        dLon = Math.Clamp(WrapDelta((float)(grabLon - lon)), -30f, 30f);
+                        dLon = Math.Clamp(LongitudeDelta((float)(grabLon - lon)), -30f, 30f);
                     }
                     else
                     {
@@ -2160,7 +2387,7 @@ namespace VIGIL.Controls.Globe
                         dLat = (e.Y - lastMouse.Y) * degreesPerPixel;
                     }
                     view.Latitude = ClampLatitude(view.Latitude + dLat);
-                    view.Longitude += dLon;
+                    view.Longitude = KeepOnMap(view.Longitude + dLon);
                     target = view;
                     velocityLongitude = velocityLongitude * 0.5f + (float)(dLon / dt) * 0.5f;
                     velocityLatitude = velocityLatitude * 0.5f + (float)(dLat / dt) * 0.5f;
@@ -2168,7 +2395,11 @@ namespace VIGIL.Controls.Globe
                     break;
                 }
                 case DragMode.Orbit:
-                    view.Heading = Wrap(view.Heading + (e.X - lastMouse.X) * 0.35f);
+                    // North stays at the top of the flat map: the drag leans the view over and does not turn it.
+                    if (!Unrolled)
+                    {
+                        view.Heading = Wrap(view.Heading + (e.X - lastMouse.X) * 0.35f);
+                    }
                     view.Tilt = Math.Clamp(view.Tilt - (e.Y - lastMouse.Y) * 0.3f, 0f, GlobeCamera.MaxTilt);
                     target = view;
                     ViewChangedByInput();
@@ -2324,13 +2555,16 @@ namespace VIGIL.Controls.Globe
             {
                 handled.Handled = true;
             }
-            ZoomBy(e.Delta / 120f * 0.4f, e.Location);
+            if (!folding)
+            {
+                ZoomBy(e.Delta / 120f * 0.4f, e.Location);
+            }
         }
 
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             base.OnMouseDoubleClick(e);
-            if (e.Button == MouseButtons.Left && HudHitTest(e.Location) == HudButton.None
+            if (e.Button == MouseButtons.Left && !folding && HudHitTest(e.Location) == HudButton.None
                 && CurrentCamera().Unproject(e.X, e.Y, out double lat, out double lon))
             {
                 FlyTo(lat, lon, Math.Min(MaxZoom, Zoom * 2.2));
@@ -2345,6 +2579,10 @@ namespace VIGIL.Controls.Globe
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+            if (folding && e.KeyCode != Keys.Escape)
+            {
+                return;
+            }
             float step = 12f / (float)Math.Sqrt(Zoom);
             switch (e.KeyCode)
             {
@@ -2389,7 +2627,7 @@ namespace VIGIL.Controls.Globe
         {
             CancelFlightAndInertia();
             target.Latitude = ClampLatitude(target.Latitude + dLat);
-            target.Longitude += dLon;
+            target.Longitude = KeepOnMap(target.Longitude + dLon);
             easing = true;
             NoteInteraction();
             UpdateFrameClock();
@@ -2412,7 +2650,7 @@ namespace VIGIL.Controls.Globe
             {
                 float k = 1f - (float)Math.Pow(2, target.ZoomLog - newLog);
                 target.Latitude = ClampLatitude(target.Latitude + ((float)lat - target.Latitude) * k);
-                target.Longitude += WrapDelta((float)lon - target.Longitude) * k;
+                target.Longitude = KeepOnMap(target.Longitude + LongitudeDelta((float)lon - target.Longitude) * k);
             }
 
             target.ZoomLog = newLog;
@@ -2424,7 +2662,7 @@ namespace VIGIL.Controls.Globe
         /// <summary>The satellite drawn under a point, if there is one and the Earth is not in front of it.</summary>
         private GlobeSatellite? HitSatellite(Point location)
         {
-            if (satellites.Count == 0)
+            if (satellites.Count == 0 || fold > 0f)
             {
                 return null;
             }
@@ -2471,9 +2709,17 @@ namespace VIGIL.Controls.Globe
             return hit;
         }
 
-        /// <summary>The lat/lon box with two opposite corners, going the short way round in longitude.</summary>
-        private static GlobeRegion BoxBetween(double lat1, double lon1, double lat2, double lon2)
+        /// <summary>
+        ///  The lat/lon box with two opposite corners. On the globe it goes the short way round in
+        ///  longitude. On the flat map both corners are in view with the map between them, so it
+        ///  runs from the western one to the eastern one, however wide that is.
+        /// </summary>
+        private GlobeRegion BoxBetween(double lat1, double lon1, double lat2, double lon2)
         {
+            if (Unrolled)
+            {
+                return new GlobeRegion(Math.Min(lat1, lat2), Math.Max(lat1, lat2), Math.Min(lon1, lon2), Math.Max(lon1, lon2), Theme.Accent);
+            }
             float delta = WrapDelta((float)(lon2 - lon1));
             double west = delta >= 0 ? lon1 : lon2;
             double east = delta >= 0 ? lon1 + delta : lon1;
@@ -2484,7 +2730,7 @@ namespace VIGIL.Controls.Globe
 
         private static float ClampLatitude(float value) => Math.Clamp(value, -LatitudeLimit, LatitudeLimit);
 
-        private static float ClampZoomLog(float value) => Math.Clamp(value, 0f, (float)Math.Log2(GlobeCamera.MaxZoom));
+        private float ClampZoomLog(float value) => Math.Clamp(value, MinZoomLog, (float)Math.Log2(GlobeCamera.MaxZoom));
 
         /// <summary>Longitude folded into [-180, 180).</summary>
         private static float Wrap(float degrees)

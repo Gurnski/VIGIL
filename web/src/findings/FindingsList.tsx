@@ -9,6 +9,8 @@ export interface FindingsListProps {
   findings: Finding[];
   selectedId: string | null;
   onSelect: (finding: Finding) => void;
+  /** Where this list is, when the viewer shows more than one. A list keeps its measured rows by it. */
+  place?: string;
 }
 
 /** Rows moved by Page Up and Page Down. */
@@ -21,10 +23,26 @@ const minOverscan = 600;
 /** Bringing a row into view settles in two or three moves. This stops a row that never settles. */
 const maxBringTries = 8;
 
-// Row heights as measured, by finding id, for the list's current width. Kept outside the
+// Row heights as measured, by finding id, for a list's current width. Kept outside the
 // component because the list is taken off the page while a finding's evidence is open, and
-// should come back where it was without measuring again.
-const measured = { width: 0, heights: new Map<string, number>(), estimate: defaultRowHeight, estimated: false };
+// should come back where it was without measuring again. Each place a list is shown has its
+// own: two lists of different widths sharing one would each undo the other's measuring, for ever.
+interface Measured {
+  width: number;
+  heights: Map<string, number>;
+  estimate: number;
+  estimated: boolean;
+}
+const measuredByPlace = new Map<string, Measured>();
+
+function measuredFor(place: string): Measured {
+  let measured = measuredByPlace.get(place);
+  if (!measured) {
+    measured = { width: 0, heights: new Map<string, number>(), estimate: defaultRowHeight, estimated: false };
+    measuredByPlace.set(place, measured);
+  }
+  return measured;
+}
 
 /** The line under a summary: "Cascade, 8.8°S 51.3°W, GLDAS Noah and Terra MODIS". */
 function detailText(finding: Finding): string {
@@ -85,6 +103,29 @@ const FindingRow = memo(function FindingRow({ finding, index, total, elementId, 
 });
 
 /**
+ * A few findings with every row on the page and no scrolling of its own: the top of the
+ * ranking on the Overview page. The rows are the full list's.
+ */
+export function FindingsPreview({ findings, onSelect }: { findings: Finding[]; onSelect: (finding: Finding) => void }) {
+  const idPrefix = useId();
+  return (
+    <ul className="findings-list findings-preview" role="listbox" aria-label="The top of the ranking">
+      {findings.map((finding, index) => (
+        <FindingRow
+          key={finding.id}
+          finding={finding}
+          index={index}
+          total={findings.length}
+          elementId={`${idPrefix}-${finding.id}`}
+          selected={false}
+          onSelect={onSelect}
+        />
+      ))}
+    </ul>
+  );
+}
+
+/**
  * The ranked list of findings, the web twin of the desktop app's FindingsList control: rank,
  * the service's summary in full, then the kind, place and missions underneath, with the
  * ranking score on the right. One listbox: the arrow keys move the selection.
@@ -93,7 +134,8 @@ const FindingRow = memo(function FindingRow({ finding, index, total, elementId, 
  * Rows are as tall as their text: each is measured when it is first drawn, and the rest are
  * taken to be the average height until they are.
  */
-export function FindingsList({ findings, selectedId, onSelect }: FindingsListProps) {
+export function FindingsList({ findings, selectedId, onSelect, place = 'beside the globe' }: FindingsListProps) {
+  const measured = measuredFor(place);
   const listRef = useRef<HTMLUListElement>(null);
   const idPrefix = useId();
   const elementId = (finding: Finding) => `${idPrefix}-${finding.id}`;

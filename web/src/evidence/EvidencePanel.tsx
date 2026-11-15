@@ -18,8 +18,10 @@ import './evidence.css';
 export interface EvidencePanelProps {
   finding: Finding;
   results: ResultsDocument;
-  /** Back to the list. */
-  onBack: () => void;
+  /** Back to the list. Left out where the list stays in view beside the evidence. */
+  onBack?: () => void;
+  /** Shows the finding on the globe. Left out where the globe is already in view. */
+  onShowOnMap?: () => void;
   /** Open the Detective with this finding attached. */
   onAsk: (finding: Finding) => void;
   /** A related finding was chosen. */
@@ -124,7 +126,7 @@ function Source({ variable }: { variable: Variable }) {
  * uncertainty, how it scored, and where every number came from. Everything shown is read
  * from the results document; nothing is worked out here except how to draw it.
  */
-export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }: EvidencePanelProps) {
+export function EvidencePanel({ finding, results, onBack, onShowOnMap, onAsk, onOpenFinding }: EvidencePanelProps) {
   // One chart per series the finding rests on: each of its variables in its cell, and for a
   // contradiction the same variable in the paired cell. A series the results document does not
   // hold is looked for in a file beside the page, then asked of the service.
@@ -193,9 +195,16 @@ export function EvidencePanel({ finding, results, onBack, onAsk, onOpenFinding }
   return (
     <div className="evidence">
       <div className="evidence-bar">
-        <button type="button" className="button" onClick={onBack}>
-          Back to findings
-        </button>
+        {onBack && (
+          <button type="button" className="button" onClick={onBack}>
+            Back to findings
+          </button>
+        )}
+        {onShowOnMap && (
+          <button type="button" className="button" onClick={onShowOnMap}>
+            Show on the map
+          </button>
+        )}
         <button type="button" className="button" onClick={() => onAsk(finding)}>
           Ask the Detective
         </button>

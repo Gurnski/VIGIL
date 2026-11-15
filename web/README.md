@@ -22,7 +22,8 @@ npm run dev
 
 | Path | What it is |
 |---|---|
-| `src/App.tsx`, `src/app.css` | The shell: header, toolbar, layout and the shared state |
+| `src/App.tsx`, `src/app.css` | The shell: header, the pages and the menus that choose between them, the Map page's toolbar and the shared state |
+| `src/overview/` | The Overview page: four figures, the top of the ranking and the scan variable by variable |
 | `src/contract.ts` | The result contract as TypeScript types |
 | `src/data.ts` | Loads `snapshot.json` and `ask.json` from beside `index.html` |
 | `src/service.ts` | Works out, once, which analysis service the page talks to |
@@ -148,11 +149,13 @@ The desktop app is the main one and gets new features first. This table is the s
 
 | Feature | Desktop | Web | Needs the service |
 |---|---|---|---|
+| The four pages: Overview, Map, Evidence, Detective | Yes, in a rail on the left | Yes, in the header, and in a menu along the bottom on a phone | No |
+| Overview: four figures, the top of the ranking, the scan variable by variable | Yes | Yes | No |
 | Globe with a trend layer per variable, and its legend | Yes | Yes | No |
 | "Significant only" | Yes | Yes | No |
 | Relief: the layer as columns | Yes | Yes | No |
 | Tilt: the view leaned over to show the columns' height | Yes, by right-drag, and when Relief is switched on | Yes, by a switch, and when Relief is switched on | No |
-| Flat map: the globe unrolled, with everything on it | No | Yes | No |
+| Flat map: the globe unrolled, with everything on it | Yes, with day and night on the map and columns twice as tall | Yes, with columns 2.5 times as tall | No |
 | Satellites on their orbits, the card about each, the switch | Yes | Yes | No |
 | A marker per cell with a finding | Every cell | The cells of the top 200 findings | No |
 | Ranked findings list | Yes | Yes, with only the rows near the view in the page | No |
@@ -181,14 +184,30 @@ The desktop app is the main one and gets new features first. This table is the s
 | Sunlight from the real sun, night lights | Yes | No. The globe is evenly lit. | No |
 | Components gallery | Yes | No. It is a developer's page. | No |
 
+## Pages
+
+The viewer has the desktop app's four pages, in its order, and opens on the first as the app does.
+
+- Overview: what the scan covered and found in four figures, the top eight of the ranking, and the scan variable by variable with its settings and how the re-tests came out. Choosing a finding opens its evidence. Every figure is read from the results document.
+- Map: the globe with its toolbar, and on a wide screen the findings and the zones beside it.
+- Evidence: on a wide screen the findings on the left and the chosen one's evidence beside them, with "Show on the map". On a phone it is the list, which opens into the evidence.
+- Detective: the chat as a page. On a wide screen "Ask the Detective" also opens it as a panel over another page. Both are the one conversation.
+
+On a wide screen the pages are a row in the header. On a phone they are a menu along the bottom, each with its mark.
+
+- The globe is made the first time the Map is opened and kept after that, as the desktop app makes its pages. A phone that only reads the Overview never fetches the Earth's image.
+- Something put on the globe from elsewhere goes to the Map. A chosen finding stays on the Map where the findings are beside it, and otherwise goes to Evidence. Leaving the Detective's page that way on a wide screen brings the conversation along in its panel.
+- The page that is away is moved off the side of the screen and marked `inert`. It is not removed and not hidden, for the reasons under "On a phone".
+- Two findings lists can be on the page at once on a wide screen, of different widths. Each keeps its own measured row heights, by the `place` it is given. One shared between them would have each undo the other's measuring without end.
+
 ## On a phone
 
-Below 900 pixels one part fills the screen at a time, chosen from three tabs along the bottom: Globe, Findings and Detective. The page itself does not scroll. From 900 pixels up everything is in the window at once and the tabs are not shown.
+Below 900 pixels one page fills the screen at a time, chosen from the menu along the bottom: Overview, Map, Evidence and Detective. Only the Overview scrolls. From 900 pixels up the menu is not shown and the pages are in the header.
 
-- The header is one line: the name, the fixture badge, "Following the presenter" when someone presents, and "About this scan". "Download for Windows" and "Ask the Detective" are hidden: the first is no use on a phone, and the Detective has its tab.
-- On the Globe tab the layer row and the place field stay on screen. The switches (Layer, Significant only, Relief, Tilt, Flat map, Years, Satellites) are in a panel that "Map options" opens above the tabs.
+- The header is one line: the name, the fixture badge, "Following the presenter" when someone presents, and "About this scan". "Download for Windows" and "Ask the Detective" are hidden: the first is no use on a phone, and the Detective has its page.
+- On the Map the layer row and the place field stay on screen. The switches (Layer, Significant only, Relief, Tilt, Flat map, Years, Satellites) are in a panel that "Map options" opens above the tabs.
 - The legend sits along the bottom of the globe's area, clear of the sphere, and moves to the top while the year bar has the bottom.
-- Choosing a finding, in the list or by its dot on the globe, opens its evidence on the Findings tab. Something the Detective shows on the globe switches to the Globe tab.
+- Choosing a finding, in a list or by its dot on the globe, opens its evidence on the Evidence page. Something the Detective shows on the globe switches to the Map.
 - The part that is away is moved off the side of the screen, not removed: the globe keeps its size and the list keeps its place. Do not hide either with `display: none` or `visibility: hidden`: a list with no height loses its scroll position, and the globe's markers set their own visibility and show through.
 - Buttons, switches, layer and filter choices are at least 40 pixels tall, and a dot on the globe has a 40 pixel target.
 
