@@ -15,10 +15,10 @@ What it serves is set by environment variables, read once when the service start
     Without it the service serves the contract's fixture, which is made up and says so
     (``"synthetic": true``).
 ``VIGIL_SCAN_DATA``
-    The gridded data the scan was made from, as the ``.npz`` file ``ScanData`` describes.
-    Optional. With it, ``GET /series`` works for any cell and ``POST /analyse`` and
-    ``POST /zone`` run. Without it, series come only from the stored document and those
-    two calls answer 503.
+    The gridded data the scan was made from, as the ``.npz`` file ``ScanData`` describes: a
+    file path, an ``s3://bucket/key`` address or an ``https://`` one. Optional. With it,
+    ``GET /series`` works for any cell and ``POST /analyse`` and ``POST /zone`` run. Without
+    it, series come only from the stored document and those two calls answer 503.
 ``ANTHROPIC_API_KEY``
     The Detective's key. It lives only here, on the server. Without it ``POST /ask``
     answers 503 and the apps fall back to their marked sample answers.
@@ -37,6 +37,7 @@ What it serves is set by environment variables, read once when the service start
 from __future__ import annotations
 
 import gzip
+import io
 import json
 import logging
 import os
@@ -109,11 +110,13 @@ class Results:
         if not source:
             log.warning("VIGIL_SNAPSHOT is not set: serving the contract's synthetic fixture.")
         scan_data = None
-        data_path = os.environ.get("VIGIL_SCAN_DATA", "").strip()
-        if data_path:
+        data_source = os.environ.get("VIGIL_SCAN_DATA", "").strip()
+        if data_source:
             from vigil.api.document import ScanData       # numpy and the analysis load only when there is data
 
-            scan_data = ScanData.load(data_path)
+            # A bucket or a web address is fetched whole: numpy reads an .npz from memory as it does from a file.
+            remote = data_source.startswith(("s3://", "https://", "http://"))
+            scan_data = ScanData.load(io.BytesIO(_fetch(data_source)) if remote else data_source)
         return cls(document, scan_data)
 
 

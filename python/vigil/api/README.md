@@ -35,7 +35,7 @@ With nothing set, it serves the contract's fixture, which is made up and says so
 | Setting | What it does |
 |---|---|
 | `VIGIL_SNAPSHOT` | The stored scan to serve: a file path, an `s3://bucket/key` address or an `https://` one |
-| `VIGIL_SCAN_DATA` | The gridded data the scan was made from. With it, `GET /series` works for any cell and `POST /analyse` and `POST /zone` run. |
+| `VIGIL_SCAN_DATA` | The gridded data the scan was made from: a file path, an `s3://bucket/key` address or an `https://` one. With it, `GET /series` works for any cell and `POST /analyse` and `POST /zone` run. |
 | `ANTHROPIC_API_KEY` | The Detective's key. Without it `POST /ask` answers 503 and the apps show their marked sample answers. Never in the repository. |
 | `VIGIL_CORS_ORIGINS` | The web addresses allowed to call the service from a browser, separated by commas. The default allows `https://keepvigil.earth` and the viewer's local address. |
 | `VIGIL_SITE` | The folder holding the built viewer (`index.html` and `viewer/`), served at `/`. Left out, the repository's root when the built copy is there. |

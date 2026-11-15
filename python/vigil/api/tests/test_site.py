@@ -173,6 +173,32 @@ def test_the_service_reads_a_scan_that_was_stored_compressed(document, tmp_path,
     assert Results.from_environment().document == document
 
 
+def test_the_service_reads_gridded_data_from_an_address(tmp_path, monkeypatch):
+    """On Lambda there is no file beside the service, so the gridded data comes from a bucket, as the scan does."""
+    import vigil.api.app as service
+    from vigil.api.document import ScanData, full_scan
+    from vigil.api.tests.test_app import made_up_data
+
+    data = made_up_data()
+    stored = tmp_path / "scan-data.npz"
+    data.save(stored)
+    snapshot = tmp_path / "snapshot.json"
+    snapshot.write_text(json.dumps(full_scan(data)), encoding="utf-8")
+    asked = []
+
+    def fetch(source: str) -> bytes:
+        asked.append(source)
+        return stored.read_bytes()
+
+    monkeypatch.setattr(service, "_fetch", fetch)
+    monkeypatch.setenv("VIGIL_SNAPSHOT", str(snapshot))
+    monkeypatch.setattr(service, "_read", lambda source: snapshot.read_bytes())
+    monkeypatch.setenv("VIGIL_SCAN_DATA", "s3://a-bucket/scan-data.npz")
+    held = Results.from_environment()
+    assert asked == ["s3://a-bucket/scan-data.npz"]
+    assert isinstance(held.scan_data, ScanData)
+    assert held.scan_data.data["temperature"].shape == data.data["temperature"].shape
+
 # ----- The files for a website with no service -----
 
 
