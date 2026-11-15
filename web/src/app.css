@@ -54,6 +54,27 @@
   gap: var(--space-3) var(--space-5);
 }
 
+/* The layer's variable on a wide screen: one choice from as many as the scan has, which is
+   eight in the real one. A menu, so it takes one place in the toolbar however many there are. */
+.layer-picker {
+  height: 30px;
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-caption);
+  /* The list the browser opens is its own to draw. This asks for its dark one. */
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.layer-picker:hover {
+  background: var(--surface-hover);
+}
+
 /* One choice from a short row, as the app's SegmentedControl. A scan can have eight layers: on
    a phone the row scrolls sideways, so it stays one line, and from 900px it wraps. */
 .segmented {
@@ -285,11 +306,198 @@
     flex-wrap: wrap;
     overflow-x: visible;
   }
+
+  /* The toolbar's row of layers gives way to the menu. On a phone the row stays and the menu is not shown. */
+  .toolbar > .segmented {
+    display: none;
+  }
 }
 
 /* On a wide screen the page makes room for the Detective, so the globe and the findings stay in view beside it. */
 @media (min-width: 1200px) {
   .app.app-chat-open {
     padding-right: calc(420px + var(--space-5));
+  }
+}
+
+/* ----- The phone layout: one part on screen at a time, chosen from tabs along the bottom -----
+   Below 900px the page no longer scrolls. The header shrinks to one line, the globe or the
+   findings fills the screen, the globe's switches wait behind "Map options", and anything
+   meant to be tapped is at least 40px tall. */
+
+.phone-tabs,
+.narrow-only,
+.toolbar-options-head {
+  display: none;
+}
+
+/* On a wide screen the wrapper round the switches is no box at all, so they sit in the toolbar's own row. */
+.toolbar-options {
+  display: contents;
+}
+
+@media (max-width: 899px) {
+  .app {
+    --phone-tabs-height: 56px;
+    height: 100%;
+    padding: var(--space-3) var(--space-4) 0;
+    gap: var(--space-2);
+    overflow: hidden;
+  }
+
+  .wide-only {
+    display: none;
+  }
+
+  .narrow-only {
+    display: inline-flex;
+  }
+
+  /* The header: the name on the left and what is left of the actions on the right, on one line where they fit. */
+  .app-header {
+    gap: var(--space-2);
+  }
+
+  .app-title p {
+    display: none;
+  }
+
+  .app-title h1 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Tap targets. */
+  .button,
+  .toolbar-zone .button {
+    height: 40px;
+  }
+
+  .segmented button {
+    height: 40px;
+  }
+
+  .switch {
+    min-height: 44px;
+  }
+
+  /* The toolbar belongs to the globe, so it leaves with it. The layer row keeps its line, and the place field shares the next with "Map options". */
+  .phone-tab-findings .toolbar,
+  .phone-tab-findings .toolbar-note,
+  .phone-tab-findings .toolbar-zone {
+    display: none;
+  }
+
+  .toolbar {
+    gap: var(--space-2);
+  }
+
+  .toolbar > .segmented {
+    flex: 1 1 100%;
+  }
+
+  .toolbar .place-search {
+    flex: 1 1 0;
+    max-width: none;
+  }
+
+  .toolbar .place-search input {
+    height: 40px;
+  }
+
+  /* The switches, when "Map options" is open: a panel across the bottom of the screen, above the tabs. */
+  .toolbar-options {
+    display: none;
+  }
+
+  .toolbar-options.toolbar-options-open {
+    position: fixed;
+    right: 0;
+    bottom: calc(var(--phone-tabs-height) + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 var(--space-4);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .toolbar-options-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+    color: var(--text-secondary);
+    font-size: var(--font-caption);
+    font-weight: 600;
+  }
+
+  /* One part at a time. The part that is away stays laid out, out of sight and out of reach, so the globe keeps
+     its size and the list keeps its place: a list with no height loses track of where it was scrolled to. */
+  .app-main {
+    position: relative;
+    display: flex;
+    grid-template-rows: none;
+  }
+
+  .app-main > .globe-area,
+  .app-main > .findings-card {
+    flex: 1;
+  }
+
+  /* Moved off the side of the screen, not made invisible: the globe's markers set their own visibility, and would show through. */
+  .phone-tab-globe .findings-card,
+  .phone-tab-findings .globe-area {
+    position: absolute;
+    inset: 0;
+    transform: translateX(-200vw);
+  }
+
+  .findings-card {
+    padding: var(--space-4);
+  }
+
+  /* The tabs: a bar across the bottom, out to the screen's edges, clear of the phone's own bar. */
+  .phone-tabs {
+    /* Above the Detective's panel, which stops at the bar's top edge. */
+    position: relative;
+    z-index: 11;
+    flex: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 0 calc(-1 * var(--space-4));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .phone-tabs button {
+    height: var(--phone-tabs-height);
+    border: 0;
+    border-top: 2px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-caption);
+    font-weight: 600;
+  }
+
+  .phone-tabs button.selected {
+    border-top-color: var(--accent);
+    color: var(--text-primary);
+  }
+
+  .detective-icon-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* The Detective fills the screen down to the tabs, so the way back to the globe and the findings stays in reach. */
+  .chat-panel {
+    bottom: calc(var(--phone-tabs-height) + env(safe-area-inset-bottom, 0px));
+    width: 100vw;
+    border-left: 0;
   }
 }

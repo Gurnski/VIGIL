@@ -70,6 +70,10 @@ export function App() {
   const [kind, setKind] = useState<FindingKind | null>(null);
   const [wantedVariable, setWantedVariable] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  // On a phone one part fills the screen at a time, chosen from the tabs along the bottom. The Detective is the third tab.
+  const [phoneTab, setPhoneTab] = useState<'globe' | 'findings'>('globe');
+  // On a phone the globe's switches sit in a panel that this opens, so the globe keeps the screen.
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [attached, setAttached] = useState<Finding | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   // What the Detective has pointed out on the globe: an answer's cited findings, or one of its lookups.
@@ -79,12 +83,13 @@ export function App() {
   const findingsCard = useRef<HTMLElement>(null);
 
   /**
-   * On a phone the page scrolls, so the globe or the findings may be off the screen when
-   * something is shown there from the Detective. This brings the one that matters into view.
+   * On a phone only one of the globe and the findings is on screen. This shows the one that
+   * matters when something is put there from elsewhere. On a wide screen both are always in view.
    */
   const bringToScreen = useCallback((part: 'globe' | 'findings') => {
     if (window.matchMedia(narrowScreen).matches) {
-      (part === 'globe' ? globeArea : findingsCard).current?.scrollIntoView({ block: 'start' });
+      setPhoneTab(part);
+      setOptionsOpen(false);
     }
   }, []);
 
@@ -154,6 +159,8 @@ export function App() {
     (finding: Finding) => {
       setSelectedId(finding.id);
       setEvidenceOpen(true);
+      // On a phone the evidence opens in the findings tab, whether the finding was chosen in the list or on the globe.
+      bringToScreen('findings');
       const variable = finding.variables[0]?.id;
       if (variable && results?.grids?.some((grid) => grid.variable === variable)) {
         setLayerVariable(variable);
@@ -368,7 +375,7 @@ export function App() {
   const grids = results.grids ?? [];
 
   return (
-    <div className={chatOpen ? 'app app-chat-open' : 'app'}>
+    <div className={`app phone-tab-${phoneTab}${chatOpen ? ' app-chat-open' : ''}`}>
       <header className="app-header">
         <div className="app-title">
           <h1>VIGIL</h1>
@@ -386,16 +393,36 @@ export function App() {
           <button className="button" onClick={() => setScanOpen((open) => !open)} aria-expanded={scanOpen}>
             About this scan
           </button>
-          <a className="button" href="download/VIGIL-win-x64.zip">
+          <a className="button wide-only" href="download/VIGIL-win-x64.zip">
             Download for Windows
           </a>
-          <button className="button primary" onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen}>
+          <button className="button primary wide-only" onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen}>
             Ask the Detective
           </button>
         </div>
       </header>
 
       <div className="toolbar">
+        {grids.length > 0 && (
+          // On a wide screen the layer is chosen from a menu: a scan can have eight, and a row of them crowds
+          // out the switches beside it. On a phone the row below is used, where it has a line to itself.
+          <select
+            className="layer-picker wide-only"
+            aria-label="Layer variable"
+            title="The variable the layer shows"
+            value={layerVariable ?? ''}
+            onChange={(event) => {
+              setYearsNote(null);
+              setLayerVariable(event.target.value);
+            }}
+          >
+            {grids.map((grid) => (
+              <option key={grid.variable} value={grid.variable}>
+                {labelText(grid.variable)}
+              </option>
+            ))}
+          </select>
+        )}
         {grids.length > 0 && (
           <div className="segmented" role="radiogroup" aria-label="Layer" ref={layerBar}>
             {grids.map((grid) => (
@@ -414,6 +441,14 @@ export function App() {
             ))}
           </div>
         )}
+        {/* On a phone the switches wait in a panel opened by "Map options". On a wide screen this wrapper is not a box and they sit in the toolbar as before. */}
+        <div className={optionsOpen ? 'toolbar-options toolbar-options-open' : 'toolbar-options'} id="map-options">
+        <div className="toolbar-options-head">
+          <span>Map options</span>
+          <button type="button" className="button" onClick={() => setOptionsOpen(false)}>
+            Done
+          </button>
+        </div>
         <label className="switch">
           <input type="checkbox" checked={showLayer} onChange={(event) => setShowLayer(event.target.checked)} />
           <span className="track" aria-hidden="true" />
@@ -485,7 +520,17 @@ export function App() {
           <span className="track" aria-hidden="true" />
           Satellites
         </label>
+        </div>
         <PlaceSearch onGo={goToPlace} />
+        <button
+          type="button"
+          className="button narrow-only"
+          aria-expanded={optionsOpen}
+          aria-controls="map-options"
+          onClick={() => setOptionsOpen((open) => !open)}
+        >
+          Map options
+        </button>
       </div>
 
       {yearsNote && (
@@ -629,6 +674,36 @@ export function App() {
           )}
         </section>
       </main>
+
+      {/* On a phone: one part on screen at a time. Hidden on a wide screen, where everything is in view at once. */}
+      <nav className="phone-tabs" aria-label="Parts of the viewer">
+        {(['globe', 'findings'] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            aria-current={!chatOpen && phoneTab === tab ? 'page' : undefined}
+            className={!chatOpen && phoneTab === tab ? 'selected' : ''}
+            onClick={() => {
+              setChatOpen(false);
+              setOptionsOpen(false);
+              setPhoneTab(tab);
+            }}
+          >
+            {tab === 'globe' ? 'Globe' : 'Findings'}
+          </button>
+        ))}
+        <button
+          type="button"
+          aria-current={chatOpen ? 'page' : undefined}
+          className={chatOpen ? 'selected' : ''}
+          onClick={() => {
+            setOptionsOpen(false);
+            setChatOpen(true);
+          }}
+        >
+          Detective
+        </button>
+      </nav>
 
       {/* Kept in the page while closed, so the conversation is still there when it is opened again. */}
       <aside className={chatOpen ? 'chat-panel' : 'chat-panel chat-panel-closed'} aria-label="The Detective" aria-hidden={!chatOpen}>

@@ -183,6 +183,13 @@ The desktop app is the main one and gets new features first. This table is the s
 
 ## On a phone
 
-Below 900 pixels the page scrolls: the globe comes first and the findings card is most of a screen tall below it. From 900 pixels up everything fits in the window.
+Below 900 pixels one part fills the screen at a time, chosen from three tabs along the bottom: Globe, Findings and Detective. The page itself does not scroll. From 900 pixels up everything is in the window at once and the tabs are not shown.
+
+- The header is one line: the name, the fixture badge, "Following the presenter" when someone presents, and "About this scan". "Download for Windows" and "Ask the Detective" are hidden: the first is no use on a phone, and the Detective has its tab.
+- On the Globe tab the layer row and the place field stay on screen. The switches (Layer, Significant only, Relief, Tilt, Flat map, Years, Satellites) are in a panel that "Map options" opens above the tabs.
+- The legend sits along the bottom of the globe's area, clear of the sphere, and moves to the top while the year bar has the bottom.
+- Choosing a finding, in the list or by its dot on the globe, opens its evidence on the Findings tab. Something the Detective shows on the globe switches to the Globe tab.
+- The part that is away is moved off the side of the screen, not removed: the globe keeps its size and the list keeps its place. Do not hide either with `display: none` or `visibility: hidden`: a list with no height loses its scroll position, and the globe's markers set their own visibility and show through.
+- Buttons, switches, layer and filter choices are at least 40 pixels tall, and a dot on the globe has a 40 pixel target.
 
 The list holds thousands of findings, so it draws only the rows in and near the view, about a dozen at a time. Rows are as tall as their text. Each is measured when it is first drawn and the rest are taken to be the average until then. The arrow keys, Page Up, Page Down, Home and End still move the selection, and each row tells a screen reader its place in the whole list.
