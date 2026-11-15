@@ -6,10 +6,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>..\..\assets\icon\vigil.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\assets\UoPHackathonLogo.jpg" LogicalName="VIGIL.Assets.UoPHackathonLogo.jpg" Link="Assets\UoPHackathonLogo.jpg" />
+    <EmbeddedResource Include="..\..\assets\icon\vigil.ico" LogicalName="VIGIL.Assets.Icon.vigil.ico" Link="Assets\Icon\vigil.ico" />
     <EmbeddedResource Include="..\..\assets\BlueMarbleDay.jpg" LogicalName="VIGIL.Assets.BlueMarbleDay.jpg" Link="Assets\BlueMarbleDay.jpg" />
     <EmbeddedResource Include="..\..\assets\BlackMarbleNight.jpg" LogicalName="VIGIL.Assets.BlackMarbleNight.jpg" Link="Assets\BlackMarbleNight.jpg" />
     <EmbeddedResource Include="..\..\contract\fixture\snapshot.json" LogicalName="VIGIL.Fixture.snapshot.json" Link="Fixture\snapshot.json" />
