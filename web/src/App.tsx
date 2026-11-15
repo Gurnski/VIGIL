@@ -62,8 +62,10 @@ export function App() {
   // A place chosen by name, as the box the globe frames. A new object each time, so the same place can be gone to twice.
   const [placeToShow, setPlaceToShow] = useState<GlobeBox | null>(null);
   const [showSatellites, setShowSatellites] = useState(true);
-  // The kind the findings list is narrowed to, or null for every kind. The globe is not narrowed.
+  // The kind and the variable the findings are narrowed to, or null for every one. The list and the
+  // globe's markers are both narrowed, so the dots on the globe are the findings in the list.
   const [kind, setKind] = useState<FindingKind | null>(null);
+  const [wantedVariable, setWantedVariable] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [attached, setAttached] = useState<Finding | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -113,7 +115,36 @@ export function App() {
     () => (chosenCellIds ? findings.filter((finding) => chosenCellIds.has(finding.cell.id)) : findings),
     [findings, chosenCellIds],
   );
-  const listed = useMemo(() => (kind === null ? inZone : inZone.filter((finding) => finding.kind === kind)), [inZone, kind]);
+  // The variables the findings can be narrowed to: those some finding involves, in the scan's own order.
+  const variableChoices = useMemo(() => {
+    const involved = new Set(findings.flatMap((finding) => finding.variables.map((variable) => variable.id)));
+    const inOrder = (results?.variables ?? []).map((variable) => variable.id).filter((id) => involved.has(id));
+    return [...inOrder, ...[...involved].filter((id) => !inOrder.includes(id))];
+  }, [findings, results]);
+  // A variable these results do not have, as after another scan is loaded, narrows nothing.
+  const variable = wantedVariable !== null && variableChoices.includes(wantedVariable) ? wantedVariable : null;
+  // A finding is of a variable when any of its variables is: a cascade is listed under both of its two.
+  const listed = useMemo(
+    () =>
+      inZone.filter(
+        (finding) =>
+          (kind === null || finding.kind === kind) &&
+          (variable === null || finding.variables.some((candidate) => candidate.id === variable)),
+      ),
+    [inZone, kind, variable],
+  );
+
+  /** Narrowing to a variable also shows that variable's layer, when the results have one. "All variables" leaves the layer alone. */
+  const chooseVariable = useCallback(
+    (id: string | null) => {
+      setWantedVariable(id);
+      if (id !== null && results?.grids?.some((grid) => grid.variable === id)) {
+        setYearsNote(null);
+        setLayerVariable(id);
+      }
+    },
+    [results],
+  );
 
   /** Choosing a finding, in the list or on the globe, opens its evidence and switches to its variable's layer. */
   const selectFinding = useCallback(
@@ -458,6 +489,8 @@ export function App() {
             relief={relief}
             years={yearsState.status === 'ready' ? yearsState.years : null}
             cellMask={zones.mask}
+            kind={kind}
+            variable={variable}
             goTo={placeToShow}
             zone={zoneOnGlobe}
             sketch={zones.drawing}
@@ -523,6 +556,24 @@ export function App() {
                   </button>
                 ))}
               </div>
+              {variableChoices.length > 1 && (
+                <div className="segmented findings-kinds" role="radiogroup" aria-label="Variable of finding">
+                  <button role="radio" aria-checked={variable === null} className={variable === null ? 'selected' : ''} onClick={() => chooseVariable(null)}>
+                    All variables
+                  </button>
+                  {variableChoices.map((id) => (
+                    <button
+                      key={id}
+                      role="radio"
+                      aria-checked={id === variable}
+                      className={id === variable ? 'selected' : ''}
+                      onClick={() => chooseVariable(id)}
+                    >
+                      {labelText(id)}
+                    </button>
+                  ))}
+                </div>
+              )}
               {zones.chosenZone && zones.chosen && !zones.chosen.refusal && (
                 <p className="zones-limit numeric">
                   <span>
@@ -534,9 +585,12 @@ export function App() {
                   </button>
                 </p>
               )}
-              {kind !== null && (
+              {(kind !== null || variable !== null) && (
                 <p className="scan-line numeric">
-                  {kindChoices.find((choice) => choice.kind === kind)?.label}, {count(listed.length)} of {count(inZone.length)}
+                  {[kind !== null ? kindChoices.find((choice) => choice.kind === kind)?.label : null, variable !== null ? labelText(variable) : null]
+                    .filter(Boolean)
+                    .join(', ')}
+                  , {count(listed.length)} of {count(inZone.length)}
                 </p>
               )}
               <FindingsList findings={listed} selectedId={selectedId} onSelect={selectFinding} />

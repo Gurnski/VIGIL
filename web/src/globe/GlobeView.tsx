@@ -11,7 +11,7 @@ import {
   SRGBColorSpace,
 } from 'three';
 import earthUrl from '../../../assets/BlueMarbleDay.jpg';
-import type { Cell, Finding, ResultsDocument, YearsDocument } from '../contract';
+import type { Cell, Finding, FindingKind, ResultsDocument, YearsDocument } from '../contract';
 import { cellCentre, labelText } from '../format';
 import { scaleLimit } from './colourScale';
 import { maskedField, trendField, yearField } from './field';
@@ -41,6 +41,12 @@ export interface GlobeViewProps {
   years: YearsDocument | null;
   /** Keeps the layer to some cells, as a chosen zone does. Null for every cell. */
   cellMask?: ((row: number, column: number) => boolean) | null;
+  /**
+   * Keep the markers to one kind of finding, to findings that involve one variable, or both, as the
+   * findings list is narrowed. Null for every one. The layer and what is pointed out are not narrowed.
+   */
+  kind?: FindingKind | null;
+  variable?: string | null;
   /** The chosen finding: outline its cell and fly to it when it changes. */
   selected: Finding | null;
   /** Draw the satellites behind the data on their orbits. */
@@ -349,6 +355,8 @@ export function GlobeView({
   relief,
   years,
   cellMask = null,
+  kind = null,
+  variable = null,
   selected,
   showSatellites,
   onFindingClick,
@@ -534,9 +542,12 @@ export function GlobeView({
 
   const markers = useMemo(() => {
     const byCell = new Map<string, Finding[]>();
-    // A chosen zone keeps the markers to its cells, and the top of the ranking is then the top within it.
+    // A chosen zone keeps the markers to its cells, and a chosen kind or variable to its findings. The top
+    // of the ranking is then the top within them, and a marker counts only the findings that are left.
     const ranked = [...(results.findings ?? [])]
       .filter((finding) => !cellMask || cellMask(finding.cell.row, finding.cell.column))
+      .filter((finding) => kind === null || finding.kind === kind)
+      .filter((finding) => variable === null || finding.variables.some((candidate) => candidate.id === variable))
       .sort((a, b) => a.rank - b.rank)
       .slice(0, MaxMarkedFindings);
     for (const finding of ranked) {
@@ -563,7 +574,7 @@ export function GlobeView({
       });
     }
     return list;
-  }, [results.findings, cellMask]);
+  }, [results.findings, cellMask, kind, variable]);
 
   // ----- Highlight: a ring round each cell that was pointed out, whatever its rank -----
 
