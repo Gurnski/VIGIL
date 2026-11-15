@@ -10,10 +10,13 @@ The demo script, the presentation and the text of the written project page. All 
 | `slides/` | The source of the presentation: one HTML file per slide, with `deck.json` giving their order |
 | `stills/` | Pictures of the app on the frozen scan, taken while the video was filmed. The slides use the `slide-*.png` files, which are four of those stills cut down to the app's panels, and `slide-views.png`, a frame of `video/vigil-views.mp4`. `cover-earth.png` is the cover's Earth, drawn separately (see below). |
 | `checks/` | The scripts that were run on the scan before it was frozen, and what they printed |
+| `poster/` | The poster at the top of the repository's README: `poster.png`, and `poster.html`, the page it is a picture of |
 
 The presentation itself is a Claude artifact, and Dan has the link. `slides/` is a copy of what was published to it, kept here so the words are under version control. The pictures and the video on the slides are stored with the artifact, so the HTML files do not show them when opened alone.
 
 The pictures of the app on the slides have no frame. The app's background colour is the slides' (`Theme.Background`, `#131415`), so a still cut down to the app's own panels sits on the slide with no edge. The cuts are: the three Map stills from (280, 200), 1624 by 772, and the Evidence still from (680, 148), 1224 by 808.
+
+The poster is the cover slide with a row of figures under it: the cover's Earth (`stills/cover-earth.png`), its title in the deck's own face and size, and the deck's colours. Its four figures are the frozen scan's. To make it again, open `poster/poster.html` in a browser with the window 1920 pixels wide, wait for the fonts, and save a picture of the whole page as `poster/poster.png`. Edge and Chrome do that from the developer tools with "Capture full size screenshot".
 
 The Earth on the cover is the app's own globe, drawn by `slides/earth/`. To make it again, build the app and then, from `slides/`:
 

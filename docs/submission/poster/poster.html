@@ -1,0 +1,160 @@
+<!doctype html>
+<!--
+  The poster at the top of the repository's README. It is the deck's cover slide, with the
+  same picture, the same title and the deck's own colours and faces, and a row of figures
+  under it. The figures are the frozen scan's, run scan-20261115T005506Z: if the scan is run
+  again, take them again from the app's Overview page.
+
+  It is drawn at 1920 pixels wide and saved whole as poster.png, which is what the README shows.
+  README.md in this folder's parent says how to make it again.
+-->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>VIGIL: Earth system trend detective</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* The deck's own rules (../slides/deck.css), for the parts the poster uses. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 1920px;
+    background: #131415;
+    font-family: 'Inter', Arial, sans-serif;
+    color: #EDECE8;
+  }
+
+  /* The cover slide: the words centred over the sky, and the app's own Earth rising under them. */
+  .opening {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    padding: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 32px;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .opening .backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    object-fit: cover;
+  }
+
+  .opening > :not(.backdrop) {
+    position: relative;
+  }
+
+  .eyebrow {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 1px;
+    color: #74A9DB;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', Arial, sans-serif;
+    font-size: 168px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -4px;
+    color: #EDECE8;
+  }
+
+  .lead {
+    width: 1400px;
+    font-size: 52px;
+    line-height: 1.3;
+    color: #A6A5A0;
+  }
+
+  .credit {
+    font-size: 24px;
+    line-height: 1.4;
+    color: #7C7B77;
+  }
+
+  /* The figures under the picture, as the deck's own. Larger words than the deck's, because the README shows the poster at about half this size. */
+  .figures {
+    display: flex;
+    flex-direction: row;
+    gap: 32px;
+    padding: 32px 64px 64px;
+  }
+
+  .figure {
+    flex: 1;
+    background: #1B1C1F;
+    border-radius: 8px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .figure .number {
+    font-family: 'Space Grotesk', Arial, sans-serif;
+    font-size: 104px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -2px;
+    color: #EDECE8;
+  }
+
+  .figure .what {
+    font-family: 'Space Grotesk', Arial, sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #74A9DB;
+  }
+
+  .figure .label {
+    font-size: 30px;
+    line-height: 1.3;
+    color: #A6A5A0;
+  }
+</style>
+</head>
+<body>
+  <section class="opening">
+    <img class="backdrop" src="../stills/cover-earth.png" alt="">
+    <p class="eyebrow">NASA Space Apps Challenge 2026, Earth System Trend Detective</p>
+    <h1>VIGIL</h1>
+    <p class="lead">An Earth system trend detective that finds what is changing, tests it again, and shows its evidence.</p>
+    <p class="credit">University of Plymouth, 14 to 15 November 2026</p>
+  </section>
+
+  <div class="figures">
+    <div class="figure">
+      <p class="number">25</p>
+      <p class="what">years of records</p>
+      <p class="label">Seven NASA variables and the USGS earthquake catalogue, monthly, 2001 to 2025</p>
+    </div>
+    <div class="figure">
+      <p class="number">19,001</p>
+      <p class="what">tests run</p>
+      <p class="label">One variable in one grid cell, and every cell tested the same way</p>
+    </div>
+    <div class="figure">
+      <p class="number">5,450</p>
+      <p class="what">significant</p>
+      <p class="label">After correcting for the number of tests</p>
+    </div>
+    <div class="figure">
+      <p class="number">6,122</p>
+      <p class="what">findings</p>
+      <p class="label">Ranked, each with its evidence, and 5,047 trends tested again on a second record</p>
+    </div>
+  </div>
+</body>
+</html>

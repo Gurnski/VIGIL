@@ -1,3 +1,5 @@
+![VIGIL, an Earth system trend detective. The top of the Earth, drawn by the app's own globe, under the name. Below it four figures from the scan: 25 years of records, 19,001 tests run, 5,450 significant after correction, and 6,122 findings.](docs/submission/poster/poster.png)
+
 # VIGIL
 
 VIGIL (Visualising & Identifying Global Indicators of Long-term change) is the University of Plymouth Hackathon Team's entry for the 2026 NASA Space Apps Challenge, under the challenge [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/).
