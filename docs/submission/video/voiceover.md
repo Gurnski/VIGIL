@@ -10,20 +10,40 @@
 | 3.6 to 6.0 | The globe, layer after layer | Nineteen thousand tests. Nothing chosen in advance. |
 | 6.0 to 8.2 | The top-ranked finding | The findings rank themselves. |
 | 8.2 to 11.5 | Its evidence, scrolled through | Each opens into its evidence and its limits. |
-| 11.5 to 13.8 | A trend the second record contradicted | Most trends are tested again on a second record. |
-| 13.8 to 17.1 | The web viewer: relief, then the globe unrolling into a flat map | Relief shows the size of a change, on the globe or unrolled into a flat map. |
-| 17.1 to 20.8 | The years playing | The years show it arriving. |
+| 11.5 to 13.8 | A trend the second record contradicted | Most trends are tested on a second record. |
+| 13.8 to 17.1 | The web viewer: relief, then the globe unrolling into a flat map | See the size of each change, on a globe or a flat map. |
+| 17.1 to 20.8 | The years playing | Then watch it arrive, year by year. |
 | 20.8 to 25.8 | A zone drawn, named and analysed | Draw any region, and Vigil tests it on the spot. |
-| 25.8 to 29.8 | The Detective's panel, then the end card | Ask the Detective: it answers only from the findings. Vigil. Discovery first. |
+| 25.8 to 27.8 | The Detective's panel | Ask the Detective. It answers only from the findings. |
+| 27.8 to 29.8 | The end card | Vigil. Discovery first. |
 
-As one block, to paste:
+The Detective's line is long for its two seconds, so it starts a little early, over the end of the zone.
 
-> Vigil scans twenty-five years of NASA records, cell by cell. Nineteen thousand tests. Nothing chosen in advance. The findings rank themselves. Each opens into its evidence and its limits. Most trends are tested again on a second record. Relief shows the size of a change, on the globe or unrolled into a flat map. The years show it arriving. Draw any region, and Vigil tests it on the spot. Ask the Detective: it answers only from the findings. Vigil. Discovery first.
+As one block, to paste, with a line for each breath:
+
+```
+Vigil scans twenty-five years of NASA records, cell by cell.
+Nineteen thousand tests. Nothing chosen in advance.
+
+The findings rank themselves.
+Each opens into its evidence and its limits.
+Most trends are tested on a second record.
+
+See the size of each change, on a globe or a flat map.
+Then watch it arrive, year by year.
+
+Draw any region, and Vigil tests it on the spot.
+Ask the Detective. It answers only from the findings.
+
+Vigil. Discovery first.
+```
+
+If a take runs past 29 seconds, cut "Then watch it arrive, year by year." before anything else: the years play on screen without it.
 
 ## What each line rests on
 
 - "Nineteen thousand tests": the scan ran 19,001.
-- "Most trends are tested again": 5,047 of the 5,450 significant trends are in the five variables that have a second product. Do not change this to "every trend".
+- "Most trends are tested on a second record": 5,047 of the 5,450 significant trends are in the five variables that have a second product. Do not change this to "every trend".
 - "Tests it on the spot": a zone's trend is worked out by the service with the scan's own test. Its p-value is exploratory, which the app says on screen.
 
 If a line is changed to quote another figure, take the figure from the app's Overview page.
