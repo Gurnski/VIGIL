@@ -12,6 +12,8 @@ namespace VIGIL.Forms
     {
         private const string LogoResource = "VIGIL.Assets.UoPHackathonLogo.jpg";
         private static readonly TimeSpan MinimumDisplayTime = TimeSpan.FromSeconds(6);
+        // The public service takes about eight seconds to answer when no copy of it is running, and under one when one is.
+        private static readonly TimeSpan PublicConnectTime = TimeSpan.FromSeconds(15);
         private const float FadeStep = 0.1f;
 
         private static readonly string[] Taglines =
@@ -30,6 +32,11 @@ namespace VIGIL.Forms
         [System.ComponentModel.Browsable(false)]
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public ResultsDocument? Results { get; private set; }
+
+        /// <summary>The address of the analysis service that answered during startup, for the main window to go on using. Null when none did.</summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string? ServiceAddress { get; private set; }
 
         public LoaderForm()
         {
@@ -100,7 +107,7 @@ namespace VIGIL.Forms
             try
             {
                 var minimumDisplay = Task.Delay(MinimumDisplayTime);
-                Results = await InitialiseAppAsync();
+                (Results, ServiceAddress) = await InitialiseAppAsync();
                 await minimumDisplay;
                 DialogResult = DialogResult.OK;
             }
@@ -115,24 +122,44 @@ namespace VIGIL.Forms
 
         /// <summary>
         ///  Startup work goes here (config, data catalogue, API checks, caches).
-        ///  Runs off the UI thread so the spinner keeps turning. It loads the results: the scan
-        ///  the analysis service holds when the service is running, then a stored scan beside the
-        ///  exe (<c>snapshot.json</c>, which the download carries), and otherwise the snapshot
-        ///  built into the app, which is made up and says so. A failure to read even that
-        ///  stops the app with the reason shown.
+        ///  Runs off the UI thread so the spinner keeps turning. It loads the results and finds
+        ///  the analysis service the app will use. First the service on this machine, or the one
+        ///  <c>VIGIL_API_URL</c> names. Then the public one behind keepvigil.earth, so a copy
+        ///  downloaded from the site has zones, Recompute, the years and the Detective with
+        ///  nothing else installed. With no service at all: a stored scan beside the exe
+        ///  (<c>snapshot.json</c>, which the download carries), and otherwise the snapshot built
+        ///  into the app, which is made up and says so. A failure to read even that stops the
+        ///  app with the reason shown.
         /// </summary>
-        private static Task<ResultsDocument> InitialiseAppAsync()
+        private static Task<(ResultsDocument Results, string? ServiceAddress)> InitialiseAppAsync()
         {
-            return Task.Run(async () =>
+            return Task.Run<(ResultsDocument, string?)>(async () =>
             {
+                var near = new ResultsClient();
                 try
                 {
-                    return await new ResultsClient().SnapshotAsync();
+                    return (await near.SnapshotAsync(), near.Address);
                 }
                 catch (ServiceUnavailableException)
                 {
-                    return ResultsReader.ReadBeside() ?? ResultsReader.ReadSnapshot();
+                    // Nothing there. On to the next.
                 }
+
+                // A service asked for by name and not answering is reported as that. It is not swapped for another.
+                if (!DetectiveClient.AddressGiven)
+                {
+                    var shared = new ResultsClient(DetectiveClient.PublicAddress);
+                    try
+                    {
+                        return (await shared.SnapshotAsync(connectTime: PublicConnectTime), shared.Address);
+                    }
+                    catch (ServiceUnavailableException)
+                    {
+                        // Offline, or the public service is away. The app still opens on what it carries.
+                    }
+                }
+
+                return (ResultsReader.ReadBeside() ?? ResultsReader.ReadSnapshot(), null);
             });
         }
 

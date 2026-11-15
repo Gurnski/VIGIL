@@ -16,11 +16,30 @@ namespace VIGIL.Data
     ///  itself and holds no API key: the service does that.
     ///
     ///  The address comes from the environment variable <c>VIGIL_API_URL</c>, and is
-    ///  <c>http://127.0.0.1:8000</c> when that is not set.
+    ///  <c>http://127.0.0.1:8000</c> when that is not set. At startup the loader tries that
+    ///  service and then the public one, and the main window is given whichever answered.
     /// </summary>
     public sealed class DetectiveClient
     {
         public const string DefaultAddress = "http://127.0.0.1:8000";
+
+        /// <summary>
+        ///  The service behind keepvigil.earth: the same code on AWS Lambda, holding the frozen
+        ///  scan and the Detective's key. The app turns to it when no service answers on this
+        ///  machine, so a copy downloaded from the site works with nothing else installed. See
+        ///  "On AWS Lambda" in <c>python/vigil/api/README.md</c>. The address is public, not a secret.
+        /// </summary>
+        public const string PublicAddress = "https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws";
+
+        /// <summary>
+        ///  True when <c>VIGIL_API_URL</c> names a service. Someone who asked for one by name is
+        ///  told when it is not answering, not quietly given another.
+        /// </summary>
+        public static bool AddressGiven => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VIGIL_API_URL"));
+
+        /// <summary>True for an address on this machine, where the service is one the person starts themselves.</summary>
+        public static bool IsLocal(string address) =>
+            Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.IsLoopback;
 
         /// <summary>The JSON settings for everything the app exchanges with the service.</summary>
         public static readonly JsonSerializerOptions Json = new()

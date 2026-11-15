@@ -1,5 +1,7 @@
 ![VIGIL, an Earth system trend detective. The top of the Earth, drawn by the app's own globe, under the name. Below it four figures from the scan: 25 years of records, 19,001 tests run, 5,450 significant after correction, and 6,122 findings.](docs/submission/poster/poster.png)
 
+Open it in a browser at [keepvigil.earth](https://keepvigil.earth), [download the Windows app](https://keepvigil.earth/download/VIGIL-win-x64.zip), or [watch the 30-second demo](docs/submission/video/vigil-demo.mp4).
+
 # VIGIL
 
 VIGIL (Visualising & Identifying Global Indicators of Long-term change) is the University of Plymouth Hackathon Team's entry for the 2026 NASA Space Apps Challenge, under the challenge [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/).
@@ -66,7 +68,7 @@ The service also serves the web viewer, at `http://127.0.0.1:8000/`, showing the
 
 `VIGIL_SNAPSHOT` is the stored scan and `VIGIL_SCAN_DATA` the gridded data it was made from. Neither is in the repository: `python/vigil/pipeline/README.md` says how to make them. With neither set, the service serves the contract's fixture, which is made up and says so. The Detective also needs `ANTHROPIC_API_KEY` in that terminal. A key set with `$env:` is gone when the terminal closes: `setx ANTHROPIC_API_KEY "the key"` saves it for your user, and `start-service.cmd` reads it from there. `python/vigil/api/README.md` lists every setting and call.
 
-**The desktop app.** Start it after the service:
+**The desktop app.** With no service running on the machine it uses the public one behind keepvigil.earth, so the download from the site works by itself. To use your own, start the app after the service:
 
 ```
 cd VIGIL

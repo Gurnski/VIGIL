@@ -16,6 +16,7 @@ namespace VIGIL
             ApplicationConfiguration.Initialize();
 
             ResultsDocument results;
+            string? serviceAddress;
             using (var loader = new LoaderForm())
             {
                 if (loader.ShowDialog() != DialogResult.OK || loader.Results == null)
@@ -23,9 +24,10 @@ namespace VIGIL
                     return;
                 }
                 results = loader.Results;
+                serviceAddress = loader.ServiceAddress;
             }
 
-            Application.Run(new MainForm(results));
+            Application.Run(new MainForm(results, serviceAddress));
         }
     }
 }

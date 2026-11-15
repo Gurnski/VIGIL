@@ -527,6 +527,24 @@
   }
 }
 
+/* The note that the day and night are the real ones, in the corner the desktop app has it in. */
+.globe-sunlight {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  pointer-events: none;
+}
+
+/* On a phone the legend has the bottom of the globe's area, and there is no room for both. */
+@media (max-width: 899px) {
+  .globe-sunlight {
+    display: none;
+  }
+}
+
 /* A zone's name, on the middle of its northern edge. */
 .globe-zone-label {
   position: absolute;

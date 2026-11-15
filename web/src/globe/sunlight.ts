@@ -100,11 +100,15 @@ export class Sunlight {
   private night: Texture | null = null;
   private disposed = false;
 
-  /** `largestTexture` is the widest image the device can hold as one texture. A wider night image is scaled down to it. */
+  /**
+   * `largestTexture` is the widest image the device can hold as one texture. A wider night image
+   * is scaled down to it. `onPlace` is told the moment the light was last placed for.
+   */
   constructor(
     private readonly earth: Mesh,
     nightUrl: string,
     largestTexture: number,
+    private readonly onPlace?: (at: Date) => void,
   ) {
     this.original = earth.material;
     const lent = earth.material as Material & { map?: Texture | null };
@@ -175,7 +179,9 @@ export class Sunlight {
 
   /** Points the light from where the sun is now. */
   private place(): void {
-    const { lat, lng } = subsolarPoint(new Date());
+    const now = new Date();
+    this.onPlace?.(now);
+    const { lat, lng } = subsolarPoint(now);
     const across = Math.cos(lat * Radians);
     (this.material.uniforms.sunDirection.value as Vector3).set(across * Math.sin(lng * Radians), Math.sin(lat * Radians), across * Math.cos(lng * Radians));
   }

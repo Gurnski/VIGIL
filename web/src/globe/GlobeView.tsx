@@ -418,17 +418,20 @@ export function GlobeView({
 
   // The globe is lit from where the sun is now, as on the desktop. A flat map is not: the
   // lighting goes as the globe unrolls and comes back as it rolls up, in step with the fold.
+  // The moment the light was last placed for, for the note that says the day and night are the real ones.
+  const [sunAt, setSunAt] = useState<Date | null>(null);
   useEffect(() => {
     const globe = globeRef.current;
     if (!stage || !stage.earth || !globe) {
       return;
     }
-    const sunlight = new Sunlight(stage.earth, nightUrl, Math.min(4096, globe.renderer().capabilities.maxTextureSize));
+    const sunlight = new Sunlight(stage.earth, nightUrl, Math.min(4096, globe.renderer().capabilities.maxTextureSize), setSunAt);
     sunlight.setAmount(1 - stage.fold);
     const unfold = stage.onFold(() => sunlight.setAmount(1 - stage.fold));
     return () => {
       unfold();
       sunlight.dispose();
+      setSunAt(null);
     };
   }, [stage]);
 
@@ -1130,6 +1133,12 @@ export function GlobeView({
               </button>
             ))}
         </div>
+      )}
+      {/* The desktop app's own words, in the same corner. Not on the flat map, which is not lit this way, and not under the year bar or the drawing bar. */}
+      {sunAt && !folded && !sketch && !(layerShown && yearsShown) && (
+        <p className="globe-sunlight numeric">
+          Live sunlight, {String(sunAt.getUTCHours()).padStart(2, '0')}:{String(sunAt.getUTCMinutes()).padStart(2, '0')} UTC
+        </p>
       )}
       {openSatellite && <SatelliteCard satellite={openSatellite} onClose={() => setOpenSatelliteId(null)} />}
       {highlight && (

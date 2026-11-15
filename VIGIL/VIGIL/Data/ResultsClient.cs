@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using VIGIL.Models;
@@ -29,7 +30,10 @@ namespace VIGIL.Data
         public ResultsClient(string? address = null)
         {
             Address = DetectiveClient.ResolveAddress(address);
-            http = new HttpClient { BaseAddress = new Uri(Address + "/"), Timeout = TimeSpan.FromSeconds(60) };
+            // The service sends its larger answers compressed when asked to. A real scan is 20 MB as text and 2 MB
+            // compressed, and the public service cannot send more than 6 MB at all.
+            var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.All };
+            http = new HttpClient(handler) { BaseAddress = new Uri(Address + "/"), Timeout = TimeSpan.FromSeconds(60) };
         }
 
         public string Address { get; }
@@ -37,13 +41,15 @@ namespace VIGIL.Data
         /// <summary>
         ///  The whole stored scan. Gives up quickly when nothing is listening, so the app can
         ///  fall back on the snapshot built into it without holding up the start.
+        ///  <paramref name="connectTime"/> is how long to wait for the first word of an answer:
+        ///  a few seconds unless given, which is plenty for a service on this machine.
         /// </summary>
-        public async Task<ResultsDocument> SnapshotAsync(CancellationToken cancel = default)
+        public async Task<ResultsDocument> SnapshotAsync(CancellationToken cancel = default, TimeSpan? connectTime = null)
         {
             try
             {
                 using var connecting = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-                connecting.CancelAfter(ConnectTime);
+                connecting.CancelAfter(connectTime ?? ConnectTime);
                 using var reply = await http.GetAsync("snapshot", HttpCompletionOption.ResponseHeadersRead, connecting.Token);
                 if (!reply.IsSuccessStatusCode)
                 {

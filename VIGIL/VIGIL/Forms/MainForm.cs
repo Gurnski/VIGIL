@@ -17,16 +17,16 @@ namespace VIGIL.Forms
         private readonly Dictionary<string, Control> openedPages = new();
 
         // The Detective. One service holds the chats, shared by the floating panel and the Detective page.
-        private readonly ChatService chats = new(new DetectiveClient());
+        private readonly ChatService chats;
         private readonly ChatPanel chatPanel;
         private readonly VigilButton chatLauncher = new() { Variant = ButtonVariant.Secondary, IconGlyph = Icons.Chat, Text = "Ask the Detective" };
 
         // The zones drawn on the globe, kept between sessions, and the service that works out their trends.
         private readonly ZoneService zones = new();
-        private readonly ResultsClient service = new();
+        private readonly ResultsClient service;
 
         // Presenting: the app tells the service what is on show, and viewers opened from the service follow.
-        private readonly PresenterClient presenter = new();
+        private readonly PresenterClient presenter;
         private readonly VigilButton presentButton = new() { Variant = ButtonVariant.Ghost, IconGlyph = Icons.Share, Text = "Present" };
         private readonly PresentPanel presentPanel = new() { Visible = false };
         private readonly ToolTip presentTip = new();
@@ -37,7 +37,7 @@ namespace VIGIL.Forms
 
         // The heartbeat: every few seconds the app asks the service whether it is there, and a badge says what it heard.
         private const int HeartbeatMilliseconds = 5000;
-        private readonly ServiceHealthClient health = new();
+        private readonly ServiceHealthClient health;
         private readonly Badge serviceBadge = new() { ShowDot = true, Text = "Checking the service" };
         private readonly ToolTip serviceTip = new() { AutoPopDelay = 20000 };
         private readonly System.Windows.Forms.Timer heartbeat = new() { Interval = HeartbeatMilliseconds };
@@ -45,8 +45,18 @@ namespace VIGIL.Forms
         private bool checkingService;
 
         /// <param name="results">The results loaded at startup, shared by the pages that show them.</param>
-        public MainForm(ResultsDocument results)
+        /// <param name="serviceAddress">
+        ///  The analysis service that answered at startup: the one on this machine, or the public
+        ///  one. Null when none did, and the app then goes on asking the usual address.
+        /// </param>
+        public MainForm(ResultsDocument results, string? serviceAddress = null)
         {
+            // One address for everything that talks to the service, so the scan on screen, a zone's
+            // trends, the Detective and the badge that says whether it is there all mean the same one.
+            chats = new ChatService(new DetectiveClient(serviceAddress));
+            service = new ResultsClient(serviceAddress);
+            presenter = new PresenterClient(serviceAddress);
+            health = new ServiceHealthClient(serviceAddress);
             InitializeComponent();
             shownRunId = results.Run?.Id;
 
@@ -208,7 +218,9 @@ namespace VIGIL.Forms
             {
                 text = "Service not running";
                 tone = BadgeTone.Negative;
-                tip = "Nothing is answering at " + at + ".\nThe scan on screen still shows, but a zone's trends, Recompute, the years,\npresenting and the Detective all need the analysis service.\nStart it with python\\start-service.cmd.";
+                // The service on this machine is one the person starts. The public one is not, and may only be waking up.
+                tip = "Nothing is answering at " + at + ".\nThe scan on screen still shows, but a zone's trends, Recompute, the years,\npresenting and the Detective all need the analysis service.\n"
+                    + (DetectiveClient.IsLocal(at) ? "Start it with python\\start-service.cmd." : "It is asked again every few seconds, and may only be starting.");
             }
             else if (heard.RunId != shownRunId)
             {
