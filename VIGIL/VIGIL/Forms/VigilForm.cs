@@ -8,12 +8,25 @@ namespace VIGIL.Forms
     /// </summary>
     public class VigilForm : Form
     {
+        // The app's icon, embedded from assets/icon/vigil.ico and shared by every window.
+        private static readonly Icon? appIcon = LoadAppIcon();
+
         public VigilForm()
         {
+            if (appIcon != null)
+            {
+                Icon = appIcon;
+            }
             BackColor = Theme.Background;
             ForeColor = Theme.TextPrimary;
             Font = Theme.Body;
             DoubleBuffered = true;
+        }
+
+        private static Icon? LoadAppIcon()
+        {
+            using var stream = typeof(VigilForm).Assembly.GetManifestResourceStream("VIGIL.Assets.Icon.vigil.ico");
+            return stream == null ? null : new Icon(stream);
         }
 
         protected override void OnHandleCreated(EventArgs e)
