@@ -113,6 +113,8 @@ export class GlobeStage {
    * with the globe, where something added to the scene itself would be there at full size at once.
    */
   readonly group: Object3D;
+  /** The library's own Earth: the sphere with the Blue Marble image on it. Null if the library is not built as expected. */
+  readonly earth: Mesh<SphereGeometry> | null;
   readonly radius: number;
 
   /** 0 for the globe, 1 for the flat map, and between the two while it folds. */
@@ -173,6 +175,7 @@ export class GlobeStage {
     const earth = (marked as Object3D | null)?.children.find((child) => (child as Mesh).geometry?.type === 'SphereGeometry') as
       | Mesh<SphereGeometry>
       | undefined;
+    this.earth = earth ?? null;
     if (earth) {
       this.addSurface(earth, 0, true);
     }

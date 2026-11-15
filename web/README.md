@@ -32,7 +32,7 @@ npm run dev
 | `src/format.ts` | Labels and place names shared by the parts |
 | `src/findings/` | The ranked findings list. Only the rows in and near the view are in the page. |
 | `src/evidence/` | The evidence view a finding opens into: its series chart, numbers, score and sources, and what a re-test on a second product found. `series.ts` finds a finding's series, `report.ts` writes a finding out as text for "Copy as text", `recompute.ts` asks the service to run a trend's cell again, and `worldview.ts` makes the link that opens the finding's cell in NASA Worldview. |
-| `src/globe/` | The 3D globe, its trend layer, markers, legend and the satellites on their orbits, and the rings and dashed outline for what the Detective points out. `field.ts` is what the layer shows, cell by cell: the trend, or one calendar year. `relief.ts` draws it as columns. `stage.ts` is where a place is and where the view stands, for the tilt and the flat map, and `outlines.ts` draws the lines over the surface. `years.ts` and `YearBar.tsx` are the year-by-year view. `places.ts` and `PlaceSearch.tsx` take the globe to a place by name. |
+| `src/globe/` | The 3D globe, its trend layer, markers, legend and the satellites on their orbits, and the rings and dashed outline for what the Detective points out. `field.ts` is what the layer shows, cell by cell: the trend, or one calendar year. `relief.ts` draws it as columns. `stage.ts` is where a place is and where the view stands, for the tilt and the flat map, and `outlines.ts` draws the lines over the surface. `sunlight.ts` lights the globe from where the sun really is, and `stars.ts` is the sky behind it. `years.ts` and `YearBar.tsx` are the year-by-year view. `places.ts` and `PlaceSearch.tsx` take the globe to a place by name. |
 | `src/detective/` | The Detective chat, its call to `POST /ask`, and the list of what it looked up |
 | `src/scan/` | The "About this scan" panel: the run's settings and counts, the variables and their sources, and how the re-tests came out. `export.ts` writes the findings as CSV and GeoJSON. |
 | `src/zones/` | Zones: areas drawn on the globe, named and saved. `geometry.ts` works out a zone's grid cells, `store.ts` keeps the zones in the browser, `client.ts` asks the service for a zone's trends, and `ZonesPanel.tsx` and `ZoneSummaryView.tsx` show them. |
@@ -106,6 +106,18 @@ How it is built (`stage.ts`):
 
 The globe opens by growing and turning, which is the library's doing. The layer, the columns and the satellites' orbits are in the group it animates, so they open with it. The layer fades in over the same moment, the columns stand up from the surface when "Relief" is switched on, and the markers fade in once the globe has opened.
 
+## Day, night and the stars
+
+The globe is lit from where the sun is now, as the desktop app's is (`sunlight.ts`, a port of `SunPosition.cs` and of the surface shading in `GlobeRenderer.cs`, with the same figures). The day side is the Blue Marble image, dimmer and warmer towards the terminator, with a narrow amber band along it. The night side is the Black Marble image, with the lights of cities. The sun's place is worked out again every 30 seconds.
+
+- Only the picture of the Earth is lit. The layer, the columns and the markers keep the legend's colours on both sides of the terminator, so a cell reads the same by day and by night.
+- The flat map has no day and night: it is the day image, even from edge to edge. The lighting fades out in step with the fold as the globe unrolls and comes back as it rolls up, so nothing jumps. The desktop app's flat map does show day and night, and this is the one place the two differ.
+- Each place is lit by where it is on the real globe, read from its spot on the image and not from the mesh, so the lighting is right while the surface is part-way unrolled.
+- The Earth's mesh is the library's. Its material is replaced with the viewer's own, and the library puts the day image on whichever material the mesh has when the image arrives, so the image is looked for on both.
+- The night image is fetched when the Map is first opened, with the day image. It is scaled down where a device cannot hold it as one texture, and the night side is the day image, very dark, until it has arrived.
+
+Behind the globe is a fixed scatter of faint stars (`stars.ts`), as on the desktop: made from one seed, so it is the same sky every time and nothing twinkles. It is a backdrop. No star in it is a real one. It stays where it is while the globe opens and while it folds, and it is behind the flat map too.
+
 ## Years
 
 The "Years" switch shows one calendar year at a time in place of the trend: each scanned cell's mean for that year against its own normal (the contract's "A variable year by year"). A bar over the bottom of the globe chooses the year. It can be dragged, clicked or moved with the arrow keys, and its play button steps a year every 650 ms and stops at the last. The desktop app does the same, with the same words on the legend.
@@ -152,6 +164,7 @@ The desktop app is the main one and gets new features first. This table is the s
 | The four pages: Overview, Map, Evidence, Detective | Yes, in a rail on the left | Yes, in the header, and in a menu along the bottom on a phone | No |
 | Overview: four figures, the top of the ranking, the scan variable by variable | Yes | Yes | No |
 | Globe with a trend layer per variable, and its legend | Yes | Yes | No |
+| Day and night from the real sun, city lights at night, and a star field | Yes, with a halo and the sun's glint on water, and on the flat map too | Yes, on the globe only: the flat map is evenly lit | No |
 | "Significant only" | Yes | Yes | No |
 | Relief: the layer as columns | Yes | Yes | No |
 | Tilt: the view leaned over to show the columns' height | Yes, by right-drag, and when Relief is switched on | Yes, by a switch, and when Relief is switched on | No |

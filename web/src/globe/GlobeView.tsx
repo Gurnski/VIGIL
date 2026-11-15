@@ -10,6 +10,7 @@ import {
   SphereGeometry,
   SRGBColorSpace,
 } from 'three';
+import nightUrl from '../../../assets/BlackMarbleNight.jpg';
 import earthUrl from '../../../assets/BlueMarbleDay.jpg';
 import type { Cell, Finding, FindingKind, ResultsDocument, YearsDocument } from '../contract';
 import { cellCentre, labelText } from '../format';
@@ -27,6 +28,8 @@ import { satelliteCaveat, satellitesFor } from './satellite';
 import { SatelliteCard } from './SatelliteCard';
 import { GlobeStage } from './stage';
 import type { ScreenPoint } from './stage';
+import { makeStars } from './stars';
+import { Sunlight } from './sunlight';
 import { useSatellites } from './useSatellites';
 import './globe.css';
 
@@ -410,6 +413,42 @@ export function GlobeView({
     };
   }, [ready]);
   const coords = useMemo<Coords | null>(() => (stage ? (lat, lng, altitude, into) => stage.coords(lat, lng, altitude, into) : null), [stage]);
+
+  // ----- Day and night from the real sun, and the stars behind -----
+
+  // The globe is lit from where the sun is now, as on the desktop. A flat map is not: the
+  // lighting goes as the globe unrolls and comes back as it rolls up, in step with the fold.
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!stage || !stage.earth || !globe) {
+      return;
+    }
+    const sunlight = new Sunlight(stage.earth, nightUrl, Math.min(4096, globe.renderer().capabilities.maxTextureSize));
+    sunlight.setAmount(1 - stage.fold);
+    const unfold = stage.onFold(() => sunlight.setAmount(1 - stage.fold));
+    return () => {
+      unfold();
+      sunlight.dispose();
+    };
+  }, [stage]);
+
+  // In the scene itself, not in the group that opens and folds: the sky stays where it is.
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!ready || !globe) {
+      return;
+    }
+    const scene = globe.scene();
+    const stars = makeStars();
+    scene.add(...stars);
+    return () => {
+      for (const set of stars) {
+        scene.remove(set);
+        set.geometry.dispose();
+        set.material.dispose();
+      }
+    };
+  }, [ready]);
 
   // ----- Auto-rotation: slow, and over for good once the user touches the globe or picks a finding -----
 
