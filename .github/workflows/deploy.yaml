@@ -19,8 +19,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # The site is a bucket of files, so the analysis service lives elsewhere: the vigil-api
+      # Lambda (python/vigil/api/README.md, "On AWS Lambda"). This address is public, not a secret.
       - name: Build the viewer
         working-directory: web
+        env:
+          VITE_VIGIL_API_URL: https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws
         run: |
           npm ci
           npm run build

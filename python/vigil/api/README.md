@@ -17,6 +17,7 @@ Everything it sends follows the format in `contract/`.
 | `years.py` | `GET /years`: a variable year by year, from the anomalies the scan itself used |
 | `export.py` | Writes the files a plain website needs to show a scan with no service behind it: the snapshot, compressed, and a series file for every finding |
 | `lambda_handler.py` | Runs the service on AWS Lambda |
+| `lambda_pack.py` | Packs the service and its packages into the zip Lambda runs |
 | `tests/` | The calls against the fixture, and the whole path from made-up data to a checked document |
 
 It runs no statistical test of its own. Those come from `vigil/analysis/`, and the wording follows Will's note on using it. The arithmetic it does do is plain and is named where it happens: a zone's area-weighted mean (`zone.py`), a year's mean of the anomalies the scan used (`years.py`), and a zone's mean snow cover against a 1% level for the rare-snow warning (`zone.py`).
@@ -174,6 +175,40 @@ aws s3 sync ..\data\site\years s3://<bucket>/years --content-type application/js
 ```
 
 The deploy workflow deletes nothing outside `viewer/`, so both survive it. Upload them again after every new scan, together: a series file names its run, and the viewer will not draw one beside a different run.
+
+## On AWS Lambda
+
+A bucket cannot run code, so the public site's service is a Lambda of its own: `vigil-api`, in `eu-north-1`, at
+
+```
+https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws
+```
+
+The deploy workflow builds the viewer with that address as `VITE_VIGIL_API_URL`, so keepvigil.earth asks it. It reads the scan from the site's bucket when a copy of the function starts (`VIGIL_SNAPSHOT=s3://keepvigil.earth/snapshot.json`), so it needs no redeploy for a new scan. A copy that is already running keeps the scan it started with, so after uploading one, save any change to the function's settings to start fresh copies. The desktop app uses it when `VIGIL_API_URL` is set to the address.
+
+What it does: the findings, the stored series, the globe layers and the Detective. What it does not: zones, Recompute and `GET /years`, which need the gridded data, and it has none. The site's charts and years still come from the files on the bucket. Nobody can present from it, because `POST /present` is taken from the service's own machine only.
+
+The Detective's key is the function's `ANTHROPIC_API_KEY` setting, and nowhere else. Set it in the AWS console: Lambda, `vigil-api`, Configuration, Environment variables. Anyone can reach the address, and the limit on questions (`VIGIL_ASK_PER_MINUTE`) is kept by each running copy of the function separately, so put a spend limit on the key itself.
+
+To put new code on it, from the `python/` folder. The first command fetches the Linux builds of the packages the service loads, which are not the Windows ones in `.venv`:
+
+```
+python -m pip install --target ..\data\lambda\packages --only-binary=:all: --implementation cp --python-version 3.12 --platform manylinux_2_28_x86_64 --platform manylinux_2_17_x86_64 --platform manylinux2014_x86_64 fastapi==0.163.0 mangum==0.22.0 anthropic==2.8.0 httpx==0.28.1 numpy==2.5.4 scipy==1.18.1 statsmodels==0.15.0 ruptures==1.1.9
+python -m pip install --target ..\data\lambda\packages --no-deps pymannkendall==1.4.3
+python -m vigil.api.lambda_pack ..\data\lambda\packages ..\data\lambda\vigil-api.zip
+aws s3 cp ..\data\lambda\vigil-api.zip s3://vigil-deploy-630809268406/vigil-api.zip
+aws lambda update-function-code --function-name vigil-api --s3-bucket vigil-deploy-630809268406 --s3-key vigil-api.zip
+```
+
+Keep the versions in step with `requirements.txt`. The zip is 71 MB, over the 50 MB Lambda takes directly, so it goes through `vigil-deploy-630809268406`, a private bucket that holds nothing else. `lambda_pack` leaves the packages' own test suites out: with them the code is over the 250 MB Lambda allows unpacked. The function runs Python 3.12 with 2048 MB and a 90 second limit, which is above the Detective's 75 second deadline.
+
+Then check it:
+
+```
+curl.exe -s https://nhzags36diemgymrus3raa5sdi0vkccz.lambda-url.eu-north-1.on.aws/health
+```
+
+`run_id` should be the scan on the site, and `detective` is `true` once the key is set.
 
 ## Tests
 
