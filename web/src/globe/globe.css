@@ -63,6 +63,23 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+  /* The globe opens by growing and turning. The markers ride on it, so they wait until it has opened and then fade in. */
+  animation: globe-markers-appear 500ms ease-out 900ms backwards;
+}
+
+@keyframes globe-markers-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-markers {
+    animation: none;
+  }
 }
 
 /* A finding marker: a dot on the cell centre with its rank beside it. The dot is the element,

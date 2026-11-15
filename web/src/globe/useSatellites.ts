@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
-import type { GlobeMethods } from 'react-globe.gl';
 import { BufferAttribute, BufferGeometry, Color, Line, LineBasicMaterial, LineDashedMaterial } from 'three';
 import { orbitPoint, phaseAt } from './satellite';
 import type { Satellite } from './satellite';
+import type { GlobeStage, ScreenPoint } from './stage';
 
 // A satellite whose data is in the scan takes the stronger colour, as in the desktop app.
 const InScanColour = '#5dbe8f'; // mirrors --positive
@@ -24,22 +24,22 @@ interface Drawn {
 /**
  * Draws each satellite as the desktop globe does: its orbit as a ring at the right height,
  * hidden where the Earth is in the way, a dotted line down to the point beneath it, and a
- * labelled dot (a DOM element from `elements`, keyed by satellite id) moved each frame.
+ * labelled dot (a DOM element from `elements`, keyed by satellite id) moved each frame. They
+ * are drawn round the globe only: the caller does not show them while it is unrolled flat.
  */
 export function useSatellites(
-  globeRef: MutableRefObject<GlobeMethods | undefined>,
-  ready: boolean,
+  stage: GlobeStage | null,
   shown: boolean,
   elements: MutableRefObject<Map<string, HTMLElement>>,
   missionSatellites: Satellite[],
 ): void {
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!ready || !shown || !globe) {
+    if (!shown || !stage) {
       return;
     }
-    const scene = globe.scene();
-    const radius = globe.getGlobeRadius();
+    // In the group the library animates, so the orbits open with the globe.
+    const scene = stage.group;
+    const radius = stage.radius;
     const drawn: Drawn[] = missionSatellites.map((satellite) => {
       const colour = new Color(satellite.inScan ? InScanColour : CrossCheckColour);
       const ringGeometry = new BufferGeometry();
@@ -75,6 +75,10 @@ export function useSatellites(
 
     let frame = 0;
     let ringsDrawnAt = 0;
+    const position = { x: 0, y: 0, z: 0 };
+    const ground = { x: 0, y: 0, z: 0 };
+    const place = { x: 0, y: 0, z: 0 };
+    const screen: ScreenPoint = { x: 0, y: 0, visible: false };
     const tick = () => {
       frame = requestAnimationFrame(tick);
       const now = Date.now();
@@ -82,13 +86,13 @@ export function useSatellites(
       if (redrawRings) {
         ringsDrawnAt = now;
       }
-      const camera = globe.camera().position;
+      const camera = stage.view.position;
 
       for (const { satellite, ring, nadir } of drawn) {
         const phase = phaseAt(satellite, now);
         const here = orbitPoint(satellite, now, phase);
-        const position = globe.getCoords(here.lat, here.lng, here.altitude);
-        const ground = globe.getCoords(here.lat, here.lng, 0);
+        stage.coords(here.lat, here.lng, here.altitude, position);
+        stage.coords(here.lat, here.lng, 0, ground);
 
         const line = nadir.geometry.getAttribute('position') as BufferAttribute;
         line.setXYZ(0, position.x, position.y, position.z);
@@ -101,7 +105,7 @@ export function useSatellites(
           const points = ring.geometry.getAttribute('position') as BufferAttribute;
           for (let i = 0; i <= RingSegments; i++) {
             const point = orbitPoint(satellite, now, phase - (i / RingSegments) * 2 * Math.PI);
-            const place = globe.getCoords(point.lat, point.lng, point.altitude);
+            stage.coords(point.lat, point.lng, point.altitude, place);
             points.setXYZ(i, place.x, place.y, place.z);
           }
           points.needsUpdate = true;
@@ -122,7 +126,7 @@ export function useSatellites(
           element.style.visibility = 'hidden';
           continue;
         }
-        const screen = globe.getScreenCoords(here.lat, here.lng, here.altitude);
+        stage.screen(here.lat, here.lng, here.altitude, screen);
         element.style.visibility = 'visible';
         element.style.transform = `translate(${screen.x.toFixed(1)}px, ${screen.y.toFixed(1)}px) translate(-50%, -50%)`;
       }
@@ -139,5 +143,5 @@ export function useSatellites(
         nadir.material.dispose();
       }
     };
-  }, [globeRef, ready, shown, elements, missionSatellites]);
+  }, [stage, shown, elements, missionSatellites]);
 }

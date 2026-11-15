@@ -39,13 +39,18 @@ export function reliefAltitudeAt(field: LayerField, lat: number, lng: number): n
 }
 
 type Point = { x: number; y: number; z: number };
+/** Turns a latitude, longitude and altitude into the globe's own coordinates, written into `into`. */
+export type Coords = (lat: number, lng: number, altitude: number, into: Point) => Point;
+/** A corner of a column: its latitude, longitude and altitude. */
+type Corner = [number, number, number];
 
 /**
- * Every shown cell as a column, in one geometry, so the whole layer is a single draw. `coords`
- * turns a latitude, longitude and altitude into the globe's own coordinates.
+ * Every shown cell as a column, in one geometry, so the whole layer is a single draw. Each
+ * corner's place is kept with the geometry, so `placeRelief` can stand the columns somewhere
+ * else, as it does while the surface folds flat.
  */
-export function buildRelief(field: LayerField, coords: (lat: number, lng: number, altitude: number) => Point): BufferGeometry {
-  const positions: number[] = [];
+export function buildRelief(field: LayerField, coords: Coords): BufferGeometry {
+  const places: number[] = [];
   const colours: number[] = [];
   const indices: number[] = [];
   const { limit } = field;
@@ -54,10 +59,10 @@ export function buildRelief(field: LayerField, coords: (lat: number, lng: number
   const colour = new Color();
 
   // One flat face: four corners, anticlockwise as seen from outside the column.
-  const face = (a: Point, b: Point, c: Point, d: Point, shade: number, alpha: number) => {
-    const start = positions.length / 3;
-    for (const point of [a, b, c, d]) {
-      positions.push(point.x, point.y, point.z);
+  const face = (a: Corner, b: Corner, c: Corner, d: Corner, shade: number, alpha: number) => {
+    const start = places.length / 3;
+    for (const corner of [a, b, c, d]) {
+      places.push(corner[0], corner[1], corner[2]);
       colours.push(colour.r * shade, colour.g * shade, colour.b * shade, alpha);
     }
     indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
@@ -79,14 +84,14 @@ export function buildRelief(field: LayerField, coords: (lat: number, lng: number
       colour.setRGB(r / 255, g / 255, b / 255, SRGBColorSpace);
       const alpha = opacityAt(t);
 
-      const baseSW = coords(south, west, 0);
-      const baseSE = coords(south, east, 0);
-      const baseNE = coords(north, east, 0);
-      const baseNW = coords(north, west, 0);
-      const topSW = coords(south, west, top);
-      const topSE = coords(south, east, top);
-      const topNE = coords(north, east, top);
-      const topNW = coords(north, west, top);
+      const baseSW: Corner = [south, west, 0];
+      const baseSE: Corner = [south, east, 0];
+      const baseNE: Corner = [north, east, 0];
+      const baseNW: Corner = [north, west, 0];
+      const topSW: Corner = [south, west, top];
+      const topSE: Corner = [south, east, top];
+      const topNE: Corner = [north, east, top];
+      const topNW: Corner = [north, west, top];
 
       face(topSW, topSE, topNE, topNW, 1, alpha);
       face(baseSW, baseSE, topSE, topSW, SideShadeNorthSouth, alpha);
@@ -97,8 +102,25 @@ export function buildRelief(field: LayerField, coords: (lat: number, lng: number
   }
 
   const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(places.length), 3));
   geometry.setAttribute('color', new BufferAttribute(new Float32Array(colours), 4));
-  geometry.setIndex(positions.length / 3 > 65535 ? new BufferAttribute(new Uint32Array(indices), 1) : new BufferAttribute(new Uint16Array(indices), 1));
+  geometry.setIndex(places.length / 3 > 65535 ? new BufferAttribute(new Uint32Array(indices), 1) : new BufferAttribute(new Uint16Array(indices), 1));
+  geometry.userData.places = new Float32Array(places);
+  placeRelief(geometry, coords);
   return geometry;
+}
+
+/** Stands the columns of a geometry from `buildRelief` where `coords` now puts their corners. */
+export function placeRelief(geometry: BufferGeometry, coords: Coords): void {
+  const places = geometry.userData.places as Float32Array;
+  const positions = geometry.getAttribute('position') as BufferAttribute;
+  const array = positions.array as Float32Array;
+  const point: Point = { x: 0, y: 0, z: 0 };
+  for (let i = 0; i < places.length; i += 3) {
+    coords(places[i], places[i + 1], places[i + 2], point);
+    array[i] = point.x;
+    array[i + 1] = point.y;
+    array[i + 2] = point.z;
+  }
+  positions.needsUpdate = true;
 }

@@ -31,7 +31,7 @@ npm run dev
 | `src/format.ts` | Labels and place names shared by the parts |
 | `src/findings/` | The ranked findings list. Only the rows in and near the view are in the page. |
 | `src/evidence/` | The evidence view a finding opens into: its series chart, numbers, score and sources, and what a re-test on a second product found. `series.ts` finds a finding's series, `report.ts` writes a finding out as text for "Copy as text", `recompute.ts` asks the service to run a trend's cell again, and `worldview.ts` makes the link that opens the finding's cell in NASA Worldview. |
-| `src/globe/` | The 3D globe, its trend layer, markers, legend and the satellites on their orbits, and the rings and dashed outline for what the Detective points out. `field.ts` is what the layer shows, cell by cell: the trend, or one calendar year. `relief.ts` draws it as columns. `years.ts` and `YearBar.tsx` are the year-by-year view. `places.ts` and `PlaceSearch.tsx` take the globe to a place by name. |
+| `src/globe/` | The 3D globe, its trend layer, markers, legend and the satellites on their orbits, and the rings and dashed outline for what the Detective points out. `field.ts` is what the layer shows, cell by cell: the trend, or one calendar year. `relief.ts` draws it as columns. `stage.ts` is where a place is and where the view stands, for the tilt and the flat map, and `outlines.ts` draws the lines over the surface. `years.ts` and `YearBar.tsx` are the year-by-year view. `places.ts` and `PlaceSearch.tsx` take the globe to a place by name. |
 | `src/detective/` | The Detective chat, its call to `POST /ask`, and the list of what it looked up |
 | `src/scan/` | The "About this scan" panel: the run's settings and counts, the variables and their sources, and how the re-tests came out. `export.ts` writes the findings as CSV and GeoJSON. |
 | `src/zones/` | Zones: areas drawn on the globe, named and saved. `geometry.ts` works out a zone's grid cells, `store.ts` keeps the zones in the browser, `client.ts` asks the service for a zone's trends, and `ZonesPanel.tsx` and `ZoneSummaryView.tsx` show them. |
@@ -86,6 +86,25 @@ The "Relief" switch draws the chosen layer as columns. Each cell the layer would
 
 The columns are one mesh in the globe's scene (`relief.ts`), not react-globe.gl's points layer. That layer draws cylinders, which with four sides come out as diamonds turned 45 degrees to the grid and do not tile. The tallest column is 0.06 globe radii. The desktop app's is 0.09. Here it stops just under the lowest orbit drawn, the GPM Core Observatory at 0.064, so no column stands through a satellite's ring. A finding's marker and the chosen cell's outline are lifted to the top of the column. The dashed box for a Detective search stays on the surface.
 
+## Tilt and the flat map
+
+Two switches change how the globe is looked at, and nothing else. Neither changes a value, a colour or a finding.
+
+- "Tilt" leans the view over by up to 50 degrees, as the desktop app does, so that a column of the relief is seen from its side and not as a lid. Switching "Relief" on switches it on too. On the globe the view swings down about the place beneath it, and less far when it is a long way out, where a full tilt would drop the globe half out of the picture.
+- "Flat map" unrolls the globe into a flat map, 180° W to 180° E with north up, and rolls it up again. Drag the map to move it, and scroll or pinch to zoom. The layer, the columns, the markers, outlines and zones all go with it, and a zone can be drawn on it. The satellites are not shown on it, because their orbits are drawn round the globe, and their switch is disabled while it is on.
+
+Both are animated, and neither is when the browser asks for reduced motion.
+
+How it is built (`stage.ts`):
+
+- react-globe.gl draws a sphere and turns a camera about its centre. It has no tilt and no flat map. So the rest of the viewer asks the stage, not the library, for four things: a place's position (`coords`), its spot on screen (`screen`), the place under the pointer (`pick`) and a flight to somewhere (`flyTo`). Anything new on the globe must do the same, or it will stay behind when the globe unrolls.
+- `coords` takes the fold into account: 0 is the globe, 1 is the flat map. Between the two the sphere's radius grows, so the surface unrolls from the far side and distances along it stay what they were. The Earth's own mesh and the layer's are moved point by point, and the columns and outlines are placed again, each frame of the fold.
+- The library keeps its own camera and controls, and they still turn the globe. The scene is drawn through the stage's camera, which follows the library's and adds the tilt. On the flat map the library's controls are off and the stage moves its own camera from the pointer.
+- The outlines are the viewer's own lines (`outlines.ts`), not the library's paths, so that they fold too. Their thickness is in pixels.
+- On the flat map everything stands 2.5 times as far off the surface as on the globe, columns included. A column there is seen from much further away, and there is no orbit for it to stand through.
+
+The globe opens by growing and turning, which is the library's doing. The layer, the columns and the satellites' orbits are in the group it animates, so they open with it. The layer fades in over the same moment, the columns stand up from the surface when "Relief" is switched on, and the markers fade in once the globe has opened.
+
 ## Years
 
 The "Years" switch shows one calendar year at a time in place of the trend: each scanned cell's mean for that year against its own normal (the contract's "A variable year by year"). A bar over the bottom of the globe chooses the year. It can be dragged, clicked or moved with the arrow keys, and its play button steps a year every 650 ms and stops at the last. The desktop app does the same, with the same words on the legend.
@@ -132,6 +151,8 @@ The desktop app is the main one and gets new features first. This table is the s
 | Globe with a trend layer per variable, and its legend | Yes | Yes | No |
 | "Significant only" | Yes | Yes | No |
 | Relief: the layer as columns | Yes | Yes | No |
+| Tilt: the view leaned over to show the columns' height | Yes, by right-drag, and when Relief is switched on | Yes, by a switch, and when Relief is switched on | No |
+| Flat map: the globe unrolled, with everything on it | No | Yes | No |
 | Satellites on their orbits, the card about each, the switch | Yes | Yes | No |
 | A marker per cell with a finding | Every cell | The cells of the top 200 findings | No |
 | Ranked findings list | Yes | Yes, with only the rows near the view in the page | No |

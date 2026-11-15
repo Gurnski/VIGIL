@@ -19,9 +19,14 @@ import type { LayerField } from './field';
 import { GlobeLegend } from './GlobeLegend';
 import { YearBar } from './YearBar';
 import { paintLayer } from './layerTexture';
-import { buildRelief, reliefAltitudeAt } from './relief';
+import { OutlineSet } from './outlines';
+import type { Outline } from './outlines';
+import { buildRelief, placeRelief, reliefAltitudeAt } from './relief';
+import type { Coords } from './relief';
 import { satelliteCaveat, satellitesFor } from './satellite';
 import { SatelliteCard } from './SatelliteCard';
+import { GlobeStage } from './stage';
+import type { ScreenPoint } from './stage';
 import { useSatellites } from './useSatellites';
 import './globe.css';
 
@@ -34,6 +39,10 @@ export interface GlobeViewProps {
   significantOnly: boolean;
   /** Draw the layer's cells as columns, each as tall as its trend is large. Only with the layer shown. */
   relief: boolean;
+  /** Lean the view over, so that a column of the relief is seen from its side. */
+  tilt: boolean;
+  /** Unroll the globe into a flat map. */
+  flat: boolean;
   /**
    * The chosen variable year by year. When given, the layer shows one calendar year in place
    * of the trend, and a bar over the bottom of the globe chooses which. Null for the trend.
@@ -115,11 +124,15 @@ const BackgroundColour = '#131415'; // mirrors --background
 const AccentColour = '#e9e6df'; // mirrors --accent
 
 const LayerOpacity = 0.7;
+/** How long the layer takes to appear, and the columns of the relief to stand up. */
+const AppearMilliseconds = 700;
 /** The layer floats just clear of the surface so the two never fight for the same depth. */
 const LayerRadiusFactor = 1.002;
 const OutlineAltitude = 0.004;
-/** Outline thickness in degrees of arc: thin beside a 2.5° cell. */
-const OutlineStroke = 0.18;
+/** Outline thickness in pixels. */
+const OutlineWidth = 2;
+/** The thickest an outline gets: round a zone or a searched box that spans much of the globe. */
+const MaxOutlineWidth = 3.5;
 const MarkerAltitude = 0.006;
 const MaxMarkedFindings = 200;
 /** How many markers keep their label on show. More than this and the labels hide each other. */
@@ -141,24 +154,12 @@ const MaxHighlightMarks = 200;
 const MaxHighlightOutlines = 20;
 /** A searched box is drawn point by point, so its sides follow the parallels and meridians. */
 const BoxStepDegrees = 1;
-const BoxDashLength = 0.012;
-const BoxDashGap = 0.008;
 /** The key of the zone's name among the elements placed over the globe. */
 const ZoneLabelKey = 'zone:label';
 /** A press that moves less than this many pixels before it lifts is a click, not a drag of the globe. */
 const ClickSlopPixels = 6;
 /** A finger is less steady than a mouse, so a tap may wander further and still be a tap. */
 const TapSlopPixels = 12;
-
-/** A line drawn on the surface, or over the columns when the relief is on. */
-interface Outline {
-  /** Latitude, longitude and altitude in globe radii. */
-  points: [number, number, number][];
-  colour: string;
-  /** Thickness in degrees of arc. */
-  stroke: number;
-  dashed: boolean;
-}
 
 /** A ring round a cell the highlight points out. */
 interface HighlightMark {
@@ -183,10 +184,10 @@ interface Marker {
   finding: Finding;
 }
 
-// How the globe reads a point of an outline. Declared once, so the paths are not rebuilt on every draw.
-const pathLat = (point: number[]) => point[0];
-const pathLng = (point: number[]) => point[1];
-const pathAltitude = (point: number[]) => point[2];
+/** An outline round something this many degrees across: thicker for a larger one, which is seen from further away. */
+function widthFor(span: number): number {
+  return Math.min(MaxOutlineWidth, Math.max(OutlineWidth, span * 0.05));
+}
 
 /** The cell's bounds as a closed path of corners, at one altitude. */
 function cellOutline(cell: Cell, altitude: number): [number, number, number][] {
@@ -353,6 +354,8 @@ export function GlobeView({
   showLayer,
   significantOnly,
   relief,
+  tilt,
+  flat,
   years,
   cellMask = null,
   kind = null,
@@ -390,6 +393,23 @@ export function GlobeView({
     observer.observe(host);
     return () => observer.disconnect();
   }, []);
+
+  // ----- The stage: where a place is, folded or not, and where the view stands -----
+
+  const [stage, setStage] = useState<GlobeStage | null>(null);
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!ready || !globe) {
+      return;
+    }
+    const made = new GlobeStage(globe);
+    setStage(made);
+    return () => {
+      setStage(null);
+      made.dispose();
+    };
+  }, [ready]);
+  const coords = useMemo<Coords | null>(() => (stage ? (lat, lng, altitude, into) => stage.coords(lat, lng, altitude, into) : null), [stage]);
 
   // ----- Auto-rotation: slow, and over for good once the user touches the globe or picks a finding -----
 
@@ -458,11 +478,10 @@ export function GlobeView({
   // The sphere that carries the layer, built like three-globe's own globe mesh (a SphereGeometry
   // turned so the prime meridian faces +Z) so an equirectangular image lands on the same places.
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!ready || !globe) {
+    if (!stage) {
       return;
     }
-    const geometry = new SphereGeometry(globe.getGlobeRadius() * LayerRadiusFactor, 96, 48);
+    const geometry = new SphereGeometry(stage.radius * LayerRadiusFactor, 96, 48);
     const material = new MeshBasicMaterial({
       transparent: true,
       opacity: LayerOpacity,
@@ -472,20 +491,23 @@ export function GlobeView({
     const mesh = new Mesh(geometry, material);
     mesh.rotation.y = -Math.PI / 2;
     mesh.visible = false;
-    globe.scene().add(mesh);
+    // In the group the library animates, so the layer opens with the globe and folds with it.
+    stage.group.add(mesh);
+    const forget = stage.addSurface(mesh, LayerRadiusFactor - 1);
     layerMeshRef.current = mesh;
     return () => {
-      globe.scene().remove(mesh);
+      forget();
+      stage.group.remove(mesh);
       geometry.dispose();
       material.map?.dispose();
       material.dispose();
       layerMeshRef.current = null;
     };
-  }, [ready]);
+  }, [stage]);
 
   useEffect(() => {
     const mesh = layerMeshRef.current;
-    if (!ready || !mesh) {
+    if (!stage || !mesh) {
       return;
     }
     mesh.material.map?.dispose();
@@ -502,35 +524,103 @@ export function GlobeView({
       mesh.material.map = texture;
     }
     mesh.material.needsUpdate = true;
-  }, [ready, layerCanvas]);
+  }, [stage, layerCanvas]);
 
   const layerShown = showLayer && grid != null;
   // The relief is the layer drawn another way, so it takes the flat layer's place.
   const reliefShown = layerShown && relief;
+  // The layer fades in when it is first shown, as the globe opens, and each time it is switched back on.
   useEffect(() => {
-    if (layerMeshRef.current) {
-      layerMeshRef.current.visible = layerShown && !reliefShown;
+    const mesh = layerMeshRef.current;
+    if (!stage || !mesh) {
+      return;
     }
-  }, [ready, layerShown, reliefShown]);
+    mesh.visible = layerShown && !reliefShown;
+    if (!mesh.visible) {
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const appear = () => {
+      const t = Math.min(1, (performance.now() - start) / AppearMilliseconds);
+      mesh.material.opacity = LayerOpacity * t;
+      if (t < 1) {
+        frame = requestAnimationFrame(appear);
+      }
+    };
+    appear();
+    return () => {
+      cancelAnimationFrame(frame);
+      mesh.material.opacity = LayerOpacity;
+    };
+  }, [stage, layerShown, reliefShown]);
 
   // ----- Relief: the same cells as columns, in one mesh -----
 
+  // Set when the relief is switched on, and used up by the first columns drawn after it: they
+  // stand up from the surface. Columns drawn again for another year or variable are simply there.
+  const reliefAppearing = useRef(false);
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!ready || !globe || !reliefShown || !field) {
+    reliefAppearing.current = reliefShown;
+  }, [reliefShown]);
+
+  useEffect(() => {
+    if (!stage || !reliefShown || !field) {
       return;
     }
-    const geometry = buildRelief(field, (lat, lng, altitude) => globe.getCoords(lat, lng, altitude));
+    let grown = reliefAppearing.current ? 0 : 1;
+    reliefAppearing.current = false;
+    const place: Coords = (lat, lng, altitude, into) => stage.coords(lat, lng, altitude * grown, into);
+    const geometry = buildRelief(field, place);
     // Unlit, so a column's top is the legend's own colour whichever way the globe is turned.
     const material = new MeshBasicMaterial({ vertexColors: true, transparent: true });
     const mesh = new Mesh(geometry, material);
-    globe.scene().add(mesh);
+    // Its points move with the fold, so the bounds three.js would cull against go stale.
+    mesh.frustumCulled = false;
+    stage.group.add(mesh);
+    const unfold = stage.onFold(() => placeRelief(geometry, place));
+    let frame = 0;
+    if (grown < 1) {
+      const start = performance.now();
+      const grow = () => {
+        const t = Math.min(1, (performance.now() - start) / AppearMilliseconds);
+        grown = 1 - Math.pow(1 - t, 3);
+        placeRelief(geometry, place);
+        if (t < 1) {
+          frame = requestAnimationFrame(grow);
+        }
+      };
+      frame = requestAnimationFrame(grow);
+    }
     return () => {
-      globe.scene().remove(mesh);
+      cancelAnimationFrame(frame);
+      unfold();
+      stage.group.remove(mesh);
       geometry.dispose();
       material.dispose();
     };
-  }, [ready, reliefShown, field]);
+  }, [stage, reliefShown, field]);
+
+  // ----- Tilt and fold -----
+
+  useEffect(() => {
+    stage?.setTilt(tilt);
+  }, [stage, tilt]);
+
+  // True from the moment the globe starts to unroll until it is a globe again.
+  const [folded, setFolded] = useState(false);
+  useEffect(() => {
+    if (!stage) {
+      return;
+    }
+    if (flat) {
+      // A map does not turn by itself, and unrolling the globe is the person's doing as much as dragging it is.
+      stopRotation();
+      setFolded(true);
+    }
+    stage.setFlat(flat);
+    return stage.onSettled(() => setFolded(stage.folded));
+  }, [stage, flat, stopRotation]);
 
   /** How far above the surface something drawn on a place must sit to clear the column there. */
   const liftAt = useCallback(
@@ -610,11 +700,9 @@ export function GlobeView({
   // for the keyboard and screen readers and are only moved when the camera has.
   const markerElements = useRef(new Map<string, HTMLButtonElement>());
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!ready || !globe) {
+    if (!stage) {
       return;
     }
-    const radius = globe.getGlobeRadius();
     const placed = [
       ...markers.map((marker) => ({ cellId: marker.cellId, lat: marker.lat, lng: marker.lng })),
       ...highlightMarks.map((mark) => ({ cellId: mark.key, lat: mark.lat, lng: mark.lng })),
@@ -623,8 +711,7 @@ export function GlobeView({
       ...(sketch ?? []).map((point, index) => ({ cellId: `sketch:${index}`, lat: point[0], lng: point[1] })),
     ].map((marker) => {
       // With the relief on, a marker sits on top of its cell's column, not at its foot.
-      const altitude = MarkerAltitude + liftAt(marker.lat, marker.lng);
-      return { marker, altitude, position: globe.getCoords(marker.lat, marker.lng, altitude) };
+      return { marker, altitude: MarkerAltitude + liftAt(marker.lat, marker.lng) };
     });
     // The markers whose labels are on show, in the order their labels are placed: the chosen
     // marker's first, then in rank order. A label's width is measured once, the first time it is placed.
@@ -638,13 +725,13 @@ export function GlobeView({
     let frame = 0;
     let lastView = '';
     let settling = 0;
+    const screen: ScreenPoint = { x: 0, y: 0, visible: false };
     const place = () => {
       frame = requestAnimationFrame(place);
-      const camera = globe.camera().position;
-      const view = `${camera.x.toFixed(3)},${camera.y.toFixed(3)},${camera.z.toFixed(3)},${size.width},${size.height}`;
-      // The camera's matrices are only brought up to date when the scene is drawn, which can be
-      // after this runs. So the frame after the last move is placed too: without it, markers
-      // are left where the camera was one frame before it stopped, well off on a slow device.
+      const view = `${stage.version},${size.width},${size.height}`;
+      // The view is only brought up to date when the scene is drawn, which can be after this
+      // runs. So the frame after the last move is placed too: without it, markers are left
+      // where the camera was one frame before it stopped, well off on a slow device.
       if (view !== lastView) {
         lastView = view;
         settling = 2;
@@ -653,20 +740,17 @@ export function GlobeView({
       } else {
         settling--;
       }
-      globe.camera().updateMatrixWorld();
-      for (const { marker, altitude, position } of placed) {
+      for (const { marker, altitude } of placed) {
         const element = markerElements.current.get(marker.cellId);
         if (!element) {
           continue;
         }
-        // In front of the horizon as seen from the camera, not round the back of the globe.
-        const facing = position.x * camera.x + position.y * camera.y + position.z * camera.z;
-        const length = Math.hypot(position.x, position.y, position.z);
-        if (facing <= radius * length) {
+        // In front of the view, and not round the back of the globe.
+        stage.screen(marker.lat, marker.lng, altitude, screen);
+        if (!screen.visible) {
           element.style.visibility = 'hidden';
           continue;
         }
-        const screen = globe.getScreenCoords(marker.lat, marker.lng, altitude);
         element.style.visibility = 'visible';
         element.style.transform = `translate(${screen.x.toFixed(1)}px, ${screen.y.toFixed(1)}px) translate(-50%, -50%)`;
         const wanted = labelled.get(marker.cellId);
@@ -723,7 +807,7 @@ export function GlobeView({
     };
     place();
     return () => cancelAnimationFrame(frame);
-  }, [ready, markers, highlightMarks, zoneLabel, sketch, size, liftAt, selectedCell]);
+  }, [stage, markers, highlightMarks, zoneLabel, sketch, size, liftAt, selectedCell]);
 
   // ----- Satellites -----
 
@@ -739,8 +823,10 @@ export function GlobeView({
       ),
     [results],
   );
-  const openSatellite = showSatellites ? missionSatellites.find((satellite) => satellite.id === openSatelliteId) ?? null : null;
-  useSatellites(globeRef, ready, showSatellites, satelliteElements, missionSatellites);
+  // Their orbits are drawn round the globe, so they are not shown on the flat map.
+  const satellitesShown = showSatellites && !folded;
+  const openSatellite = satellitesShown ? missionSatellites.find((satellite) => satellite.id === openSatelliteId) ?? null : null;
+  useSatellites(stage, satellitesShown, satelliteElements, missionSatellites);
 
   // ----- Selection: outline the cell (and a contradiction's paired cell) and fly there -----
 
@@ -750,7 +836,7 @@ export function GlobeView({
     const solid = (cell: Cell) => {
       const centre = cellCentre(cell);
       const altitude = OutlineAltitude + liftAt(centre.lat, centre.lng);
-      lines.push({ points: cellOutline(cell, altitude), colour: AccentColour, stroke: OutlineStroke, dashed: false });
+      lines.push({ points: cellOutline(cell, altitude), colour: AccentColour, width: OutlineWidth, dashed: false });
     };
     if (selected) {
       solid(selected.cell);
@@ -768,25 +854,14 @@ export function GlobeView({
     if (highlight?.box) {
       const { box } = highlight;
       const span = Math.max(box.lat_max - box.lat_min, box.lon_max - box.lon_min);
-      // Thicker for a larger box, which is seen from further away.
-      lines.push({
-        points: boxOutline(box),
-        colour: AccentColour,
-        stroke: Math.min(0.6, Math.max(OutlineStroke, span * 0.01)),
-        dashed: true,
-      });
+      lines.push({ points: boxOutline(box), colour: AccentColour, width: widthFor(span), dashed: true });
     }
     if (zone && zone.polygon.length >= 3) {
       const box = zoneBox(zone.polygon);
       const span = Math.max(box.lat_max - box.lat_min, box.lon_max - box.lon_min);
-      lines.push({
-        points: zoneOutline(zone.polygon),
-        colour: AccentColour,
-        stroke: Math.min(0.6, Math.max(OutlineStroke, span * 0.01)),
-        dashed: false,
-      });
+      lines.push({ points: zoneOutline(zone.polygon), colour: AccentColour, width: widthFor(span), dashed: false });
       for (const [from, to] of zone.edges ?? []) {
-        lines.push({ points: straightLine(from, to, true), colour: AccentColour, stroke: OutlineStroke, dashed: true });
+        lines.push({ points: straightLine(from, to, true), colour: AccentColour, width: OutlineWidth, dashed: true });
       }
     }
     if (sketch && sketch.length >= 2) {
@@ -795,39 +870,53 @@ export function GlobeView({
       for (let i = 0; i < sketch.length - 1; i++) {
         points.push(...straightLine(sketch[i], sketch[i + 1], i === sketch.length - 2));
       }
-      lines.push({ points, colour: AccentColour, stroke: OutlineStroke * 1.5, dashed: false });
+      lines.push({ points, colour: AccentColour, width: OutlineWidth * 1.5, dashed: false });
     }
     return lines;
   }, [selected, highlight, highlightMarks, zone, sketch, liftAt]);
 
+  // Drawn as the viewer's own lines, in the group the globe is in, so they fold flat with the surface.
   useEffect(() => {
-    if (!ready || !selected) {
+    if (!stage || !coords) {
+      return;
+    }
+    const lines = new OutlineSet(stage.group);
+    lines.set(outlines, coords, stage.fold > 0);
+    const unfold = stage.onFold(() => lines.place(coords, stage.fold > 0));
+    return () => {
+      unfold();
+      lines.clear();
+    };
+  }, [stage, coords, outlines]);
+
+  useEffect(() => {
+    if (!stage || !selected) {
       return;
     }
     stopRotation();
-    globeRef.current?.pointOfView({ ...cellCentre(selected.cell), altitude: FlightAltitude }, FlightMilliseconds);
-  }, [ready, selected, stopRotation]);
+    stage.flyTo({ ...cellCentre(selected.cell), altitude: FlightAltitude }, FlightMilliseconds);
+  }, [stage, selected, stopRotation]);
 
   // A highlight is a new object every time something is pointed out, so each one flies once.
   const aspectRef = useRef(1);
   aspectRef.current = size.height > 0 ? size.width / size.height : 1;
   useEffect(() => {
-    const view = ready && highlight ? highlightView(highlight, aspectRef.current) : null;
-    if (!view) {
+    const view = stage && highlight ? highlightView(highlight, aspectRef.current) : null;
+    if (!stage || !view) {
       return;
     }
     stopRotation();
-    globeRef.current?.pointOfView(view, FlightMilliseconds);
-  }, [ready, highlight, stopRotation]);
+    stage.flyTo(view, FlightMilliseconds);
+  }, [stage, highlight, stopRotation]);
 
   // A place chosen by name: the globe frames its box.
   useEffect(() => {
-    const view = ready && goTo ? highlightView({ tone: 'read', title: '', findings: [], box: goTo }, aspectRef.current) : null;
-    if (view) {
+    const view = stage && goTo ? highlightView({ tone: 'read', title: '', findings: [], box: goTo }, aspectRef.current) : null;
+    if (stage && view) {
       stopRotation();
-      globeRef.current?.pointOfView(view, FlightMilliseconds);
+      stage.flyTo(view, FlightMilliseconds);
     }
-  }, [ready, goTo, stopRotation]);
+  }, [stage, goTo, stopRotation]);
 
   // The handlers are read as they are now, so laying a point does not take the listeners off and on.
   const sketching = sketch !== null;
@@ -835,8 +924,7 @@ export function GlobeView({
   onSketchPointRef.current = onSketchPoint;
   useEffect(() => {
     const host = hostRef.current;
-    const globe = globeRef.current;
-    if (!ready || !host || !globe || !sketching) {
+    if (!stage || !host || !sketching) {
       return;
     }
     stopRotation();
@@ -853,7 +941,7 @@ export function GlobeView({
         return;
       }
       const bounds = host.getBoundingClientRect();
-      const place = globe.toGlobeCoords(event.clientX - bounds.left, event.clientY - bounds.top);
+      const place = stage.pick(event.clientX - bounds.left, event.clientY - bounds.top);
       if (place) {
         onSketchPointRef.current?.(place.lat, place.lng);
       }
@@ -865,20 +953,20 @@ export function GlobeView({
       host.removeEventListener('pointerdown', onDown, true);
       host.removeEventListener('pointerup', onUp, true);
     };
-  }, [ready, sketching, stopRotation]);
+  }, [stage, sketching, stopRotation]);
 
   // A zone is flown to when it is first drawn. Declared after the flights above, so that a
   // finding and a zone shown together end on the zone, which holds the finding.
   useEffect(() => {
-    if (!ready || !zone || zone.polygon.length < 3) {
+    if (!stage || !zone || zone.polygon.length < 3) {
       return;
     }
     const view = highlightView({ tone: 'read', title: '', findings: [], box: zoneBox(zone.polygon) }, aspectRef.current);
     if (view) {
       stopRotation();
-      globeRef.current?.pointOfView(view, FlightMilliseconds);
+      stage.flyTo(view, FlightMilliseconds);
     }
-  }, [ready, zone, stopRotation]);
+  }, [stage, zone, stopRotation]);
 
   const selectedCellId = selected?.cell.id ?? null;
   const marked = highlight?.findings.length ?? 0;
@@ -894,19 +982,11 @@ export function GlobeView({
           globeImageUrl={earthImage}
           showAtmosphere={false}
           onGlobeReady={() => setReady(true)}
-          pathsData={outlines}
-          pathPoints="points"
-          pathColor={(outline: object) => (outline as Outline).colour}
-          pathStroke={(outline: object) => (outline as Outline).stroke}
-          pathDashLength={(outline: object) => ((outline as Outline).dashed ? BoxDashLength : 1)}
-          pathDashGap={(outline: object) => ((outline as Outline).dashed ? BoxDashGap : 0)}
-          pathPointLat={pathLat}
-          pathPointLng={pathLng}
-          pathPointAlt={pathAltitude}
-          pathTransitionDuration={0}
+          // Nothing drawn by the library is clicked or hovered: the markers are buttons of their own.
+          enablePointerInteraction={false}
         />
       )}
-      {ready && (
+      {stage && (
         <div
           className={
             'globe-markers' + (highlight ? ' globe-markers-highlighting' : '') + (sketching ? ' globe-markers-drawing' : '')
@@ -986,7 +1066,7 @@ export function GlobeView({
               {zone.name}
             </span>
           )}
-          {showSatellites &&
+          {satellitesShown &&
             missionSatellites.map((satellite) => (
               <button
                 type="button"

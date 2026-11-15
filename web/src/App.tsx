@@ -51,6 +51,9 @@ export function App() {
   const [showLayer, setShowLayer] = useState(true);
   const [significantOnly, setSignificantOnly] = useState(false);
   const [relief, setRelief] = useState(false);
+  // How the globe is looked at: leaned over, and unrolled into a flat map. Neither changes what is shown.
+  const [tilt, setTilt] = useState(false);
+  const [flat, setFlat] = useState(false);
   // Whether the layer shows one calendar year at a time in place of the trend.
   const [showYears, setShowYears] = useState(false);
   // Why the years were switched back off, when they could not be had.
@@ -433,9 +436,30 @@ export function App() {
           className={showLayer ? 'switch' : 'switch switch-disabled'}
           title="Draws each cell of the layer as a column. The taller the column, the larger the trend, rising or falling."
         >
-          <input type="checkbox" checked={relief} disabled={!showLayer} onChange={(event) => setRelief(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={relief}
+            disabled={!showLayer}
+            onChange={(event) => {
+              setRelief(event.target.checked);
+              if (event.target.checked) {
+                // Seen from straight above a column is only its lid, so the view leans over to show its height, as on the desktop.
+                setTilt(true);
+              }
+            }}
+          />
           <span className="track" aria-hidden="true" />
           Relief
+        </label>
+        <label className="switch" title="Leans the view over, so that a column of the relief is seen from its side.">
+          <input type="checkbox" checked={tilt} onChange={(event) => setTilt(event.target.checked)} />
+          <span className="track" aria-hidden="true" />
+          Tilt
+        </label>
+        <label className="switch" title="Unrolls the globe into a flat map. Drag the map to move it, and scroll or pinch to zoom.">
+          <input type="checkbox" checked={flat} onChange={(event) => setFlat(event.target.checked)} />
+          <span className="track" aria-hidden="true" />
+          Flat map
         </label>
         <label
           className={showLayer ? 'switch' : 'switch switch-disabled'}
@@ -453,8 +477,11 @@ export function App() {
           <span className="track" aria-hidden="true" />
           Years
         </label>
-        <label className="switch" title={satelliteCaveat}>
-          <input type="checkbox" checked={showSatellites} onChange={(event) => setShowSatellites(event.target.checked)} />
+        <label
+          className={flat ? 'switch switch-disabled' : 'switch'}
+          title={flat ? `Not shown on the flat map: the orbits are drawn round the globe. ${satelliteCaveat}` : satelliteCaveat}
+        >
+          <input type="checkbox" checked={showSatellites} disabled={flat} onChange={(event) => setShowSatellites(event.target.checked)} />
           <span className="track" aria-hidden="true" />
           Satellites
         </label>
@@ -487,6 +514,8 @@ export function App() {
             showLayer={showLayer}
             significantOnly={significantOnly}
             relief={relief}
+            tilt={tilt}
+            flat={flat}
             years={yearsState.status === 'ready' ? yearsState.years : null}
             cellMask={zones.mask}
             kind={kind}
