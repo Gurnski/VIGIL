@@ -6,9 +6,9 @@ The demo script, the presentation and the text of the written project page. All 
 |---|---|
 | `demo-script.md` | The live walk-through, screen by screen, with how to start the service and what to do when something fails |
 | `project-page.md` | Draft text for the written project page, with the re-test table, the known-answer check and the declarations |
-| `video/` | The 30-second demo video (`vigil-demo.mp4`) and the program that films it from the app |
+| `video/` | The 30-second demo video (`vigil-demo.mp4`), the looping clip of relief, tilt and the flat map that one slide plays (`vigil-views.mp4`), and the programs that film them from the app and the web viewer |
 | `slides/` | The source of the presentation: one HTML file per slide, with `deck.json` giving their order |
-| `stills/` | Pictures of the app on the frozen scan, taken while the video was filmed. The slides use the `slide-*.png` files, which are four of those stills cut down to the app's panels. `cover-earth.png` is the cover's Earth, drawn separately (see below). |
+| `stills/` | Pictures of the app on the frozen scan, taken while the video was filmed. The slides use the `slide-*.png` files, which are four of those stills cut down to the app's panels, and `slide-views.png`, a frame of `video/vigil-views.mp4`. `cover-earth.png` is the cover's Earth, drawn separately (see below). |
 | `checks/` | The scripts that were run on the scan before it was frozen, and what they printed |
 
 The presentation itself is a Claude artifact, and Dan has the link. `slides/` is a copy of what was published to it, kept here so the words are under version control. The pictures and the video on the slides are stored with the artifact, so the HTML files do not show them when opened alone.

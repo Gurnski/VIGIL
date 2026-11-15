@@ -5,12 +5,12 @@
   "format": { "v": 1, "shared": ["project/deck.css"] },
   "title": "VIGIL: Earth system trend detective",
   "cover": "cover",
-  "order": ["cover", "question", "film", "approach", "data", "numbers", "found", "evidence", "retest", "known", "see", "zones", "share", "detective", "limits", "built", "close"],
+  "order": ["cover", "question", "film", "approach", "data", "numbers", "found", "evidence", "retest", "known", "see", "views", "zones", "share", "detective", "limits", "built", "close"],
   "sections": {
     "why": { "description": "What VIGIL is and the question it answers.", "start": "cover" },
     "how": { "description": "How the scan works and what data it reads.", "start": "approach" },
     "results": { "description": "What the scan found, the evidence behind each finding, how each trend was re-tested, and how VIGIL does on places with a known answer.", "start": "numbers" },
-    "product": { "description": "What a person can do with it: see a change in relief and year by year, draw a zone, present to a room, export, ask the Detective.", "start": "see" },
+    "product": { "description": "What a person can do with it: see a change in relief and year by year, lean the view over or unroll the globe into a flat map, draw a zone, present to a room, export, ask the Detective.", "start": "see" },
     "trust": { "description": "What VIGIL does not claim, what was built this weekend and where AI was used.", "start": "limits" }
   },
   "faces": {

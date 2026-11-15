@@ -447,7 +447,8 @@ internal static class Film
                 Text(g, "VIGIL", height / 9f, Theme.TextPrimary, height * 0.34f, FontStyle.Bold);
                 Text(g, "Discovery first. Evidence for every finding.", height / 24f, Theme.TextSecondary, height * 0.47f);
                 Text(g, "Data: NASA MERRA-2, GPM IMERG, GLDAS, MODIS Terra and Aqua, GISTEMP, GPCP. Earthquakes: USGS.", height / 44f, Theme.TextMuted, height * 0.62f);
-                Text(g, "Every frame of this film is the app itself, showing the real scan.", height / 44f, Theme.TextMuted, height * 0.68f);
+                // The film as published has a shot of the web viewer spliced in (see ../web/), so the card names both.
+                Text(g, "Every frame of this film is VIGIL itself, the desktop app or its web viewer, showing the real scan.", height / 44f, Theme.TextMuted, height * 0.68f);
             });
 
         }
