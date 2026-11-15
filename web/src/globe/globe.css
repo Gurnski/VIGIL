@@ -193,10 +193,30 @@
 /* On a phone the globe is too small to carry the note as well as the rings, so the note sits
    along the bottom of the screen, over the findings. */
 @media (max-width: 899px) {
+  /* A finger needs more room round a dot than a pointer does. */
+  .globe-marker::before {
+    inset: -15px;
+  }
+
+  /* The legend leaves the globe: a strip along the bottom of the globe's area, where a tall screen leaves room under the sphere. */
+  .globe-legend {
+    top: auto;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    width: auto;
+  }
+
+  /* With the years on, their bar has the bottom edge, so the legend goes to the top. */
+  .globe-view:has(.year-bar) .globe-legend {
+    top: var(--space-3);
+    bottom: auto;
+  }
+
   .globe-shown {
     position: fixed;
     right: 0;
-    bottom: 0;
+    /* Above the tabs along the bottom of the screen. */
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     z-index: 5;
     width: auto;
