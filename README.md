@@ -1,6 +1,6 @@
 ![VIGIL, an Earth system trend detective. The top of the Earth, drawn by the app's own globe, under the name. Below it four figures from the scan: 25 years of records, 19,001 tests run, 5,450 significant after correction, and 6,122 findings.](docs/submission/poster/poster.png)
 
-Open it in a browser at [keepvigil.earth](https://keepvigil.earth), [download the Windows app](https://keepvigil.earth/download/VIGIL-win-x64.zip), or [watch the 30-second demo](docs/submission/video/vigil-demo.mp4).
+Open it in a browser at [keepvigil.earth](https://keepvigil.earth), or [download the Windows app](https://keepvigil.earth/download/VIGIL-win-x64.zip).
 
 # VIGIL
 
